@@ -1,0 +1,141 @@
+[package]
+name = "stream_server"
+version = "0.2.0"
+edition = "2021"
+authors = ["Stream Server Team <team@streamserver.com>"]
+description = "High-performance audio streaming server with advanced features"
+license = "MIT"
+repository = "https://github.com/your-org/veza-stream-server"
+default-run = "stream_server"
+
+[[bin]]
+name = "stream_server"
+path = "src/main.rs"
+
+[[bin]]
+name = "simple_stream_server"
+path = "src/simple_stream_server.rs"
+
+[dependencies]
+# Core web framework
+axum = { version = "0.7", features = ["macros", "multipart", "ws"] }
+axum-tungstenite = "0.1"
+tokio = { version = "1.0", features = ["full"] }
+tokio-tungstenite = "0.21"
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["fs", "cors", "compression-gzip", "compression-br", "trace", "timeout"] }
+hyper = { version = "1.0", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Async utilities
+futures = "0.3"
+futures-util = "0.3"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-appender = "0.2"
+
+# Audio processing
+symphonia = { version = "0.5", features = ["all"] }
+hound = "3.5"
+minimp3 = "0.5"
+rubato = "0.15"
+
+# FFT and signal processing
+rustfft = "6.2"
+apodize = "1.0"
+
+# Compression
+brotli = "3.4"
+lz4_flex = "0.11"
+zstd = "0.13"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+
+# Metadata extraction
+id3 = "1.13"
+metaflac = "0.2"
+
+# Memory management and optimization
+bytes = "1.5"
+memmap2 = "0.9"
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json", "stream"] }
+
+# Utilities
+uuid = { version = "1.6", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Cryptography and security
+sha2 = "0.10"
+hmac = "0.12"
+jsonwebtoken = "9.2"
+bcrypt = "0.15"
+
+# Configuration
+clap = { version = "4.4", features = ["derive"] }
+
+# Metrics and monitoring
+prometheus = { version = "0.13", optional = true }
+
+# File watching
+notify = "6.1"
+
+# Rate limiting
+governor = "0.6"
+
+# Environment variables
+dotenv = "0.15"
+
+# Regex
+regex = "1.10"
+
+# Random number generation
+rand = "0.8"
+
+# System information
+sysinfo = "0.30"
+
+# Process management
+daemonize = "0.5"
+
+# Validation et sécurité
+subtle = "2.5"
+mime_guess = "2.0"
+tokio-util = { version = "0.7", features = ["codec"] }
+headers = "0.4"
+axum-extra = { version = "0.9", features = ["typed-header"] }
+hex = "0.4"
+url = "2.5"
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.8"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+overflow-checks = true
+
+[features]
+default = ["tracing"]
+metrics = ["prometheus"]
+tracing = ["tracing-subscriber/json"]
+redis = []
+jaeger = []

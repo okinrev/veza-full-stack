@@ -1,0 +1,148 @@
+# Configuration Infrastructure Veza
+# Fichier de configuration centralisé pour tous les services
+
+infrastructure:
+  name: "veza-full-stack"
+  version: "1.0.0"
+  environment: "development"
+  
+network:
+  type: "incus-default"
+  bridge: "incusbr0"
+  subnet: "10.5.191.0/24"
+  
+load_balancer:
+  name: "veza-haproxy"
+  ip: "10.5.191.133"
+  ports:
+    http: 80
+    stats: 8404
+  stats_url: "http://10.5.191.133:8404/stats"
+
+containers:
+  frontend:
+    name: "veza-frontend"
+    ip: "10.5.191.41"
+    port: 5173
+    runtime: "nodejs"
+    version: "20.19.2"
+    type: "react-spa"
+    
+  backend:
+    name: "veza-backend"
+    ip: "10.5.191.241"
+    port: 8080
+    runtime: "go"
+    version: "1.21.5"
+    type: "rest-api"
+    
+  chat:
+    name: "veza-chat"
+    ip: "10.5.191.49"
+    port: 8081
+    runtime: "rust"
+    version: "1.87.0"
+    type: "websocket-server"
+    
+  stream:
+    name: "veza-stream"
+    ip: "10.5.191.196"
+    port: 8082
+    runtime: "rust"
+    version: "1.87.0"
+    type: "websocket-audio"
+    
+  postgres:
+    name: "veza-postgres"
+    ip: "10.5.191.134"
+    port: 5432
+    runtime: "postgresql"
+    version: "15"
+    type: "database"
+    
+  redis:
+    name: "veza-redis"
+    ip: "10.5.191.186"
+    port: 6379
+    runtime: "redis"
+    version: "7.0.15"
+    type: "cache"
+    
+  storage:
+    name: "veza-storage"
+    ip: "10.5.191.206"
+    port: 2049
+    runtime: "nfs"
+    type: "file-storage"
+
+services:
+  database:
+    host: "10.5.191.134"
+    port: 5432
+    name: "veza"
+    user: "veza"
+    password: "veza_password"
+    
+  cache:
+    host: "10.5.191.186"
+    port: 6379
+    
+  storage:
+    host: "10.5.191.206"
+    type: "nfs"
+    mounts:
+      - "/storage/uploads"
+      - "/storage/audio"
+      - "/storage/backups"
+      - "/storage/cache"
+
+routing:
+  rules:
+    - path: "/api"
+      backend: "veza_api"
+      target: "10.5.191.241:8080"
+      
+    - path: "/chat"
+      backend: "veza_chat"
+      target: "10.5.191.49:8081"
+      type: "websocket"
+      
+    - path: "/stream"
+      backend: "veza_stream"
+      target: "10.5.191.196:8082"
+      type: "websocket"
+      
+    - path: "/"
+      backend: "veza_frontend"
+      target: "10.5.191.41:5173"
+      default: true
+
+monitoring:
+  haproxy_stats: "http://10.5.191.133:8404/stats"
+  health_checks:
+    - name: "frontend"
+      url: "http://10.5.191.41:5173"
+      
+    - name: "backend"
+      url: "http://10.5.191.241:8080/api/health"
+      
+    - name: "chat"
+      url: "http://10.5.191.49:8081/chat/health"
+      
+    - name: "stream"
+      url: "http://10.5.191.196:8082/stream/health"
+
+deployment:
+  status: "infrastructure-ready"
+  next_steps:
+    - "Deploy source code"
+    - "Configure environment variables"
+    - "Initialize database schema"
+    - "Start application services"
+    
+  commands:
+    status: "./scripts/veza-manage.sh status"
+    test: "./scripts/veza-manage.sh test"
+    logs: "./scripts/veza-manage.sh logs [service]"
+    shell: "./scripts/veza-manage.sh shell [container]"
+    backup: "./scripts/veza-manage.sh backup" 

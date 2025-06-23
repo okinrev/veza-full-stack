@@ -1,0 +1,172 @@
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    container_name: veza-postgres
+    environment:
+      POSTGRES_DB: veza_db
+      POSTGRES_USER: veza_user
+      POSTGRES_PASSWORD: veza_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./migrate-existing-db.sql:/docker-entrypoint-initdb.d/migrate-existing-db.sql
+    networks:
+      - veza-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veza_user -d veza_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Cache Redis
+  redis:
+    image: redis:7-alpine
+    container_name: veza-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - veza-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend API Go
+  backend-api:
+    build:
+      context: ./veza-backend-api
+      dockerfile: Dockerfile
+    container_name: veza-backend-api
+    environment:
+      - DATABASE_URL=postgres://veza_user:veza_password@postgres:5432/veza_db?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8080
+      - ENVIRONMENT=development
+      - CHAT_SERVER_URL=http://chat-server:8081
+      - STREAM_SERVER_URL=http://stream-server:8082
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - veza-network
+    volumes:
+      - ./uploads:/app/uploads
+      - ./logs:/app/logs
+
+  # Chat Server Rust
+  chat-server:
+    build:
+      context: ./veza-chat-server
+      dockerfile: Dockerfile
+    container_name: veza-chat-server
+    environment:
+      - DATABASE_URL=postgres://veza_user:veza_password@postgres:5432/veza_db?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8081
+      - RUST_LOG=chat_server=info,tower_http=debug
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - veza-network
+    volumes:
+      - ./logs:/app/logs
+
+  # Stream Server Rust
+  stream-server:
+    build:
+      context: ./veza-stream-server
+      dockerfile: Dockerfile
+    container_name: veza-stream-server
+    environment:
+      - DATABASE_URL=postgres://veza_user:veza_password@postgres:5432/veza_db?sslmode=disable
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - PORT=8082
+      - AUDIO_DIR=/app/audio
+      - RUST_LOG=stream_server=info,tower_http=debug
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8080
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - veza-network
+    volumes:
+      - ./audio:/app/audio
+      - ./logs:/app/logs
+
+  # Frontend React (pour production)
+  frontend:
+    build:
+      context: ./veza-frontend
+      dockerfile: Dockerfile
+    container_name: veza-frontend
+    environment:
+      - VITE_API_URL=http://localhost:8080/api/v1
+      - VITE_WS_CHAT_URL=ws://localhost:8081/ws
+      - VITE_WS_STREAM_URL=ws://localhost:8082/ws
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend-api
+    networks:
+      - veza-network
+
+  # Load Balancer HAProxy avec fonctionnalités avancées
+  haproxy:
+    image: haproxy:2.8-alpine
+    container_name: veza-haproxy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8404:8404"  # Interface d'administration
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./haproxy-errors:/etc/haproxy/errors:ro
+      - ./ssl:/etc/ssl/certs:ro
+      - haproxy_socket:/var/run/haproxy
+    depends_on:
+      - backend-api
+      - chat-server
+      - stream-server
+      - frontend
+    networks:
+      - veza-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8404/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    labels:
+      - "traefik.enable=false"
+
+networks:
+  veza-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  haproxy_socket: 

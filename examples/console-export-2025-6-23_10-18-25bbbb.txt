@@ -1,0 +1,151 @@
+[API] GET /api/v1/auth/me 
+Object { headers: {…}, data: undefined }
+index-CRcoP8Bw.js:42:5248
+[API] Erreur de réponse: 
+Object { status: undefined, data: undefined, url: "/api/v1/auth/me" }
+index-CRcoP8Bw.js:42:5642
+Erreur lors de la vérification d'authentification: 
+Object { message: "Network Error", code: undefined, details: undefined }
+index-CRcoP8Bw.js:42:9384
+[API] POST /api/v1/auth/logout 
+Object { headers: {…}, data: {…} }
+index-CRcoP8Bw.js:42:5248
+[API] Erreur de réponse: 
+Object { status: undefined, data: undefined, url: "/api/v1/auth/logout" }
+index-CRcoP8Bw.js:42:5642
+Erreur lors de la déconnexion: 
+Object { message: "Network Error", code: undefined, details: undefined }
+index-CRcoP8Bw.js:42:8520
+Password fields present on an insecure (http://) page. This is a security risk that allows user login credentials to be stolen. login
+[API] POST /api/v1/auth/login 
+Object { headers: {…}, data: {…} }
+index-CRcoP8Bw.js:42:5248
+[API] Erreur de réponse: 
+Object { status: undefined, data: undefined, url: "/api/v1/auth/login" }
+index-CRcoP8Bw.js:42:5642
+Erreur de connexion: Error: Erreur de connexion
+    login http://10.5.191.133/assets/index-CRcoP8Bw.js:42
+    m http://10.5.191.133/assets/LoginPage-B8WaYSrU.js:1
+    Rf http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Lf http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Tf http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    $i http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Ns http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    ql http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Ku http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:32
+    qa http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    ql http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Su http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Kf http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Ls http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Zl http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Gn http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    Gn http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:29
+    createRoot http://10.5.191.133/assets/react-vendor-BVHFRSE5.js:32
+    <anonymous> http://10.5.191.133/assets/index-CRcoP8Bw.js:42
+LoginPage-B8WaYSrU.js:1:524
+Password fields present on an insecure (http://) page. This is a security risk that allows user login credentials to be stolen. login
+[API] POST /api/v1/auth/login 
+Object { headers: {…}, data: {…} }
+index-CRcoP8Bw.js:42:5248
+[API] Réponse 200: 
+Object { success: true, data: {…}, message: "Login successful" }
+index-CRcoP8Bw.js:42:5468
+🔄 Initialisation du chat... ChatPage-DFZCHQYL.js:21:42180
+[Chat Service] Authentification validée pour: TestUserFull ChatPage-DFZCHQYL.js:21:36545
+[Chat Service] Chargement des rooms... ChatPage-DFZCHQYL.js:21:36792
+[Chat API] Récupération des rooms... ChatPage-DFZCHQYL.js:21:29005
+[Chat Service] Chargement des conversations... ChatPage-DFZCHQYL.js:21:37052
+[Chat API] Récupération des conversations... ChatPage-DFZCHQYL.js:21:28686
+[Chat Service] Chargement compteur non lus... ChatPage-DFZCHQYL.js:21:37350
+[Chat API] Récupération compteur non lus... ChatPage-DFZCHQYL.js:21:30796
+[API] GET /api/v1/chat/rooms 
+Object { headers: {…}, data: undefined }
+index-CRcoP8Bw.js:42:5248
+[API] GET /api/v1/chat/conversations 
+Object { headers: {…}, data: undefined }
+index-CRcoP8Bw.js:42:5248
+[API] GET /api/v1/chat/unread 
+Object { headers: {…}, data: undefined }
+index-CRcoP8Bw.js:42:5248
+[API] Réponse 200: 
+Object { unread_count: 0, user_id: 16 }
+index-CRcoP8Bw.js:42:5468
+[Chat API] Compteur non lus reçu: 
+Object { unread_count: 0, user_id: 16 }
+ChatPage-DFZCHQYL.js:21:30897
+[Chat Service] Messages non lus: 0 ChatPage-DFZCHQYL.js:21:37477
+[API] Réponse 200: 
+Object { conversations: (2) […] }
+index-CRcoP8Bw.js:42:5468
+[Chat API] Conversations reçues: 
+Object { conversations: (2) […] }
+ChatPage-DFZCHQYL.js:21:28795
+[Chat Service] Conversations chargées: 2 ChatPage-DFZCHQYL.js:21:37182
+[API] Réponse 200: 
+Object { rooms: (3) […] }
+index-CRcoP8Bw.js:42:5468
+[Chat API] Rooms reçues: 
+Object { rooms: (3) […] }
+ChatPage-DFZCHQYL.js:21:29098
+[Chat Service] Rooms chargées: 3 ChatPage-DFZCHQYL.js:21:36898
+[Chat Service] Connexion WebSocket... ChatPage-DFZCHQYL.js:21:37636
+[Chat WebSocket] Connexion à: ws://10.5.191.133/ws/chat?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwidXNlcm5hbWUiOiJUZXN0VXNlckZ1bGwiLCJyb2xlIjoidXNlciIsImV4cCI6MTc1MDY3MDI5MywiaWF0IjoxNzUwNjY2NjkzfQ.r9CfthzJhRwApy3IAGJ6RmGYoHDO8_JYyabzENhfLek ChatPage-DFZCHQYL.js:21:32353
+GET
+ws://10.5.191.133/ws/chat?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwidXNlcm5hbWUiOiJUZXN0VXNlckZ1bGwiLCJyb2xlIjoidXNlciIsImV4cCI6MTc1MDY3MDI5MywiaWF0IjoxNzUwNjY2NjkzfQ.r9CfthzJhRwApy3IAGJ6RmGYoHDO8_JYyabzENhfLek
+[HTTP/1.1 401 Unauthorized 4ms]
+
+Firefox can’t establish a connection to the server at ws://10.5.191.133/ws/chat?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwidXNlcm5hbWUiOiJUZXN0VXNlckZ1bGwiLCJyb2xlIjoidXNlciIsImV4cCI6MTc1MDY3MDI5MywiaWF0IjoxNzUwNjY2NjkzfQ.r9CfthzJhRwApy3IAGJ6RmGYoHDO8_JYyabzENhfLek. ChatPage-DFZCHQYL.js:21:32400
+[Chat WebSocket] Erreur: 
+error { target: WebSocket, isTrusted: true, srcElement: WebSocket, currentTarget: WebSocket, eventPhase: 2, bubbles: false, cancelable: false, returnValue: true, defaultPrevented: false, composed: false, … }
+ChatPage-DFZCHQYL.js:21:32847
+[Chat WebSocket] Événement émis: error 
+Object { message: "Erreur de connexion WebSocket" }
+ChatPage-DFZCHQYL.js:21:31777
+[Chat Service] Erreur WebSocket: 
+Object { message: "Erreur de connexion WebSocket" }
+ChatPage-DFZCHQYL.js:21:39325
+[Chat Service] Échec connexion WebSocket ChatPage-DFZCHQYL.js:21:37871
+❌ Échec de l'initialisation du chat ChatPage-DFZCHQYL.js:21:42291
+[Chat WebSocket] Connexion fermée: 1006 <empty string> ChatPage-DFZCHQYL.js:21:32612
+[Chat WebSocket] Événement émis: disconnected undefined ChatPage-DFZCHQYL.js:21:31777
+[Chat Service] WebSocket déconnecté ChatPage-DFZCHQYL.js:21:38204
+[Chat WebSocket] Tentative de reconnexion 1/5 dans 3000ms ChatPage-DFZCHQYL.js:21:33351
+[Chat WebSocket] Connexion à: ws://10.5.191.133/ws/chat?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwidXNlcm5hbWUiOiJUZXN0VXNlckZ1bGwiLCJyb2xlIjoidXNlciIsImV4cCI6MTc1MDY3MDI5MywiaWF0IjoxNzUwNjY2NjkzfQ.r9CfthzJhRwApy3IAGJ6RmGYoHDO8_JYyabzENhfLek ChatPage-DFZCHQYL.js:21:32353
+GET
+ws://10.5.191.133/ws/chat?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwidXNlcm5hbWUiOiJUZXN0VXNlckZ1bGwiLCJyb2xlIjoidXNlciIsImV4cCI6MTc1MDY3MDI5MywiaWF0IjoxNzUwNjY2NjkzfQ.r9CfthzJhRwApy3IAGJ6RmGYoHDO8_JYyabzENhfLek
+[HTTP/1.1 401 Unauthorized 2ms]
+
+Firefox can’t establish a connection to the server at ws://10.5.191.133/ws/chat?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwidXNlcm5hbWUiOiJUZXN0VXNlckZ1bGwiLCJyb2xlIjoidXNlciIsImV4cCI6MTc1MDY3MDI5MywiaWF0IjoxNzUwNjY2NjkzfQ.r9CfthzJhRwApy3IAGJ6RmGYoHDO8_JYyabzENhfLek. ChatPage-DFZCHQYL.js:21:32400
+[Chat WebSocket] Erreur: 
+error { target: WebSocket, isTrusted: true, srcElement: WebSocket, currentTarget: WebSocket, eventPhase: 2, bubbles: false, cancelable: false, returnValue: true, defaultPrevented: false, composed: false, … }
+ChatPage-DFZCHQYL.js:21:32847
+[Chat WebSocket] Événement émis: error 
+Object { message: "Erreur de connexion WebSocket" }
+ChatPage-DFZCHQYL.js:21:31777
+[Chat Service] Erreur WebSocket: 
+Object { message: "Erreur de connexion WebSocket" }
+ChatPage-DFZCHQYL.js:21:39325
+[Chat WebSocket] Connexion fermée: 1006 <empty string> ChatPage-DFZCHQYL.js:21:32612
+[Chat WebSocket] Événement émis: disconnected undefined ChatPage-DFZCHQYL.js:21:31777
+[Chat Service] WebSocket déconnecté ChatPage-DFZCHQYL.js:21:38204
+[Chat WebSocket] Tentative de reconnexion 2/5 dans 6000ms ChatPage-DFZCHQYL.js:21:33351
+[Chat WebSocket] Connexion à: ws://10.5.191.133/ws/chat?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwidXNlcm5hbWUiOiJUZXN0VXNlckZ1bGwiLCJyb2xlIjoidXNlciIsImV4cCI6MTc1MDY3MDI5MywiaWF0IjoxNzUwNjY2NjkzfQ.r9CfthzJhRwApy3IAGJ6RmGYoHDO8_JYyabzENhfLek ChatPage-DFZCHQYL.js:21:32353
+GET
+ws://10.5.191.133/ws/chat?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwidXNlcm5hbWUiOiJUZXN0VXNlckZ1bGwiLCJyb2xlIjoidXNlciIsImV4cCI6MTc1MDY3MDI5MywiaWF0IjoxNzUwNjY2NjkzfQ.r9CfthzJhRwApy3IAGJ6RmGYoHDO8_JYyabzENhfLek
+[HTTP/1.1 401 Unauthorized 5ms]
+
+Firefox can’t establish a connection to the server at ws://10.5.191.133/ws/chat?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxNiwidXNlcm5hbWUiOiJUZXN0VXNlckZ1bGwiLCJyb2xlIjoidXNlciIsImV4cCI6MTc1MDY3MDI5MywiaWF0IjoxNzUwNjY2NjkzfQ.r9CfthzJhRwApy3IAGJ6RmGYoHDO8_JYyabzENhfLek. ChatPage-DFZCHQYL.js:21:32400
+[Chat WebSocket] Erreur: 
+error { target: WebSocket, isTrusted: true, srcElement: WebSocket, currentTarget: WebSocket, eventPhase: 2, bubbles: false, cancelable: false, returnValue: true, defaultPrevented: false, composed: false, … }
+ChatPage-DFZCHQYL.js:21:32847
+[Chat WebSocket] Événement émis: error 
+Object { message: "Erreur de connexion WebSocket" }
+ChatPage-DFZCHQYL.js:21:31777
+[Chat Service] Erreur WebSocket: 
+Object { message: "Erreur de connexion WebSocket" }
+ChatPage-DFZCHQYL.js:21:39325
+[Chat WebSocket] Connexion fermée: 1006 <empty string> ChatPage-DFZCHQYL.js:21:32612
+[Chat WebSocket] Événement émis: disconnected undefined ChatPage-DFZCHQYL.js:21:31777
+[Chat Service] WebSocket déconnecté ChatPage-DFZCHQYL.js:21:38204
+[Chat WebSocket] Tentative de reconnexion 3/5 dans 9000ms ChatPage-DFZCHQYL.js:21:33351

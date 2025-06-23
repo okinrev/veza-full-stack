@@ -1,0 +1,8 @@
+[package]
+name = "test_veza_db"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "macros", "time"] }
+tokio = { version = "1", features = ["full"] }
