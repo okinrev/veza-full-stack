@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>🎵 Talas — Upload de pistes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-50 text-gray-800 font-sans" x-data="trackUploadApp()" x-init="init()">
+  <div class="max-w-6xl mx-auto p-6 space-y-8">
+    <!-- Header avec navigation -->
+    <header class="flex items-center justify-between bg-white rounded-lg shadow p-6">
+      <h1 class="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        🎵 Talas — Upload
+      </h1>
+      <div class="flex items-center gap-4">
+        <span class="text-sm text-gray-600">👤 <span x-text="username"></span></span>
+        <button @click="logout()" class="text-sm text-red-600 hover:underline">Déconnexion</button>
+      </div>
+    </header>
+
+    <!-- Statistiques -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="text-3xl font-bold text-blue-600" x-text="stats.totalTracks"></div>
+        <div class="text-sm text-gray-600">Pistes totales</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="text-3xl font-bold text-green-600" x-text="stats.myTracks"></div>
+        <div class="text-sm text-gray-600">Mes pistes</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="text-3xl font-bold text-purple-600" x-text="stats.totalPlays"></div>
+        <div class="text-sm text-gray-600">Lectures totales</div>
+      </div>
+      <div class="bg-white rounded-lg shadow p-4 text-center">
+        <div class="text-3xl font-bold text-orange-600" x-text="stats.popularGenre"></div>
+        <div class="text-sm text-gray-600">Genre populaire</div>
+      </div>
+    </div>
+
+    <!-- Onglets navigation -->
+    <nav class="bg-white rounded-lg shadow p-2 flex flex-wrap gap-2">
+      <button 
+        @click="activeTab = 'upload'" 
+        :class="activeTab === 'upload' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        class="px-4 py-2 rounded-md transition-colors font-medium text-sm"
+      >
+        📤 Upload de piste
+      </button>
+      <button 
+        @click="activeTab = 'all'" 
+        :class="activeTab === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        class="px-4 py-2 rounded-md transition-colors font-medium text-sm"
+      >
+        🎵 Toutes les pistes
+      </button>
+      <button 
+        @click="activeTab = 'my'" 
+        :class="activeTab === 'my' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        class="px-4 py-2 rounded-md transition-colors font-medium text-sm"
+      >
+        📁 Mes pistes
+      </button>
+      <button 
+        @click="activeTab = 'recent'" 
+        :class="activeTab === 'recent' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+        class="px-4 py-2 rounded-md transition-colors font-medium text-sm"
+      >
+        🕐 Récentes
+      </button>
+    </nav>
+
+    <!-- Section d'upload -->
+    <section x-show="activeTab === 'upload'" class="bg-white rounded-lg shadow p-6 space-y-4" x-transition>
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-semibold">🎵 Ajouter une nouvelle piste</h2>
+      </div>
+      
+      <form @submit.prevent="uploadTrack()" class="space-y-4">
+        <!-- Zone de drag & drop -->
+        <div 
+          @dragover.prevent="dragOver = true"
+          @dragleave.prevent="dragOver = false"
+          @drop.prevent="handleDrop($event)"
+          :class="dragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300'"
+          class="border-2 border-dashed rounded-lg p-8 text-center transition-colors"
+        >
+          <div class="space-y-2">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+            </svg>
+            <div class="text-sm text-gray-600">
+              <label for="audioInput" class="relative cursor-pointer rounded-md font-medium text-blue-600 hover:text-blue-500">
+                <span>Cliquez pour sélectionner un fichier audio</span>
+                <input id="audioInput" name="audio" type="file" accept="audio/*" class="sr-only" @change="handleFileSelect($event)" required>
+              </label>
+              <span> ou glissez-déposez</span>
+            </div>
+            <p class="text-xs text-gray-500">Formats supportés: MP3, WAV, FLAC, OGG (max 100MB)</p>
+          </div>
+          <div x-show="uploadForm.file" class="mt-4 text-sm text-gray-600">
+            🎵 <span x-text="uploadForm.file?.name"></span> (<span x-text="formatFileSize(uploadForm.file?.size)"></span>)
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <input 
+            type="text" 
+            x-model="uploadForm.title" 
+            placeholder="Titre de la piste *" 
+            required 
+            class="border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+          <input 
+            type="text" 
+            x-model="uploadForm.artist" 
+            placeholder="Nom de l'artiste *" 
+            required 
+            class="border rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+        </div>
+
+        <!-- Tags améliorés -->
+        <div class="space-y-2">
+          <label class="block text-sm font-medium text-gray-700">Tags musicaux (max 5)</label>
+          <div class="flex flex-wrap gap-2 min-h-[32px] p-2 border rounded-lg bg-gray-50">
+            <template x-for="tag in uploadForm.selectedTags" :key="tag">
+              <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-700">
+                <span x-text="tag"></span>
+                <button @click="removeTag(tag)" type="button" class="hover:text-blue-900">✕</button>
+              </span>
+            </template>
+            <input 
+              x-show="uploadForm.selectedTags.length < 5"
+              x-model="tagInput"
+              @input="searchTags()"
+              @keydown.enter.prevent="addTagFromInput()"
+              type="text" 
+              placeholder="Ajouter un tag (genre, BPM, tonalité...)"
+              class="flex-1 min-w-[120px] bg-transparent border-0 focus:outline-none text-sm"
+            >
+          </div>
+          <!-- Suggestions de tags -->
+          <div x-show="tagSuggestions.length > 0" class="relative">
+            <div class="absolute z-10 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              <template x-for="suggestion in tagSuggestions" :key="suggestion">
+                <button 
+                  @click="addTag(suggestion)" 
+                  type="button"
+                  class="w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  x-text="suggestion"
+                ></button>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barre de progression -->
+        <div x-show="uploadProgress > 0" class="space-y-2">
+          <div class="flex justify-between text-sm text-gray-600">
+            <span>Upload en cours...</span>
+            <span x-text="uploadProgress + '%'"></span>
+          </div>
+          <div class="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              class="bg-blue-600 h-2 rounded-full transition-all duration-300"
+              :style="'width: ' + uploadProgress + '%'"
+            ></div>
+          </div>
+        </div>
+
+        <div class="flex gap-4">
+          <button 
+            type="submit" 
+            :disabled="uploading"
+            class="flex-1 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <span x-show="!uploading">🎵 Ajouter la piste</span>
+            <span x-show="uploading">⏳ Upload en cours...</span>
+          </button>
+          <button 
+            @click="resetUploadForm()" 
+            type="button"
+            class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Réinitialiser
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Recherche et filtres -->
+    <section x-show="activeTab !== 'upload'" class="bg-white rounded-lg shadow p-6" x-transition>
+      <h2 class="text-xl font-semibold mb-4">🔎 Recherche et filtres</h2>
+      
+      <div class="space-y-4">
+        <!-- Barre de recherche principale -->
+        <div class="relative">
+          <input 
+            x-model="search.query"
+            @input="performSearch()"
+            type="text" 
+            placeholder="Rechercher par titre, artiste, tag..."
+            class="w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+          <svg class="absolute left-3 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+          </svg>
+        </div>
+
+        <!-- Tags populaires -->
+        <div class="space-y-2">
+          <h3 class="text-sm font-medium text-gray-700">Tags populaires</h3>
+          <div class="flex flex-wrap gap-2">
+            <template x-for="tag in popularTags" :key="tag">
+              <button 
+                @click="toggleFilter('tag', tag)"
+                :class="search.filters.tag === tag ? 'bg-purple-600 text-white' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'"
+                class="px-3 py-1 rounded-full text-sm transition-colors"
+              >
+                #<span x-text="tag"></span>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <!-- Tri -->
+        <div class="flex items-center gap-4">
+          <label class="text-sm font-medium text-gray-700">Trier par:</label>
+          <select 
+            x-model="search.sort"
+            @change="performSearch()"
+            class="border rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="recent">Plus récents</option>
+            <option value="alphabetical">Alphabétique</option>
+            <option value="artist">Par artiste</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- Liste des pistes -->
+    <section x-show="activeTab !== 'upload'" class="space-y-4" x-transition>
+      <div class="flex justify-between items-center">
+        <h2 class="text-xl font-semibold">
+          🎵 Pistes 
+          <span class="text-sm text-gray-500">(<span x-text="filteredTracks.length"></span> résultats)</span>
+        </h2>
+        <div class="flex gap-2">
+          <button 
+            @click="viewMode = 'grid'"
+            :class="viewMode === 'grid' ? 'bg-gray-200' : ''"
+            class="p-2 rounded hover:bg-gray-100"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+            </svg>
+          </button>
+          <button 
+            @click="viewMode = 'list'"
+            :class="viewMode === 'list' ? 'bg-gray-200' : ''"
+            class="p-2 rounded hover:bg-gray-100"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Vue grille -->
+      <div x-show="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <template x-for="track in paginatedTracks" :key="track.id">
+          <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-4 space-y-3">
+            <!-- En-tête de la carte -->
+            <div class="flex justify-between items-start">
+              <div class="flex-1">
+                <h3 class="font-bold text-lg" x-text="track.title"></h3>
+                <p class="text-sm text-gray-600">
+                  par <span class="font-medium" x-text="track.artist"></span>
+                </p>
+              </div>
+              <button 
+                @click="toggleFavorite(track.id)"
+                :class="isFavorite(track.id) ? 'text-yellow-500' : 'text-gray-400'"
+                class="hover:scale-110 transition-transform"
+              >
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Tags -->
+            <div class="flex flex-wrap gap-1">
+              <template x-for="tag in track.tags" :key="tag">
+                <span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">#<span x-text="tag"></span></span>
+              </template>
+            </div>
+
+            <!-- Lecteur audio intégré -->
+            <div class="w-full">
+              <audio 
+                :id="'player-' + track.id"
+                controls 
+                class="w-full h-8"
+                x-ref="player"
+                style="display: none;"
+              >
+                Votre navigateur ne supporte pas l'audio HTML5.
+              </audio>
+              <button 
+                @click="playTrack(track)"
+                class="w-full bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 transition-colors text-sm"
+              >
+                🎧 Lire la piste
+              </button>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-2 pt-2 border-t">
+              <button 
+                @click="shareTrack(track)"
+                class="flex-1 text-sm bg-gray-100 text-gray-700 px-3 py-2 rounded hover:bg-gray-200 transition-colors"
+              >
+                🔗 Partager
+              </button>
+              <button 
+                @click="downloadTrack(track)"
+                class="flex-1 text-sm bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition-colors"
+              >
+                ⬇️ Télécharger
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Vue liste -->
+      <div x-show="viewMode === 'list'" class="bg-white rounded-lg shadow divide-y">
+        <template x-for="track in paginatedTracks" :key="track.id">
+          <div class="p-4 hover:bg-gray-50 transition-colors">
+            <div class="flex items-center gap-4">
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <h3 class="font-semibold" x-text="track.title"></h3>
+                  <span class="text-sm text-gray-500">par <span x-text="track.artist"></span></span>
+                </div>
+                <div class="flex flex-wrap gap-1 mt-1">
+                  <template x-for="tag in track.tags" :key="tag">
+                    <span class="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">#<span x-text="tag"></span></span>
+                  </template>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button 
+                  @click="toggleFavorite(track.id)"
+                  :class="isFavorite(track.id) ? 'text-yellow-500' : 'text-gray-400'"
+                  class="p-2 hover:bg-gray-100 rounded"
+                >
+                  ⭐
+                </button>
+                <button 
+                  @click="playTrack(track)"
+                  class="p-2 hover:bg-gray-100 rounded"
+                >
+                  🎧
+                </button>
+                <button 
+                  @click="shareTrack(track)"
+                  class="p-2 hover:bg-gray-100 rounded"
+                >
+                  🔗
+                </button>
+                <button 
+                  @click="downloadTrack(track)"
+                  class="p-2 hover:bg-gray-100 rounded"
+                >
+                  ⬇️
+                </button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Pagination -->
+      <div x-show="totalPages > 1" class="flex justify-center gap-2 mt-6">
+        <button 
+          @click="currentPage = Math.max(1, currentPage - 1)"
+          :disabled="currentPage === 1"
+          class="px-3 py-1 rounded border disabled:opacity-50"
+        >
+          ←
+        </button>
+        <template x-for="page in visiblePages" :key="page">
+          <button 
+            @click="currentPage = page"
+            :class="currentPage === page ? 'bg-blue-600 text-white' : 'bg-white'"
+            class="px-3 py-1 rounded border"
+            x-text="page"
+          ></button>
+        </template>
+        <button 
+          @click="currentPage = Math.min(totalPages, currentPage + 1)"
+          :disabled="currentPage === totalPages"
+          class="px-3 py-1 rounded border disabled:opacity-50"
+        >
+          →
+        </button>
+      </div>
+    </section>
+
+    <!-- Notifications -->
+    <div class="fixed bottom-4 right-4 space-y-2 z-50">
+      <template x-for="notification in notifications" :key="notification.id">
+        <div 
+          x-show="notification.show"
+          x-transition
+          :class="notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'"
+          class="text-white px-6 py-3 rounded-lg shadow-lg"
+        >
+          <span x-text="notification.message"></span>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <script>
+    function trackUploadApp() {
+        return {
+            // État principal
+            username: '',
+            tracks: [],
+            filteredTracks: [],
+            favorites: JSON.parse(localStorage.getItem('track_favorites') || '[]'),
+            activeTab: 'upload',
+            viewMode: 'grid',
+            dragOver: false,
+
+            // Upload
+            uploadForm: {
+                title: '',
+                artist: '',
+                selectedTags: [],
+                file: null
+            },
+            uploading: false,
+            uploadProgress: 0,
+
+            // Recherche et filtres
+            search: {
+                query: '',
+                filters: {
+                    tag: ''
+                },
+                sort: 'recent'
+            },
+
+            // Tags
+            tagInput: '',
+            tagSuggestions: [],
+            popularTags: [],
+
+            // Pagination
+            currentPage: 1,
+            itemsPerPage: 12,
+
+            // Stats
+            stats: {
+                totalTracks: 0,
+                myTracks: 0,
+                totalPlays: 0,
+                popularGenre: ''
+            },
+
+            // Notifications
+            notifications: [],
+
+            // Initialisation
+            async init() {
+                await this.checkAuth();
+                await this.loadTracks();
+                await this.loadPopularTags();
+                await this.loadStats();
+
+                // Écouter les changements d'onglet
+                this.$watch('activeTab', () => this.filterTracks());
+                this.$watch('search', () => this.performSearch(), {
+                    deep: true
+                });
+            },
+
+            // Authentification
+            async checkAuth() {
+                const token = localStorage.getItem('access_token');
+                if (!token) {
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    this.username = payload.username;
+                } catch (e) {
+                    this.showNotification('Erreur d\'authentification', 'error');
+                    window.location.href = '/login.html';
+                }
+            },
+
+            logout() {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                window.location.href = '/login.html';
+            },
+
+            // Chargement des pistes
+            async loadTracks() {
+                try {
+                    const token = localStorage.getItem('access_token');
+                    const response = await fetch('/tracks', {
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        }
+                    });
+
+                    if (!response.ok) throw new Error('Erreur de chargement');
+
+                    this.tracks = await response.json();
+                    this.filterTracks();
+                } catch (error) {
+                    this.showNotification('Erreur lors du chargement des pistes', 'error');
+                }
+            },
+
+            // Chargement des tags populaires
+            async loadPopularTags() {
+                try {
+                    // Extraire les tags des pistes existantes
+                    const tagCounts = {};
+                    this.tracks.forEach(track => {
+                        if (track.tags) {
+                            track.tags.forEach(tag => {
+                                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                            });
+                        }
+                    });
+                    
+                    this.popularTags = Object.entries(tagCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 10)
+                        .map(([tag]) => tag);
+                } catch (error) {
+                    console.error('Erreur chargement tags:', error);
+                }
+            },
+
+            // Chargement des statistiques
+            async loadStats() {
+                try {
+                    const token = localStorage.getItem('access_token');
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+
+                    this.stats.totalTracks = this.tracks.length;
+                    this.stats.myTracks = this.tracks.filter(t => t.uploader_username === payload.username).length;
+                    this.stats.totalPlays = this.tracks.reduce((sum, t) => sum + (t.play_count || 0), 0);
+
+                    // Genre le plus populaire
+                    const tagCounts = {};
+                    this.tracks.forEach(track => {
+                        if (track.tags) {
+                            track.tags.forEach(tag => {
+                                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                            });
+                        }
+                    });
+                    const sortedTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+                    this.stats.popularGenre = sortedTags[0]?.[0] || 'N/A';
+                } catch (error) {
+                    console.error('Erreur stats:', error);
+                }
+            },
+
+            // Filtrage des pistes
+            filterTracks() {
+                let filtered = [...this.tracks];
+
+                // Filtrage par onglet
+                if (this.activeTab === 'my') {
+                    const payload = JSON.parse(atob(localStorage.getItem('access_token').split('.')[1]));
+                    filtered = filtered.filter(t => t.uploader_username === payload.username);
+                } else if (this.activeTab === 'recent') {
+                    const oneWeekAgo = new Date();
+                    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                    filtered = filtered.filter(t => new Date(t.uploaded_at) > oneWeekAgo);
+                }
+
+                // Recherche textuelle
+                if (this.search.query) {
+                    const query = this.search.query.toLowerCase();
+                    filtered = filtered.filter(t =>
+                        t.title.toLowerCase().includes(query) ||
+                        t.artist.toLowerCase().includes(query) ||
+                        (t.tags && t.tags.some(tag => tag.toLowerCase().includes(query)))
+                    );
+                }
+
+                // Filtrage par tag
+                if (this.search.filters.tag) {
+                    filtered = filtered.filter(t => t.tags && t.tags.includes(this.search.filters.tag));
+                }
+
+                // Tri
+                switch (this.search.sort) {
+                    case 'alphabetical':
+                        filtered.sort((a, b) => a.title.localeCompare(b.title));
+                        break;
+                    case 'artist':
+                        filtered.sort((a, b) => a.artist.localeCompare(b.artist));
+                        break;
+                    case 'recent':
+                    default:
+                        filtered.sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at));
+                }
+
+                this.filteredTracks = filtered;
+                this.currentPage = 1;
+            },
+
+            // Recherche
+            performSearch() {
+                this.filterTracks();
+            },
+
+            toggleFilter(type, value) {
+                if (this.search.filters[type] === value) {
+                    this.search.filters[type] = '';
+                } else {
+                    this.search.filters[type] = value;
+                }
+            },
+
+            // Gestion des tags
+            async searchTags() {
+                if (this.tagInput.length < 2) {
+                    this.tagSuggestions = [];
+                    return;
+                }
+
+                // Recherche dans les tags existants
+                const allTags = new Set();
+                this.tracks.forEach(track => {
+                    if (track.tags) {
+                        track.tags.forEach(tag => allTags.add(tag));
+                    }
+                });
+
+                this.tagSuggestions = Array.from(allTags)
+                    .filter(tag => 
+                        tag.toLowerCase().includes(this.tagInput.toLowerCase()) && 
+                        !this.uploadForm.selectedTags.includes(tag)
+                    )
+                    .slice(0, 5);
+            },
+
+            addTag(tag) {
+                if (this.uploadForm.selectedTags.length < 5 && !this.uploadForm.selectedTags.includes(tag)) {
+                    this.uploadForm.selectedTags.push(tag);
+                    this.tagInput = '';
+                    this.tagSuggestions = [];
+                }
+            },
+
+            addTagFromInput() {
+                if (this.tagInput && this.uploadForm.selectedTags.length < 5) {
+                    this.addTag(this.tagInput.trim());
+                }
+            },
+
+            removeTag(tag) {
+                this.uploadForm.selectedTags = this.uploadForm.selectedTags.filter(t => t !== tag);
+            },
+
+            // Upload
+            handleDrop(event) {
+                this.dragOver = false;
+                const files = event.dataTransfer.files;
+                if (files.length > 0) {
+                    const file = files[0];
+                    if (file.type.startsWith('audio/')) {
+                        this.uploadForm.file = file;
+                    } else {
+                        this.showNotification('Veuillez sélectionner un fichier audio', 'error');
+                    }
+                }
+            },
+
+            handleFileSelect(event) {
+                const files = event.target.files;
+                if (files.length > 0) {
+                    this.uploadForm.file = files[0];
+                }
+            },
+
+            async uploadTrack() {
+                if (!this.uploadForm.file || !this.uploadForm.title || !this.uploadForm.artist) {
+                    this.showNotification('Veuillez remplir tous les champs obligatoires', 'error');
+                    return;
+                }
+
+                this.uploading = true;
+                this.uploadProgress = 0;
+
+                const formData = new FormData();
+                formData.append('audio', this.uploadForm.file);
+                formData.append('title', this.uploadForm.title);
+                formData.append('artist', this.uploadForm.artist);
+                formData.append('tags', this.uploadForm.selectedTags.join(','));
+
+                try {
+                    const token = localStorage.getItem('access_token');
+
+                    // Simulation de progression
+                    const progressInterval = setInterval(() => {
+                        if (this.uploadProgress < 90) {
+                            this.uploadProgress += 10;
+                        }
+                    }, 200);
+
+                    const response = await fetch('/tracks', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        },
+                        body: formData
+                    });
+
+                    clearInterval(progressInterval);
+                    this.uploadProgress = 100;
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.showNotification(`✅ Piste ajoutée : ${data.title}`, 'success');
+                        this.resetUploadForm();
+                        await this.loadTracks();
+                        this.activeTab = 'all';
+                    } else {
+                        const errorText = await response.text();
+                        throw new Error(`Erreur ${response.status}: ${errorText}`);
+                    }
+                } catch (error) {
+                    this.showNotification(`Erreur lors de l'upload: ${error.message}`, 'error');
+                } finally {
+                    this.uploading = false;
+                    setTimeout(() => this.uploadProgress = 0, 1000);
+                }
+            },
+
+            resetUploadForm() {
+                this.uploadForm = {
+                    title: '',
+                    artist: '',
+                    selectedTags: [],
+                    file: null
+                };
+                this.tagInput = '';
+                this.tagSuggestions = [];
+                // Reset file input
+                const fileInput = document.getElementById('audioInput');
+                if (fileInput) fileInput.value = '';
+            },
+
+            // Favoris
+            toggleFavorite(trackId) {
+                if (this.isFavorite(trackId)) {
+                    this.favorites = this.favorites.filter(id => id !== trackId);
+                } else {
+                    this.favorites.push(trackId);
+                }
+                localStorage.setItem('track_favorites', JSON.stringify(this.favorites));
+            },
+
+            isFavorite(trackId) {
+                return this.favorites.includes(trackId);
+            },
+
+            // Lecture de piste
+            async playTrack(track) {
+                try {
+                    const token = localStorage.getItem('access_token');
+                    const response = await fetch(`/generate-stream-url?filename=${encodeURIComponent(track.filename)}`, {
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Erreur ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    if (!data.url) {
+                        throw new Error('Lien manquant dans la réponse');
+                    }
+
+                    const audioElement = document.getElementById(`player-${track.id}`);
+                    if (audioElement) {
+                        audioElement.src = data.url;
+                        audioElement.style.display = 'block';
+                        await audioElement.play();
+                    }
+                } catch (error) {
+                    this.showNotification(`Erreur lecture audio: ${error.message}`, 'error');
+                }
+            },
+
+            // Partage
+            async shareTrack(track) {
+                const url = `${window.location.origin}/tracks/${track.id}`;
+
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: track.title,
+                            text: `Découvrez cette piste: ${track.title} par ${track.artist}`,
+                            url: url
+                        });
+                    } catch (error) {
+                        console.log('Partage annulé');
+                    }
+                } else {
+                    // Copier dans le presse-papier
+                    await navigator.clipboard.writeText(url);
+                    this.showNotification('Lien copié dans le presse-papier!', 'success');
+                }
+            },
+
+            // Téléchargement
+            async downloadTrack(track) {
+                try {
+                    const token = localStorage.getItem('access_token');
+                    const response = await fetch(`/tracks/${track.filename}?download=true`, {
+                        headers: {
+                            'Authorization': 'Bearer ' + token
+                        }
+                    });
+
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = track.filename;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    }
+                } catch (error) {
+                    this.showNotification('Erreur lors du téléchargement', 'error');
+                }
+            },
+
+            // Utilitaires
+            formatFileSize(bytes) {
+                if (!bytes) return 'N/A';
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(1024));
+                return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+            },
+
+            // Notifications
+            showNotification(message, type = 'success') {
+                const id = Date.now();
+                const notification = {
+                    id,
+                    message,
+                    type,
+                    show: true
+                };
+                this.notifications.push(notification);
+
+                setTimeout(() => {
+                    const index = this.notifications.findIndex(n => n.id === id);
+                    if (index > -1) {
+                        this.notifications[index].show = false;
+                        setTimeout(() => {
+                            this.notifications = this.notifications.filter(n => n.id !== id);
+                        }, 300);
+                    }
+                }, 3000);
+            },
+
+            // Getters calculés
+            get paginatedTracks() {
+                const start = (this.currentPage - 1) * this.itemsPerPage;
+                const end = start + this.itemsPerPage;
+                return this.filteredTracks.slice(start, end);
+            },
+
+            get totalPages() {
+                return Math.ceil(this.filteredTracks.length / this.itemsPerPage);
+            },
+
+            get visiblePages() {
+                const pages = [];
+                const maxVisible = 5;
+                let start = Math.max(1, this.currentPage - Math.floor(maxVisible / 2));
+                let end = Math.min(this.totalPages, start + maxVisible - 1);
+
+                if (end - start + 1 < maxVisible) {
+                    start = Math.max(1, end - maxVisible + 1);
+                }
+
+                for (let i = start; i <= end; i++) {
+                    pages.push(i);
+                }
+
+                return pages;
+            }
+        }
+    }
+  </script>
+</body>
+</html>

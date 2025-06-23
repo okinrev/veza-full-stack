@@ -1,0 +1,29 @@
+<!-- file: frontend/users.html -->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Utilisateurs - Talas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="p-6 bg-gray-50 font-sans" x-data="userList()" x-init="init()">
+  <h1 class="text-2xl font-bold mb-4">Sélectionner un utilisateur</h1>
+
+  <div class="max-w-xl bg-white shadow rounded p-4">
+    <template x-if="users.length === 0">
+      <p class="text-gray-500">Aucun autre utilisateur trouvé.</p>
+    </template>
+
+    <template x-for="user in users" :key="user.id">
+      <a :href="`/message.html?user_id=${user.id}`" class="block border-b py-2 hover:bg-gray-100">
+        <div class="font-semibold" x-text="user.username"></div>
+        <div class="text-sm text-gray-500" x-text="user.email"></div>
+      </a>
+    </template>
+  </div>
+
+  <script src="js/users.js"></script>
+</body>
+</html>

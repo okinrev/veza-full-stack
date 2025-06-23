@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Administration Produits - Talas</title>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    /* Tailwind CSS Classes nécessaires */
+    .bg-gray-50 { background-color: #f9fafb; }
+    .bg-white { background-color: #ffffff; }
+    .bg-blue-600 { background-color: #2563eb; }
+    .bg-blue-700 { background-color: #1d4ed8; }
+    .bg-green-600 { background-color: #16a34a; }
+    .bg-red-600 { background-color: #dc2626; }
+    .bg-yellow-600 { background-color: #ca8a04; }
+    .bg-gray-500 { background-color: #6b7280; }
+    .bg-gray-100 { background-color: #f3f4f6; }
+    .bg-gray-200 { background-color: #e5e7eb; }
+    
+    .text-white { color: #ffffff; }
+    .text-gray-700 { color: #374151; }
+    .text-gray-800 { color: #1f2937; }
+    .text-gray-900 { color: #111827; }
+    .text-blue-600 { color: #2563eb; }
+    .text-green-600 { color: #16a34a; }
+    .text-red-600 { color: #dc2626; }
+    
+    .min-h-screen { min-height: 100vh; }
+    .font-sans { font-family: ui-sans-serif, system-ui, sans-serif; }
+    .shadow-sm { box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+    .border { border-width: 1px; border-color: #d1d5db; }
+    .border-b { border-bottom-width: 1px; border-color: #d1d5db; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .rounded-md { border-radius: 0.375rem; }
+    
+    .max-w-7xl { max-width: 80rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+    .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+    .p-6 { padding: 1.5rem; }
+    .space-y-4 > * + * { margin-top: 1rem; }
+    .space-y-6 > * + * { margin-top: 1.5rem; }
+    .space-x-4 > * + * { margin-left: 1rem; }
+    
+    .flex { display: flex; }
+    .grid { display: grid; }
+    .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+    .grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .gap-4 { gap: 1rem; }
+    .gap-6 { gap: 1.5rem; }
+    
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    
+    .text-sm { font-size: 0.875rem; }
+    .text-lg { font-size: 1.125rem; }
+    .text-xl { font-size: 1.25rem; }
+    .text-2xl { font-size: 1.5rem; }
+    .text-3xl { font-size: 1.875rem; }
+    
+    .font-medium { font-weight: 500; }
+    .font-semibold { font-weight: 600; }
+    .font-bold { font-weight: 700; }
+    
+    .w-full { width: 100%; }
+    .block { display: block; }
+    
+    input, select, textarea {
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      padding: 0.5rem 0.75rem;
+      width: 100%;
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    button {
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+    }
+    
+    button:hover {
+      opacity: 0.9;
+    }
+    
+    .btn-primary {
+      background-color: #2563eb;
+      color: white;
+    }
+    
+    .btn-secondary {
+      background-color: #6b7280;
+      color: white;
+    }
+    
+    .btn-success {
+      background-color: #16a34a;
+      color: white;
+    }
+    
+    .btn-danger {
+      background-color: #dc2626;
+      color: white;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    th, td {
+      padding: 0.75rem 1.5rem;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    th {
+      background-color: #f9fafb;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+    
+    tr:hover {
+      background-color: #f9fafb;
+    }
+    
+    .alert {
+      padding: 1rem;
+      border-radius: 0.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .alert-success {
+      background-color: #dcfce7;
+      border: 1px solid #bbf7d0;
+      color: #166534;
+    }
+    
+    .alert-error {
+      background-color:#fef2f2;
+     border: 1px solid #fecaca;
+     color: #991b1b;
+   }
+   
+   .alert-warning {
+     background-color: #fefce8;
+     border: 1px solid #fde68a;
+     color: #92400e;
+   }
+   
+   .alert-info {
+     background-color: #dbeafe;
+     border: 1px solid #93c5fd;
+     color: #1e40af;
+   }
+   
+   .status-badge {
+     display: inline-flex;
+     align-items: center;
+     padding: 0.25rem 0.625rem;
+     border-radius: 9999px;
+     font-size: 0.75rem;
+     font-weight: 500;
+   }
+   
+   .status-active {
+     background-color: #dcfce7;
+     color: #166534;
+   }
+   
+   .status-draft {
+     background-color: #fefce8;
+     color: #92400e;
+   }
+   
+   .status-discontinued {
+     background-color: #fef2f2;
+     color: #991b1b;
+   }
+   
+   .warranty-badge {
+     background-color: #dbeafe;
+     color: #1e40af;
+   }
+   
+   .overflow-x-auto {
+     overflow-x: auto;
+   }
+   
+   .divide-y > * + * {
+     border-top: 1px solid #e5e7eb;
+   }
+   
+   @media (min-width: 768px) {
+     .md\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+     .md\\:grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+     .md\\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+   }
+   
+   @media (min-width: 1024px) {
+     .lg\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+     .lg\\:px-8 { padding-left: 2rem; padding-right: 2rem; }
+   }
+   
+   [x-cloak] { display: none !important; }
+ </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-800" x-data="adminProductsApp()" x-init="init()">
+ 
+ <!-- Header -->
+ <div class="bg-white shadow-sm border-b">
+   <div class="max-w-7xl mx-auto px-4">
+     <div class="flex justify-between items-center py-4">
+       <div class="flex items-center space-x-4">
+         <i class="fas fa-cogs text-2xl text-blue-600"></i>
+         <h1 class="text-2xl font-bold text-gray-900">Administration Produits</h1>
+       </div>
+       <div class="flex items-center space-x-4">
+         <button @click="activeView = 'products'" :class="activeView === 'products' ? 'btn-primary' : 'btn-secondary'">
+           <i class="fas fa-boxes" style="margin-right: 0.5rem;"></i>Produits
+         </button>
+         <button @click="activeView = 'categories'" :class="activeView === 'categories' ? 'btn-primary' : 'btn-secondary'">
+           <i class="fas fa-tags" style="margin-right: 0.5rem;"></i>Catégories
+         </button>
+         <button @click="activeView = 'warranties'" :class="activeView === 'warranties' ? 'btn-primary' : 'btn-secondary'">
+           <i class="fas fa-shield-alt" style="margin-right: 0.5rem;"></i>Garanties
+         </button>
+         <a href="/dashboard" class="btn-secondary">
+           <i class="fas fa-arrow-left" style="margin-right: 0.5rem;"></i>Retour
+         </a>
+       </div>
+     </div>
+   </div>
+ </div>
+
+ <div class="max-w-7xl mx-auto px-4 py-4">
+   
+   <!-- Messages -->
+   <template x-if="message">
+     <div class="alert" :class="{
+       'alert-success': messageType === 'success',
+       'alert-error': messageType === 'error',
+       'alert-warning': messageType === 'warning',
+       'alert-info': messageType === 'info'
+     }">
+       <i class="fas fa-info-circle" style="margin-right: 0.75rem;"></i>
+       <span x-text="message"></span>
+       <button @click="message = ''" style="margin-left: auto; background: none; padding: 0;">
+         <i class="fas fa-times"></i>
+       </button>
+     </div>
+   </template>
+
+   <!-- Vue Produits -->
+   <div x-show="activeView === 'products'" class="space-y-6">
+     
+     <!-- Statistiques -->
+     <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+       <div class="bg-white p-6 rounded-lg shadow-sm border">
+         <div class="flex items-center">
+           <div style="padding: 0.75rem; border-radius: 9999px; background-color: #dbeafe; margin-right: 1rem;">
+             <i class="fas fa-boxes text-blue-600 text-xl"></i>
+           </div>
+           <div>
+             <p class="text-sm font-medium text-gray-700">Total Produits</p>
+             <p class="text-2xl font-bold text-gray-900" x-text="products.length"></p>
+           </div>
+         </div>
+       </div>
+       
+       <div class="bg-white p-6 rounded-lg shadow-sm border">
+         <div class="flex items-center">
+           <div style="padding: 0.75rem; border-radius: 9999px; background-color: #dcfce7; margin-right: 1rem;">
+             <i class="fas fa-file-pdf text-green-600 text-xl"></i>
+           </div>
+           <div>
+             <p class="text-sm font-medium text-gray-700">Avec Documentation</p>
+             <p class="text-2xl font-bold text-gray-900" x-text="products.filter(p => p.documentation_count > 0).length"></p>
+           </div>
+         </div>
+       </div>
+       
+       <div class="bg-white p-6 rounded-lg shadow-sm border">
+         <div class="flex items-center">
+           <div style="padding: 0.75rem; border-radius: 9999px; background-color: #e0e7ff; margin-right: 1rem;">
+             <i class="fas fa-shield-alt" style="color: #7c3aed;" class="text-xl"></i>
+           </div>
+           <div>
+             <p class="text-sm font-medium text-gray-700">Avec Garantie</p>
+             <p class="text-2xl font-bold text-gray-900" x-text="products.filter(p => p.warranty_months > 0).length"></p>
+           </div>
+         </div>
+       </div>
+       
+       <div class="bg-white p-6 rounded-lg shadow-sm border">
+         <div class="flex items-center">
+           <div style="padding: 0.75rem; border-radius: 9999px; background-color: #fed7aa; margin-right: 1rem;">
+             <i class="fas fa-users" style="color: #ea580c;" class="text-xl"></i>
+           </div>
+           <div>
+             <p class="text-sm font-medium text-gray-700">Utilisateurs Actifs</p>
+             <p class="text-2xl font-bold text-gray-900" x-text="products.reduce((sum, p) => sum + (p.user_count || 0), 0)"></p>
+           </div>
+         </div>
+       </div>
+     </div>
+
+     <!-- Formulaire de création/modification -->
+     <div class="bg-white rounded-lg shadow-sm border">
+       <div class="px-6 py-4 border-b">
+         <h2 class="text-lg font-semibold flex items-center">
+           <i class="fas fa-plus-circle text-blue-600" style="margin-right: 0.5rem;"></i>
+           <span x-text="form.id ? 'Modifier le produit' : 'Nouveau produit'"></span>
+         </h2>
+       </div>
+       
+       <form @submit.prevent="saveProduct()" class="p-6 space-y-6">
+         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           
+           <!-- Informations de base -->
+           <div class="space-y-4">
+             <h3 class="text-lg font-medium text-gray-900 border-b" style="padding-bottom: 0.5rem;">Informations de base</h3>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Nom du produit *</label>
+               <input type="text" x-model="form.name" required placeholder="ex: Microphone Shure SM7B">
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Catégorie</label>
+               <select x-model="form.category_id">
+                 <option value="">-- Sélectionnez une catégorie --</option>
+                 <template x-for="cat in categories" :key="cat.id">
+                   <option :value="cat.id" x-text="cat.name"></option>
+                 </template>
+               </select>
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Marque</label>
+               <input type="text" x-model="form.brand" placeholder="ex: Shure, Audio-Technica...">
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Modèle/Référence</label>
+               <input type="text" x-model="form.model" placeholder="ex: SM7B, AT2020...">
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Prix indicatif (€)</label>
+               <input type="number" x-model="form.price" step="0.01" placeholder="0.00">
+             </div>
+           </div>
+           
+           <!-- Garantie et documentation -->
+           <div class="space-y-4">
+             <h3 class="text-lg font-medium text-gray-900 border-b" style="padding-bottom: 0.5rem;">Garantie & Documentation</h3>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Durée de garantie (mois)</label>
+               <select x-model="form.warranty_months">
+                 <option value="0">Aucune garantie</option>
+                 <option value="6">6 mois</option>
+                 <option value="12">1 an</option>
+                 <option value="24">2 ans</option>
+                 <option value="36">3 ans</option>
+                 <option value="60">5 ans</option>
+                 <option value="120">10 ans</option>
+               </select>
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Conditions de garantie</label>
+               <textarea x-model="form.warranty_conditions" rows="3" placeholder="Détails sur les conditions de garantie..."></textarea>
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Site web du fabricant</label>
+               <input type="url" x-model="form.manufacturer_website" placeholder="https://...">
+             </div>
+             
+             <div>
+               <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Statut</label>
+               <select x-model="form.status">
+                 <option value="active">Actif</option>
+                 <option value="discontinued">Discontinué</option>
+                 <option value="draft">Brouillon</option>
+               </select>
+             </div>
+           </div>
+         </div>
+         
+         <!-- Description -->
+         <div>
+           <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Description</label>
+           <textarea x-model="form.description" rows="4" placeholder="Description détaillée du produit..."></textarea>
+         </div>
+         
+         <!-- Spécifications techniques -->
+         <div>
+           <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Spécifications techniques (JSON)</label>
+           <textarea x-model="form.specifications" rows="4" style="font-family: monospace; font-size: 0.875rem;" placeholder='{"fréquence": "20Hz-20kHz", "impédance": "150Ω", "sensibilité": "-57dBV"}'></textarea>
+           <p style="font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">Format JSON pour les caractéristiques techniques</p>
+         </div>
+         
+         <!-- Actions -->
+         <div class="flex items-center space-x-4" style="padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+           <button type="submit" class="btn-primary">
+             <i class="fas fa-save" style="margin-right: 0.5rem;"></i>
+             <span x-text="form.id ? 'Mettre à jour' : 'Créer le produit'"></span>
+           </button>
+           
+           <button type="button" @click="resetForm()" x-show="form.id" class="btn-secondary">
+             <i class="fas fa-times" style="margin-right: 0.5rem;"></i>Annuler
+           </button>
+           
+           <button type="button" @click="openFileUpload()" x-show="form.id" class="btn-success">
+             <i class="fas fa-upload" style="margin-right: 0.5rem;"></i>Ajouter des fichiers
+           </button>
+         </div>
+       </form>
+     </div>
+
+     <!-- Liste des produits -->
+     <div class="bg-white rounded-lg shadow-sm border">
+       <div class="px-6 py-4 border-b flex justify-between items-center">
+         <h3 class="text-lg font-semibold">Catalogue des produits</h3>
+         
+         <!-- Filtres -->
+         <div class="flex items-center space-x-4">
+           <select x-model="filters.category" @change="applyFilters()">
+             <option value="">Toutes catégories</option>
+             <template x-for="cat in categories" :key="cat.id">
+               <option :value="cat.id" x-text="cat.name"></option>
+             </template>
+           </select>
+           
+           <select x-model="filters.status" @change="applyFilters()">
+             <option value="">Tous statuts</option>
+             <option value="active">Actif</option>
+             <option value="discontinued">Discontinué</option>
+             <option value="draft">Brouillon</option>
+           </select>
+           
+           <input type="text" x-model="filters.search" @input="applyFilters()" placeholder="Rechercher..." style="width: 200px;">
+         </div>
+       </div>
+       
+       <div class="overflow-x-auto">
+         <table>
+           <thead>
+             <tr>
+               <th>Produit</th>
+               <th>Catégorie</th>
+               <th>Garantie</th>
+               <th>Prix</th>
+               <th>Statut</th>
+               <th>Docs</th>
+               <th>Actions</th>
+             </tr>
+           </thead>
+           <tbody>
+             <template x-for="product in filteredProducts" :key="product.id">
+               <tr>
+                 <td>
+                   <div>
+                     <div class="font-medium text-gray-900" x-text="product.name"></div>
+                     <div class="text-sm text-gray-500">
+                       <span x-text="product.brand"></span>
+                       <span x-show="product.model"> - </span>
+                       <span x-text="product.model"></span>
+                     </div>
+                   </div>
+                 </td>
+                 <td class="text-sm text-gray-500" x-text="getCategoryName(product.category_id)"></td>
+                 <td class="text-sm">
+                   <span x-show="product.warranty_months > 0" class="status-badge warranty-badge">
+                     <i class="fas fa-shield-alt" style="margin-right: 0.25rem;"></i>
+                     <span x-text="product.warranty_months + ' mois'"></span>
+                   </span>
+                   <span x-show="!product.warranty_months" style="color: #9ca3af;">Aucune</span>
+                 </td>
+                 <td class="text-sm text-gray-500">
+                   <span x-show="product.price" x-text="formatPrice(product.price)"></span>
+                   <span x-show="!product.price" style="color: #9ca3af;">-</span>
+                 </td>
+                 <td>
+                   <span :class="{
+                     'status-active': product.status === 'active',
+                     'status-draft': product.status === 'draft',
+                     'status-discontinued': product.status === 'discontinued'
+                   }" class="status-badge">
+                     <span x-text="getStatusLabel(product.status)"></span>
+                   </span>
+                 </td>
+                 <td class="text-sm">
+                   <button @click="viewDocuments(product.id)" class="text-blue-600" style="background: none; padding: 0;">
+                     <i class="fas fa-file-alt" style="margin-right: 0.25rem;"></i>
+                     <span x-text="product.documentation_count || 0"></span>
+                   </button>
+                 </td>
+                 <td class="text-sm space-x-2">
+                   <button @click="editProduct(product)" class="text-blue-600" style="background: none; padding: 0.25rem;">
+                     <i class="fas fa-edit"></i>
+                   </button>
+                   <button @click="duplicateProduct(product)" class="text-green-600" style="background: none; padding: 0.25rem;">
+                     <i class="fas fa-copy"></i>
+                   </button>
+                   <button @click="viewProductDetails(product)" style="color: #7c3aed; background: none; padding: 0.25rem;">
+                     <i class="fas fa-eye"></i>
+                   </button>
+                   <button @click="deleteProduct(product.id)" class="text-red-600" style="background: none; padding: 0.25rem;">
+                     <i class="fas fa-trash"></i>
+                   </button>
+                 </td>
+               </tr>
+             </template>
+           </tbody>
+         </table>
+       </div>
+     </div>
+   </div>
+
+   <!-- Vue Catégories -->
+   <div x-show="activeView === 'categories'" class="space-y-6">
+     <!-- Formulaire catégories -->
+     <div class="bg-white rounded-lg shadow-sm border p-6">
+       <h2 class="text-lg font-semibold" style="margin-bottom: 1rem;">
+         <i class="fas fa-tags text-blue-600" style="margin-right: 0.5rem;"></i>
+         Gestion des catégories
+       </h2>
+       <form @submit.prevent="saveCategory()" class="flex items-end space-x-4">
+         <div style="flex: 1;">
+           <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Nom de la catégorie</label>
+           <input type="text" x-model="categoryForm.name" required>
+         </div>
+         <div style="flex: 1;">
+           <label class="block text-sm font-medium text-gray-700" style="margin-bottom: 0.25rem;">Description</label>
+           <input type="text" x-model="categoryForm.description">
+         </div>
+         <button type="submit" class="btn-primary">
+           <i class="fas fa-plus" style="margin-right: 0.5rem;"></i>Ajouter
+         </button>
+       </form>
+     </div>
+
+     <!-- Liste des catégories -->
+     <div class="bg-white rounded-lg shadow-sm border">
+       <div class="px-6 py-4 border-b">
+         <h3 class="text-lg font-semibold">Catégories existantes</h3>
+       </div>
+       <div class="divide-y">
+         <template x-for="cat in categories" :key="cat.id">
+           <div class="px-6 py-4 flex items-center justify-between">
+             <div>
+               <div class="font-medium text-gray-900" x-text="cat.name"></div>
+               <div class="text-sm text-gray-500" x-text="cat.description"></div>
+             </div>
+             <div class="flex items-center space-x-2">
+               <span class="text-sm text-gray-500" x-text="cat.product_count + ' produits'"></span>
+               <button @click="editCategory(cat)" class="text-blue-600" style="background: none; padding: 0.25rem;">
+                 <i class="fas fa-edit"></i>
+               </button>
+               <button @click="deleteCategory(cat.id)" class="text-red-600" style="background: none; padding: 0.25rem;">
+                 <i class="fas fa-trash"></i>
+               </button>
+             </div>
+           </div>
+         </template>
+       </div>
+     </div>
+   </div>
+
+   <!-- Vue Garanties -->
+   <div x-show="activeView === 'warranties'" class="space-y-6">
+     <div class="bg-white rounded-lg shadow-sm border p-6">
+       <h2 class="text-lg font-semibold" style="margin-bottom: 1rem;">
+         <i class="fas fa-shield-alt text-blue-600" style="margin-right: 0.5rem;"></i>
+         Suivi des garanties
+       </h2>
+       
+       <!-- Statistiques garanties -->
+       <div class="grid grid-cols-1 md:grid-cols-3 gap-4" style="margin-bottom: 1.5rem;">
+         <div style="background-color: #f0fdf4; padding: 1rem; border-radius: 0.5rem;">
+           <div class="text-2xl font-bold text-green-600" x-text="warrantyStats.valid"></div>
+           <div class="text-sm" style="color: #15803d;">Garanties valides</div>
+         </div>
+         <div style="background-color: #fefce8; padding: 1rem; border-radius: 0.5rem;">
+           <div class="text-2xl font-bold" style="color: #ca8a04;" x-text="warrantyStats.expiring"></div>
+           <div class="text-sm" style="color: #92400e;">Expirent dans 30 jours</div>
+         </div>
+         <div style="background-color: #fef2f2; padding: 1rem; border-radius: 0.5rem;">
+           <div class="text-2xl font-bold text-red-600" x-text="warrantyStats.expired"></div>
+           <div class="text-sm" style="color: #991b1b;">Garanties expirées</div>
+         </div>
+       </div>
+       
+       <p style="color: #4b5563;">Utilisez cette section pour suivre et gérer les garanties de tous les produits utilisateur.</p>
+     </div>
+   </div>
+
+ </div>
+
+ <!-- Modal de détails produit -->
+ <div x-show="showProductModal" style="position: fixed; inset: 0; z-index: 50; overflow-y: auto;" x-cloak>
+   <div class="flex items-center justify-center min-h-screen px-4">
+     <div style="position: fixed; inset: 0; background-color: black; opacity: 0.5;" @click="showProductModal = false"></div>
+     <div class="bg-white rounded-lg" style="max-width: 64rem; width: 100%; max-height: 100vh; overflow-y: auto; position: relative;">
+       <div class="p-6">
+         <div class="flex justify-between items-center" style="margin-bottom: 1rem;">
+           <h3 class="text-xl font-semibold" x-text="selectedProduct?.name"></h3>
+           <button @click="showProductModal = false" style="color: #9ca3af; background: none; padding: 0;">
+             <i class="fas fa-times text-xl"></i>
+           </button>
+         </div>
+         
+         <div class="grid grid-cols-1 md:grid-cols-2 gap-6" x-show="selectedProduct">
+           <div>
+             <h4 class="font-medium text-gray-900" style="margin-bottom: 0.5rem;">Informations générales</h4>
+             <dl class="space-y-2 text-sm">
+               <div class="flex">
+                 <dt class="font-medium text-gray-600" style="width: 6rem;">Marque:</dt>
+                 <dd x-text="selectedProduct?.brand || '-'"></dd>
+               </div>
+               <div class="flex">
+                 <dt class="font-medium text-gray-600" style="width: 6rem;">Modèle:</dt>
+                 <dd x-text="selectedProduct?.model || '-'"></dd>
+               </div>
+               <div class="flex">
+                 <dt class="font-medium text-gray-600" style="width: 6rem;">Prix:</dt>
+                 <dd x-text="selectedProduct?.price ? formatPrice(selectedProduct.price) : '-'"></dd>
+               </div>
+               <div class="flex">
+                 <dt class="font-medium text-gray-600" style="width: 6rem;">Garantie:</dt>
+                 <dd x-text="selectedProduct?.warranty_months ? selectedProduct.warranty_months + ' mois' : 'Aucune'"></dd>
+               </div>
+             </dl>
+           </div>
+           
+           <div>
+             <h4 class="font-medium text-gray-900" style="margin-bottom: 0.5rem;">Description</h4>
+             <p class="text-sm text-gray-600" x-text="selectedProduct?.description || 'Aucune description'"></p>
+           </div>
+         </div>
+         
+         <div x-show="selectedProduct?.specifications" style="margin-top: 1.5rem;">
+           <h4 class="font-medium text-gray-900" style="margin-bottom: 0.5rem;">Spécifications techniques</h4>
+           <pre style="background-color: #f3f4f6; padding: 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; overflow-x: auto;" x-text="selectedProduct?.specifications"></pre>
+         </div>
+       </div>
+     </div>
+   </div>
+ </div>
+
+ <script>
+   function adminProductsApp() {
+     return {
+       activeView: 'products',
+       products: [],
+       categories: [],
+       message: '',
+       messageType: 'info',
+       showProductModal: false,
+       selectedProduct: null,
+       
+       // Filtres
+       filters: {
+         category: '',
+         status: '',
+         search: ''
+       },
+       
+       // Statistiques garanties
+       warrantyStats: {
+         valid: 0,
+         expiring: 0,
+         expired: 0
+       },
+       
+       // Formulaires
+       form: {
+         id: null,
+         name: '',
+         category_id: '',
+         brand: '',
+         model: '',
+         description: '',
+         price: '',
+         warranty_months: '12',
+         warranty_conditions: '',
+         manufacturer_website: '',
+         specifications: '',
+         status: 'active'
+       },
+       
+       categoryForm: {
+         id: null,
+         name: '',
+         description: ''
+       },
+
+       async init() {
+         await this.loadProducts()
+         await this.loadCategories()
+         this.calculateWarrantyStats()
+       },
+
+       async getValidToken() {
+         return localStorage.getItem('access_token') || null
+       },
+
+       showMessage(msg, type = 'info') {
+         this.message = msg
+         this.messageType = type
+         setTimeout(() => this.message = '', 5000)
+       },
+
+       // Gestion des produits
+       async loadProducts() {
+         try {
+           const r = await fetch('/admin/products')
+           if (!r.ok) throw new Error(`Erreur ${r.status}`)
+           this.products = await r.json()
+         } catch (e) {
+           this.showMessage('Erreur lors du chargement des produits: ' + e.message, 'error')
+         }
+       },
+
+       async loadCategories() {
+         try {
+           const r = await fetch('/admin/categories')
+           if (!r.ok) throw new Error(`Erreur ${r.status}`)
+           this.categories = await r.json()
+         } catch (e) {
+           this.showMessage('Erreur lors du chargement des catégories: ' + e.message, 'error')
+         }
+       },
+
+       async saveProduct() {
+         const token = await this.getValidToken()
+         if (!token) {
+           this.showMessage('Non connecté', 'error')
+           return
+         }
+
+         const method = this.form.id ? 'PUT' : 'POST'
+         const url = this.form.id ? `/admin/products/${this.form.id}` : '/admin/products'
+
+         // Validation des spécifications JSON
+         if (this.form.specifications) {
+           try {
+             JSON.parse(this.form.specifications)
+           } catch (e) {
+             this.showMessage('Format JSON invalide pour les spécifications', 'error')
+             return
+           }
+         }
+
+         const payload = {
+           name: this.form.name,
+           category_id: this.form.category_id ? parseInt(this.form.category_id) : null,
+           brand: this.form.brand,
+           model: this.form.model,
+           description: this.form.description,
+           price: this.form.price ? parseFloat(this.form.price) : null,
+           warranty_months: parseInt(this.form.warranty_months),
+           warranty_conditions: this.form.warranty_conditions,
+           manufacturer_website: this.form.manufacturer_website,
+           specifications: this.form.specifications,
+           status: this.form.status
+         }
+
+         try {
+           const r = await fetch(url, {
+             method,
+             headers: {
+               'Authorization': 'Bearer ' + token,
+               'Content-Type': 'application/json'
+             },
+             body: JSON.stringify(payload)
+           })
+
+           if (!r.ok) throw new Error(`Erreur ${r.status}`)
+           
+           this.showMessage(this.form.id ? '✅ Produit mis à jour' : '✅ Produit créé', 'success')
+           this.resetForm()
+           await this.loadProducts()
+           
+         } catch (e) {
+           this.showMessage('Erreur: ' + e.message, 'error')
+         }
+       },
+
+       async deleteProduct(id) {
+         if (!confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) return
+
+         const token = await this.getValidToken()
+         if (!token) {
+           this.showMessage('Non connecté', 'error')
+           return
+         }
+
+         try {
+           const r = await fetch(`/admin/products/${id}`, {
+             method: 'DELETE',
+             headers: { 'Authorization': 'Bearer ' + token }
+           })
+           
+           if (!r.ok) {
+             const errorText = await r.text()
+             throw new Error(errorText)
+           }
+           
+           this.showMessage('🗑️ Produit supprimé', 'success')
+           await this.loadProducts()
+           
+         } catch (e) {
+           this.showMessage('Erreur: ' + e.message, 'error')
+         }
+       },
+
+       editProduct(product) {
+         this.form = {
+           id: product.id,
+           name: product.name,
+           category_id: product.category_id || '',
+           brand: product.brand || '',
+           model: product.model || '',
+           description: product.description || '',
+           price: product.price || '',
+           warranty_months: product.warranty_months || '12',
+           warranty_conditions: product.warranty_conditions || '',
+           manufacturer_website: product.manufacturer_website || '',
+           specifications: product.specifications || '',
+           status: product.status || 'active'
+         }
+         
+         // Scroll vers le formulaire
+         document.querySelector('form').scrollIntoView({ behavior: 'smooth' })
+       },
+
+       duplicateProduct(product) {
+         this.form = {
+           id: null,
+           name: product.name + ' (Copie)',
+           category_id: product.category_id || '',
+           brand: product.brand || '',
+           model: product.model || '',
+           description: product.description || '',
+           price: product.price || '',
+           warranty_months: product.warranty_months || '12',
+           warranty_conditions: product.warranty_conditions || '',
+           manufacturer_website: product.manufacturer_website || '',
+           specifications: product.specifications || '',
+           status: 'draft'
+         }
+       },
+
+       viewProductDetails(product) {
+         this.selectedProduct = product
+         this.showProductModal = true
+       },
+
+       resetForm() {
+         this.form = {
+           id: null,
+           name: '',
+           category_id: '',
+           brand: '',
+           model: '',
+           description: '',
+           price: '',
+           warranty_months: '12',
+           warranty_conditions: '',
+           manufacturer_website: '',
+           specifications: '',
+           status: 'active'
+         }
+       },
+
+       // Gestion des catégories
+       async saveCategory() {
+         const token = await this.getValidToken()
+         if (!token) {
+           this.showMessage('Non connecté', 'error')
+           return
+         }
+
+         const method = this.categoryForm.id ? 'PUT' : 'POST'
+         const url = this.categoryForm.id ? `/admin/categories/${this.categoryForm.id}` : '/admin/categories'
+
+         try {
+           const r = await fetch(url, {
+             method,
+             headers: {
+               'Authorization': 'Bearer ' + token,
+               'Content-Type': 'application/json'
+             },
+             body: JSON.stringify(this.categoryForm)
+           })
+
+           if (!r.ok) throw new Error(`Erreur ${r.status}`)
+           
+           this.showMessage(this.categoryForm.id ? '✅ Catégorie mise à jour' : '✅ Catégorie créée', 'success')
+           this.categoryForm = { id: null, name: '', description: '' }
+           await this.loadCategories()
+           
+         } catch (e) {
+           this.showMessage('Erreur: ' + e.message, 'error')
+         }
+       },
+
+       async deleteCategory(id) {
+         if (!confirm('Êtes-vous sûr de vouloir supprimer cette catégorie ?')) return
+
+         const token = await this.getValidToken()
+         if (!token) return
+
+         try {
+           const r = await fetch(`/admin/categories/${id}`, {
+             method: 'DELETE',
+             headers: { 'Authorization': 'Bearer ' + token }
+           })
+           
+           if (!r.ok) throw new Error(`Erreur ${r.status}`)
+           
+           this.showMessage('🗑️ Catégorie supprimée', 'success')
+           await this.loadCategories()
+           await this.loadProducts()
+           
+         } catch (e) {
+           this.showMessage('Erreur: ' + e.message, 'error')
+         }
+       },
+
+       editCategory(category) {
+         this.categoryForm = { ...category }
+       },
+
+       // Filtres et recherche
+       get filteredProducts() {
+         let filtered = this.products
+
+         if (this.filters.category) {
+           filtered = filtered.filter(p => p.category_id == this.filters.category)
+         }
+
+         if (this.filters.status) {
+           filtered = filtered.filter(p => p.status === this.filters.status)
+         }
+
+         if (this.filters.search) {
+           const search = this.filters.search.toLowerCase()
+           filtered = filtered.filter(p => 
+             p.name.toLowerCase().includes(search) ||
+             (p.brand && p.brand.toLowerCase().includes(search)) ||
+             (p.model && p.model.toLowerCase().includes(search))
+           )
+         }
+
+         return filtered
+       },
+
+       applyFilters() {
+         // Les filtres sont réactifs via le getter filteredProducts
+       },
+
+       // Utilitaires
+       getCategoryName(categoryId) {
+         const cat = this.categories.find(c => c.id === categoryId)
+         return cat ? cat.name : '-'
+       },
+
+       getStatusLabel(status) {
+         const labels = {
+           active: 'Actif',
+           discontinued: 'Discontinué',
+           draft: 'Brouillon'
+         }
+         return labels[status] || status
+       },
+
+       formatPrice(price) {
+         return new Intl.NumberFormat('fr-FR', {
+           style: 'currency',
+           currency: 'EUR'
+         }).format(price)
+       },
+
+       calculateWarrantyStats() {
+         // Cette fonction calculera les stats de garantie une fois qu'on aura les données user_products
+         this.warrantyStats = {
+           valid: 0,
+           expiring: 0,
+           expired: 0
+         }
+       },
+
+       // Gestion des fichiers
+       openFileUpload() {
+         if (!this.form.id) {
+           this.showMessage('Veuillez d\'abord enregistrer le produit', 'warning')
+           return
+         }
+         // TODO: Implémenter l'upload de fichiers
+         this.showMessage('Fonctionnalité d\'upload à implémenter', 'info')
+       },
+
+       viewDocuments(productId) {
+         // TODO: Afficher les documents du produit
+         this.showMessage('Gestion des documents à implémenter', 'info')
+       }
+     }
+   }
+ </script>
+</body>
+</html>

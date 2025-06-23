@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Veza App</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans" x-data="{ page: 'dashboard' }">
+
+  <!-- Header -->
+  <header class="bg-white shadow px-6 py-4 flex justify-between items-center">
+    <div class="flex items-center gap-2">
+      <img src="/favicon.ico" alt="Logo" class="h-8 w-8">
+      <span class="text-xl font-bold">Veza</span>
+    </div>
+    <div>
+      <button @click="page = 'settings'; loadComponent('settings-panel', '/components/settings.html')" class="text-sm text-blue-600 hover:underline">Paramètres</button>
+      <button @click="logout()" class="ml-4 text-sm text-red-600 hover:underline">Déconnexion</button>
+    </div>
+  </header>
+
+  <!-- Main layout -->
+  <div class="flex" style="min-height: calc(100vh - 72px)">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white border-r p-4 space-y-2">
+      <h2 class="text-lg font-semibold mb-2">Navigation</h2>
+      <nav class="flex flex-col space-y-1">
+        <template x-for="[key, label] of Object.entries({
+          'dashboard': 'Dashboard',
+          'dm': 'Messages Privés',
+          'rooms': 'Salons',
+          'tracks': 'Musiques',
+          'products': 'Produits',
+          'docs': 'Docs Produits',
+          'shared': 'Ressources Partagées',
+          'tags': 'Tags',
+          'suggestions': 'Suggestions'
+        })" :key="key">
+          <button
+            :class="{ 'bg-blue-100 font-semibold': page === key }"
+            class="p-2 rounded hover:bg-blue-50 text-left"
+            @click="page = key; loadComponent(`${key}-panel`, `/components/${key}.html`)"
+            x-text="label"
+          ></button>
+        </template>
+      </nav>
+    </aside>
+
+    <!-- Dynamic page content -->
+    <main class="flex-1 p-6 bg-gray-50 overflow-y-auto">
+      <template x-if="page === 'dashboard'">
+        <div>
+          <h2 class="text-2xl font-bold mb-4">Bienvenue sur Veza</h2>
+          <p class="text-gray-600">Accédez à vos ressources, vos produits, vos musiques et échangez avec la communauté.</p>
+        </div>
+      </template>
+
+      <template x-if="page !== 'dashboard'">
+        <div :id="`${page}-panel`" class="min-h-[50vh]"></div>
+      </template>
+    </main>
+  </div>
+
+  <script src="/js/app.js" defer></script>
+  <script>
+    function logout() {
+      localStorage.removeItem("access_token");
+      window.location.href = "/login";
+    }
+  </script>
+</body>
+</html>

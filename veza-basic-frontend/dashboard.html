@@ -1,0 +1,47 @@
+<!-- file: frontend/login.html -->
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Talas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body class="bg-gray-50 font-sans p-6">
+  <h1 class="text-3xl font-bold text-center mb-8">📊 Dashboard de développement – Talas</h1>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+    <!-- Connexion -->
+    <iframe src="/login.html" class="w-full h-[450px] rounded-lg border shadow"></iframe>
+
+    <!-- Inscription -->
+    <iframe src="/register.html" class="w-full h-[450px] rounded-lg border shadow"></iframe>
+
+    <!-- Produits -->
+    <iframe src="/produits.html" class="w-full h-[700px] rounded-lg border shadow"></iframe>
+
+    <!-- Salons -->
+    <iframe src="/room.html" class="w-full h-[600px] rounded-lg border shadow"></iframe>
+
+    <!-- Messagerie (DM) - Manuel via URL -->
+    <iframe src="/message.html?user_id=1" class="w-full h-[600px] rounded-lg border shadow"></iframe>
+
+    <!-- Liste des utilisateurs -->
+    <iframe src="/users.html" class="w-full h-[500px] rounded-lg border shadow"></iframe>
+
+    <!-- Console API de test -->
+    <iframe src="/test.html" class="w-full h-[800px] rounded-lg border shadow col-span-full"></iframe>
+  </div>
+
+  <p class="text-center text-gray-500 text-xs mt-6">
+    Cette page est destinée aux tests internes uniquement. Elle n'est pas optimisée pour la production.
+  </p>
+
+  <script src="js/message.js"></script>
+  <script src="js/users.js"></script>
+  <script src="js/room.js"></script>
+  <script src="js/register.js"></script>
+  <script src="js/produits.js"></script>
+</body>
+</html>
