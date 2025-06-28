@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Script raccourci pour Veza Manager
+# Permet d'utiliser "./veza <commande>" au lieu de "./scripts/veza-manager.sh <commande>"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VEZA_MANAGER="$SCRIPT_DIR/scripts/veza-manager.sh"
+
+# Vérifier que le script manager existe
+if [ ! -f "$VEZA_MANAGER" ]; then
+    echo "❌ Script veza-manager.sh introuvable dans scripts/"
+        exit 1
+    fi
+    
+# Passer tous les arguments au script manager
+exec "$VEZA_MANAGER" "$@" 

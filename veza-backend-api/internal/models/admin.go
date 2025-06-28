@@ -151,3 +151,5 @@ type BulkUpdateRequest struct {
 	ProductIDs []int                `json:"product_ids" validate:"required,min=1"`
 	Updates    UpdateProductRequest `json:"updates"`
 }
+
+// Product est défini dans models/product.go

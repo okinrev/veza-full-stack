@@ -1,6 +1,6 @@
 //file: backend/modules/chat_server/src/messages.rs
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
@@ -56,4 +56,19 @@ impl WsInbound {
             }
         }
     }
+}
+
+// Types temporaires pour la compilation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MessageContent {
+    pub text: String,
+    pub metadata: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MessageType {
+    Text,
+    Image,
+    File,
+    System,
 }

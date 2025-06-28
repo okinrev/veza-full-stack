@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -25,6 +26,27 @@ func getProjectRoot() string {
 	}
 	// Remonter d'un niveau depuis le dossier backend
 	return filepath.Dir(wd)
+}
+
+// serveReactApp sert l'application React en mode SPA
+func serveReactApp(frontendPath string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		path := c.Request.URL.Path
+
+		// Si c'est une route API ou WebSocket, ne pas intercepter
+		if strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/ws/") {
+			c.Next()
+			return
+		}
+
+		// Pour toutes les autres routes, servir index.html (SPA routing)
+		indexPath := filepath.Join(frontendPath, "index.html")
+		if _, err := os.Stat(indexPath); err == nil {
+			c.File(indexPath)
+		} else {
+			c.Status(http.StatusNotFound)
+		}
+	}
 }
 
 func main() {
@@ -55,41 +77,24 @@ func main() {
 
 	// Obtenir le chemin absolu du projet
 	projectRoot := getProjectRoot()
-	basicFrontendPath := filepath.Join(projectRoot, "veza-basic-frontend")
+	reactFrontendPath := filepath.Join(projectRoot, "veza-frontend", "dist")
 
-	log.Printf("📂 Chemin du frontend HTML/JS basique: %s", basicFrontendPath)
+	log.Printf("🚀 Chemin du frontend React: %s", reactFrontendPath)
+
+	// Vérifier que le dossier dist existe
+	if _, err := os.Stat(reactFrontendPath); os.IsNotExist(err) {
+		log.Printf("⚠️  Le dossier frontend React n'existe pas: %s", reactFrontendPath)
+		log.Printf("💡 Veuillez exécuter 'npm run build' dans le dossier veza-frontend")
+	}
 
 	// Configurer les routes
 	router := gin.Default()
 
-	// Middleware pour servir les fichiers statiques du frontend HTML/JS basique
-	router.Static("/css", filepath.Join(basicFrontendPath, "css"))
-	router.Static("/js", filepath.Join(basicFrontendPath, "js"))
-	router.StaticFile("/favicon.ico", filepath.Join(basicFrontendPath, "favicon.ico"))
-
-	// Servir toutes les pages HTML individuelles
-	router.StaticFile("/", filepath.Join(basicFrontendPath, "login.html"))
-	router.StaticFile("/login", filepath.Join(basicFrontendPath, "login.html"))
-	router.StaticFile("/register", filepath.Join(basicFrontendPath, "register.html"))
-	router.StaticFile("/dashboard", filepath.Join(basicFrontendPath, "dashboard.html"))
-	router.StaticFile("/main", filepath.Join(basicFrontendPath, "main.html"))
-	router.StaticFile("/hub", filepath.Join(basicFrontendPath, "hub.html"))
-	router.StaticFile("/hub_v2", filepath.Join(basicFrontendPath, "hub_v2.html"))
-	router.StaticFile("/gg", filepath.Join(basicFrontendPath, "gg.html"))
-	router.StaticFile("/chat", filepath.Join(basicFrontendPath, "chat.html"))
-	router.StaticFile("/room", filepath.Join(basicFrontendPath, "room.html"))
-	router.StaticFile("/message", filepath.Join(basicFrontendPath, "message.html"))
-	router.StaticFile("/dm", filepath.Join(basicFrontendPath, "dm.html"))
-	router.StaticFile("/users", filepath.Join(basicFrontendPath, "users.html"))
-	router.StaticFile("/produits", filepath.Join(basicFrontendPath, "user_products.html"))
-	router.StaticFile("/admin_products", filepath.Join(basicFrontendPath, "admin_products.html"))
-	router.StaticFile("/track", filepath.Join(basicFrontendPath, "track.html"))
-	router.StaticFile("/shared_ressources", filepath.Join(basicFrontendPath, "shared_ressources.html"))
-	router.StaticFile("/listings", filepath.Join(basicFrontendPath, "listings.html"))
-	router.StaticFile("/search", filepath.Join(basicFrontendPath, "search.html"))
-	router.StaticFile("/search_v2", filepath.Join(basicFrontendPath, "search_v2.html"))
-	router.StaticFile("/api", filepath.Join(basicFrontendPath, "api.html"))
-	router.StaticFile("/test", filepath.Join(basicFrontendPath, "test.html"))
+	// Middleware pour servir les assets statiques React (JS, CSS, images)
+	router.Static("/assets", filepath.Join(reactFrontendPath, "assets"))
+	router.StaticFile("/favicon.svg", filepath.Join(reactFrontendPath, "favicon.svg"))
+	router.StaticFile("/favicon.ico", filepath.Join(reactFrontendPath, "favicon.ico"))
+	router.StaticFile("/vite.svg", filepath.Join(reactFrontendPath, "vite.svg"))
 
 	// Initialiser le gestionnaire WebSocket
 	chatManager := websocket.NewChatManager(cfg.JWT.Secret)
@@ -105,7 +110,8 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{
 			"status":    "ok",
 			"service":   "veza-backend",
-			"version":   "1.0.0",
+			"version":   "2.0.0",
+			"frontend":  "react",
 			"timestamp": time.Now().Unix(),
 		})
 	})
@@ -113,13 +119,16 @@ func main() {
 	// Configurer les routes API
 	api.SetupRoutes(router, db, cfg)
 
+	// Middleware pour servir l'application React (SPA) pour toutes les autres routes
+	router.Use(serveReactApp(reactFrontendPath))
+
 	// Démarrer le serveur
 	port := cfg.Server.Port
 	if port == "" {
 		port = "8080"
 	}
 
-	log.Printf("Serveur démarré sur le port %s", port)
+	log.Printf("🎯 Serveur démarré sur le port %s avec frontend React", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("Erreur lors du démarrage du serveur: %v", err)
 	}

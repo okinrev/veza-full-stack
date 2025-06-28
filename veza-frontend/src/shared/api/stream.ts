@@ -85,4 +85,4 @@ export class StreamWebSocketClient {
   }
 }
 
-export const streamWsClient = new StreamWebSocketClient('ws://localhost:8082/stream'); 
+export const streamWsClient = new StreamWebSocketClient('ws://10.5.191.188:8082/stream'); 

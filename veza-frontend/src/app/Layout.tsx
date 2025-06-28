@@ -1,19 +1,27 @@
-import { Outlet } from 'react-router-dom';
-import { Navbar } from '@/shared/components/Navbar';
-import { Sidebar } from '@/shared/components/Sidebar';
-import { Toaster } from '@/components/ui/toaster';
+import { useEffect } from 'react';
+import type { ReactNode } from 'react';
+import { Navbar } from '@/components/layout/Navbar';
+import { useAuthStore } from '@/features/auth/store/authStore';
 
-export function Layout() {
+interface LayoutProps {
+  children: ReactNode;
+  showNavbar?: boolean;
+}
+
+export function Layout({ children, showNavbar = true }: LayoutProps) {
+  const { checkExistingAuth } = useAuthStore();
+
+  useEffect(() => {
+    // Vérifier l'authentification au chargement
+    checkExistingAuth();
+  }, [checkExistingAuth]);
+
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="flex">
-        <Sidebar />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-      </div>
-      <Toaster />
+    <div className="min-h-screen bg-gray-50">
+      {showNavbar && <Navbar />}
+      <main className="flex-1">
+        {children}
+      </main>
     </div>
   );
 } 

@@ -1,0 +1,42 @@
+[vite] connecting... client:229:9
+[vite] connected. client:325:21
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools chunk-WALXKXZM.js:21580:25
+Password fields present on an insecure (http://) page. This is a security risk that allows user login credentials to be stolen. login
+⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition. react-router-dom.js:4409:13
+⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath. react-router-dom.js:4409:13
+Source map error: No sources are declared in this source map.
+Resource URL: http://10.5.191.29/node_modules/.vite/deps/chunk-5WWUZCGV.js?v=a8569036
+Source Map URL: chunk-5WWUZCGV.js.map
+Source map error: No sources are declared in this source map.
+Resource URL: http://10.5.191.29/node_modules/.vite/deps/react.js?v=a8569036
+Source Map URL: react.js.map
+Source map error: No sources are declared in this source map.
+Resource URL: http://10.5.191.29/node_modules/.vite/deps/@radix-ui_react-slot.js?v=a8569036
+Source Map URL: @radix-ui_react-slot.js.map
+Source map error: No sources are declared in this source map.
+Resource URL: http://10.5.191.29/node_modules/.vite/deps/clsx.js?v=a8569036
+Source Map URL: clsx.js.map
+🔵 [Chat WebSocket] Connexion à: ws://10.5.191.108:3001/ws chatWebSocket.ts:78:15
+Firefox can’t establish a connection to the server at ws://10.5.191.108:3001/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6InN1cGVyX2FkbWluIiwiZXhwIjoxNzUxMTA1OTE2LCJpYXQiOjE3NTExMDIzMTZ9.YSF4O-5DQbYQFPuo-qOQrG1oqllfxomAup6rAH75rm8. chatWebSocket.ts:79:17
+🟡 [Chat WebSocket] Déconnecté chatWebSocket.ts:167:13
+🔵 [Chat WebSocket] Connexion à: ws://10.5.191.108:3001/ws chatWebSocket.ts:78:15
+The connection to ws://10.5.191.108:3001/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImFkbWluIiwicm9sZSI6InN1cGVyX2FkbWluIiwiZXhwIjoxNzUxMTA1OTE2LCJpYXQiOjE3NTExMDIzMTZ9.YSF4O-5DQbYQFPuo-qOQrG1oqllfxomAup6rAH75rm8 was interrupted while the page was loading. chatWebSocket.ts:79:17
+🔴 [Chat WebSocket] Erreur: 
+error { target: WebSocket, isTrusted: true, srcElement: WebSocket, currentTarget: WebSocket, eventPhase: 2, bubbles: false, cancelable: false, returnValue: true, defaultPrevented: false, composed: false, … }
+chatWebSocket.ts:111:19
+❌ Erreur chat: Erreur de connexion WebSocket ChatPage.tsx:122:15
+🟢 [Chat WebSocket] Connexion établie chatWebSocket.ts:91:19
+✅ Chat connecté ChatPage.tsx:78:15
+getRoomHistory non implémenté avec le nouveau format WebSocket chatWebSocket.ts:263:13
+✅ Salon rejoint: undefined 2 ChatPage.tsx:109:15
+sendTyping non supporté par le serveur actuel 5 chatWebSocket.ts:271:13
+✅ Salon rejoint: undefined ChatPage.tsx:109:15
+getRoomHistory non implémenté avec le nouveau format WebSocket chatWebSocket.ts:263:13
+🟡 [Chat WebSocket] Déconnecté chatWebSocket.ts:167:13
+🔵 [Chat WebSocket] Connexion à: ws://10.5.191.108:3001/ws chatWebSocket.ts:78:15
+🟢 [Chat WebSocket] Connexion établie chatWebSocket.ts:91:19
+✅ Chat connecté ChatPage.tsx:78:15
+getRoomHistory non implémenté avec le nouveau format WebSocket chatWebSocket.ts:263:13
+✅ Salon rejoint: undefined 2 ChatPage.tsx:109:15
+sendTyping non supporté par le serveur actuel 6 chatWebSocket.ts:271:13
+✅ Salon rejoint: undefined ChatPage.tsx:109:15

@@ -1,31 +1,29 @@
-// WebSocket Service pour le chat - Conforme à la documentation backend
-// Se connecte au Chat-Server Rust sur le port 9001
-import { useAuthStore } from '../../../shared/stores/authStore';
+// WebSocket Service pour le chat - Compatible avec Chat-Server Rust
+// Adapté pour le nouveau store d'authentification
+import { useAuthStore } from '@/features/auth/store/authStore';
 
 // Types pour les messages entrants (du serveur Rust vers le client)
 export type WebSocketInboundMessageType =
-  | 'message'      // Nouveau message room
-  | 'dm'           // Nouveau message privé
-  | 'room_history' // Historique room
-  | 'dm_history'   // Historique DM
-  | 'error';       // Erreur
+  | 'NewMessage'       // Nouveau message
+  | 'ActionConfirmed'  // Confirmation d'action
+  | 'Error'           // Erreur
+  | 'Pong';           // Réponse au ping
 
 // Types pour les messages sortants (du client vers le serveur Rust)
 export type WebSocketOutboundMessageType = 
-  | 'join'         // Rejoindre un salon
-  | 'message'      // Envoyer message salon
-  | 'dm'           // Envoyer message direct
-  | 'room_history' // Demander historique salon
-  | 'dm_history';  // Demander historique DM
+  | 'SendMessage'      // Envoyer un message
+  | 'JoinConversation' // Rejoindre une conversation
+  | 'LeaveConversation'// Quitter une conversation
+  | 'MarkAsRead'       // Marquer comme lu
+  | 'Ping';            // Ping de connexion
 
 // Structure des messages sortants vers le serveur Rust
 export interface WebSocketOutboundMessage {
   type: WebSocketOutboundMessageType;
-  room?: string;      // Pour join, message, room_history
-  content?: string;   // Pour message, dm
-  to?: number;        // Pour dm (user_id destinataire)
-  with?: number;      // Pour dm_history (user_id correspondant)
-  limit?: number;     // Pour *_history (nombre max de messages)
+  conversation_id?: string;    // UUID de la conversation
+  content?: string;           // Contenu du message
+  message_id?: string;        // UUID du message
+  parent_message_id?: string | null; // UUID du message parent
 }
 
 // Structure des messages entrants du serveur Rust
@@ -33,9 +31,11 @@ export interface WebSocketInboundMessage {
   type: WebSocketInboundMessageType;
   data?: any;
   message?: string;   // Pour les erreurs
+  room?: string;      // Salon concerné
+  user?: any;         // Utilisateur concerné
 }
 
-// Message individuel selon la documentation
+// Message individuel (adapté de l'ancien frontend)
 export interface WebSocketChatMessage {
   id?: number;
   fromUser?: number;
@@ -44,6 +44,15 @@ export interface WebSocketChatMessage {
   timestamp: string;
   room?: string;      // Pour les messages de salon
   to?: number;        // Pour les messages directs
+  status?: 'sent' | 'delivered' | 'read'; // Statut du message
+}
+
+// Utilisateur connecté
+export interface ConnectedUser {
+  id: number;
+  username: string;
+  email?: string;
+  isOnline: boolean;
 }
 
 // Events émis par le WebSocket manager
@@ -54,9 +63,16 @@ export type ChatEventType =
   | 'dm_received'         // Nouveau message direct reçu
   | 'room_history'        // Historique salon reçu
   | 'dm_history'          // Historique DM reçu
+  | 'room_joined'         // Salon rejoint avec succès
+  | 'room_left'           // Salon quitté
+  | 'user_joined'         // Utilisateur a rejoint salon
+  | 'user_left'           // Utilisateur a quitté salon
+  | 'users_list'          // Liste des utilisateurs connectés
+  | 'typing_start'        // Quelqu'un commence à écrire
+  | 'typing_stop'         // Quelqu'un arrête d'écrire
   | 'error';              // Erreur serveur
 
-export class ChatWebSocketManager {
+export class ChatWebSocketManager extends EventTarget {
   private ws: WebSocket | null = null;
   private eventListeners: { [K in ChatEventType]: Function[] } = {
     connected: [],
@@ -65,12 +81,41 @@ export class ChatWebSocketManager {
     dm_received: [],
     room_history: [],
     dm_history: [],
+    room_joined: [],
+    room_left: [],
+    user_joined: [],
+    user_left: [],
+    users_list: [],
+    typing_start: [],
+    typing_stop: [],
     error: []
   };
   
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private reconnectDelay = 3000; // ms
+  private readonly maxReconnectAttempts = 5;
+  private readonly reconnectDelay = 2000;
+  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private pingInterval: NodeJS.Timeout | null = null;
+  private isManualDisconnect = false;
+  
+  // Mapping des rooms vers des UUIDs fixes
+  private roomToUuidMap: Map<string, string> = new Map();
+  
+  // UUIDs fixes pour les rooms communes
+  private readonly defaultRoomUuids = {
+    'general': '00000000-0000-4000-8000-000000000001',
+    'random': '00000000-0000-4000-8000-000000000002',
+    'tech': '00000000-0000-4000-8000-000000000003',
+    'music': '00000000-0000-4000-8000-000000000004',
+  };
+
+  constructor() {
+    super();
+    // Initialiser le mapping avec les rooms par défaut
+    Object.entries(this.defaultRoomUuids).forEach(([room, uuid]) => {
+      this.roomToUuidMap.set(room, uuid);
+    });
+  }
   
   // === MÉTHODES D'ÉCOUTE ===
   
@@ -87,12 +132,16 @@ export class ChatWebSocketManager {
   }
   
   private emit<T extends ChatEventType>(event: T, data?: any) {
-    console.log(`[Chat WebSocket] Événement émis: ${event}`, data);
+    const DEBUG = import.meta.env.VITE_DEBUG === 'true';
+    if (DEBUG) {
+      console.log(`🔵 [Chat WebSocket] Événement: ${event}`, data);
+    }
+    
     this.eventListeners[event].forEach(callback => {
       try {
         callback(data);
       } catch (error) {
-        console.error(`[Chat WebSocket] Erreur dans le callback ${event}:`, error);
+        console.error(`🔴 [Chat WebSocket] Erreur callback ${event}:`, error);
       }
     });
   }
@@ -101,24 +150,18 @@ export class ChatWebSocketManager {
   
   async connect(): Promise<boolean> {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      console.log('[Chat WebSocket] Déjà connecté');
+      console.log('🟡 [Chat WebSocket] Déjà connecté');
       return true;
     }
     
     try {
-      const authStore = useAuthStore.getState();
-      const token = authStore.accessToken;
-    
-    if (!token) {
-        console.error('[Chat WebSocket] Pas de token d\'authentification');
-      return false;
-    }
-    
-      // URL WebSocket vers le serveur de chat dédié sur le port 8081
-      const wsUrl = import.meta.env.VITE_WS_CHAT_URL ? 
-        `${import.meta.env.VITE_WS_CHAT_URL}?token=${token}` :
-        `ws://localhost:8081/ws?token=${token}`;
-      console.log('[Chat WebSocket] Connexion à:', wsUrl);
+      // Pour l'instant, le serveur de chat ne gère pas l'authentification WebSocket
+      // On se connecte directement sans token
+      
+      // URL WebSocket vers le serveur de chat Rust
+      const wsUrl = import.meta.env.VITE_WS_CHAT_URL || 'ws://10.5.191.108:3001/ws';
+      
+      console.log('🔵 [Chat WebSocket] Connexion à:', wsUrl);
       
       this.ws = new WebSocket(wsUrl);
       
@@ -128,20 +171,29 @@ export class ChatWebSocketManager {
           return;
         }
         
+        const timeout = setTimeout(() => {
+          console.error('🔴 [Chat WebSocket] Timeout de connexion');
+          resolve(false);
+        }, 10000); // 10 secondes de timeout
+        
         this.ws.onopen = () => {
-          console.log('[Chat WebSocket] Connexion établie');
+          clearTimeout(timeout);
+          console.log('🟢 [Chat WebSocket] Connexion établie');
           this.reconnectAttempts = 0;
+          this.startPing();
           this.emit('connected');
           resolve(true);
         };
         
         this.ws.onclose = (event) => {
-          console.log('[Chat WebSocket] Connexion fermée:', event.code, event.reason);
-          this.emit('disconnected');
+          clearTimeout(timeout);
+          console.log(`🟡 [Chat WebSocket] Connexion fermée: ${event.code} - ${event.reason}`);
+          this.stopPing();
+          this.emit('disconnected', { code: event.code, reason: event.reason });
           
           // Reconnexion automatique si pas une fermeture normale
           if (event.code !== 1000 && this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.attemptReconnect();
+            this.scheduleReconnect();
           }
           
           if (this.reconnectAttempts === 0) {
@@ -150,7 +202,8 @@ export class ChatWebSocketManager {
         };
         
         this.ws.onerror = (error) => {
-          console.error('[Chat WebSocket] Erreur:', error);
+          clearTimeout(timeout);
+          console.error('🔴 [Chat WebSocket] Erreur:', error);
           this.emit('error', { message: 'Erreur de connexion WebSocket' });
           resolve(false);
         };
@@ -160,36 +213,65 @@ export class ChatWebSocketManager {
             const data = JSON.parse(event.data);
             this.handleInboundMessage(data);
           } catch (error) {
-            console.error('[Chat WebSocket] Erreur parsing message:', error, event.data);
+            console.error('🔴 [Chat WebSocket] Erreur parsing message:', error, event.data);
           }
         };
       });
       
     } catch (error) {
-      console.error('[Chat WebSocket] Erreur de connexion:', error);
-      this.emit('error', { message: 'Impossible de se connecter' });
+      console.error('🔴 [Chat WebSocket] Erreur de connexion:', error);
+      this.emit('error', { message: 'Impossible de se connecter au chat' });
       return false;
     }
   }
   
-  private attemptReconnect() {
+  private scheduleReconnect() {
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+    }
+    
     this.reconnectAttempts++;
     const delay = this.reconnectDelay * this.reconnectAttempts;
     
-    console.log(`[Chat WebSocket] Tentative de reconnexion ${this.reconnectAttempts}/${this.maxReconnectAttempts} dans ${delay}ms`);
+    console.log(`🟡 [Chat WebSocket] Reconnexion ${this.reconnectAttempts}/${this.maxReconnectAttempts} dans ${delay}ms`);
     
-    setTimeout(() => {
+    this.reconnectTimeout = setTimeout(() => {
       this.connect();
     }, delay);
   }
   
+  private startPing() {
+    this.stopPing();
+    this.pingInterval = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: 'Ping' }));
+      }
+    }, 30000); // Ping toutes les 30 secondes
+  }
+  
+  private stopPing() {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
+    }
+  }
+  
   disconnect() {
+    this.stopPing();
+    
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    
     if (this.ws) {
-      this.ws.onclose = null; // Empêcher la reconnexion
+      this.ws.onclose = null; // Empêcher la reconnexion automatique
       this.ws.close(1000, 'Déconnexion demandée');
       this.ws = null;
     }
+    
     this.reconnectAttempts = 0;
+    console.log('🟡 [Chat WebSocket] Déconnecté');
   }
   
   isConnected(): boolean {
@@ -198,128 +280,146 @@ export class ChatWebSocketManager {
   
   // === GESTION DES MESSAGES ENTRANTS ===
   
-  private handleInboundMessage(message: WebSocketInboundMessage) {
-    console.log('[Chat WebSocket] Message reçu:', message);
+  private handleInboundMessage(data: WebSocketInboundMessage) {
+    const DEBUG = import.meta.env.VITE_DEBUG === 'true';
+    if (DEBUG) {
+      console.log('📥 [Chat WebSocket] Message reçu:', data);
+    }
     
-    switch (message.type) {
-      case 'message':
-        // Nouveau message de salon selon la documentation
-        if (message.data) {
-          this.emit('message_received', {
-            username: message.data.username,
-            fromUser: message.data.fromUser,
-            content: message.data.content,
-            timestamp: message.data.timestamp,
-            room: message.data.room
-          });
-        }
+    switch (data.type) {
+      case 'NewMessage':
+        // Nouveau message de salon
+        this.emit('message_received', data.data);
         break;
         
-      case 'dm':
-        // Nouveau message privé selon la documentation
-        if (message.data) {
-          this.emit('dm_received', {
-            id: message.data.id,
-            fromUser: message.data.fromUser,
-            username: message.data.username,
-            content: message.data.content,
-            timestamp: message.data.timestamp
-          });
-        }
+      case 'ActionConfirmed':
+        // Confirmation salon rejoint
+        this.emit('room_joined', data.data);
         break;
         
-      case 'room_history':
-        // Historique salon selon la documentation
-        if (Array.isArray(message.data)) {
-          this.emit('room_history', message.data);
-        }
-        break;
-        
-      case 'dm_history':
-        // Historique DM selon la documentation
-        if (Array.isArray(message.data)) {
-          this.emit('dm_history', message.data);
-        }
-        break;
-        
-      case 'error':
+      case 'Error':
         // Erreur serveur
-        console.error('[Chat WebSocket] Erreur serveur:', message.data);
-        this.emit('error', { message: message.data?.message || 'Erreur inconnue' });
+        console.error('🔴 [Chat WebSocket] Erreur serveur:', data.message);
+        this.emit('error', { message: data.message || 'Erreur inconnue' });
+        break;
+        
+      case 'Pong':
+        // Réponse au ping
+        this.emit('connected');
         break;
         
       default:
-        console.warn('[Chat WebSocket] Type de message non géré:', message.type);
+        console.warn('⚠️ [Chat WebSocket] Type de message inconnu:', data.type);
     }
   }
-
-  // === MÉTHODES POUR ENVOYER DES MESSAGES AU SERVEUR RUST ===
   
-  private sendMessage(payload: WebSocketOutboundMessage) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.error('[Chat WebSocket] WebSocket non connecté');
-      this.emit('error', { message: 'WebSocket non connecté' });
+  // === ENVOI DE MESSAGES ===
+  
+  private sendMessage(payload: WebSocketOutboundMessage): boolean {
+    if (!this.isConnected()) {
+      console.error('🔴 [Chat WebSocket] Pas connecté, impossible d\'envoyer:', payload.type);
       return false;
     }
     
-    const message = JSON.stringify(payload);
-    console.log('[Chat WebSocket] Envoi vers serveur:', message);
-    this.ws.send(message);
-    return true;
+    try {
+      this.ws!.send(JSON.stringify(payload));
+      
+      const DEBUG = import.meta.env.VITE_DEBUG === 'true';
+      if (DEBUG) {
+        console.log('📤 [Chat WebSocket] Message envoyé:', payload);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('🔴 [Chat WebSocket] Erreur envoi message:', error);
+      return false;
+    }
   }
   
-  /**
-   * Rejoindre un salon
-   */
+  // === MÉTHODES PUBLIQUES ===
+  
   joinRoom(roomName: string): boolean {
+    const conversationId = this.getRoomUuid(roomName);
     return this.sendMessage({
-      type: 'join',
-      room: roomName
+      type: 'JoinConversation',
+      conversation_id: conversationId
+    });
+  }
+  
+  leaveRoom(roomName: string): boolean {
+    const conversationId = this.getRoomUuid(roomName);
+    return this.sendMessage({
+      type: 'LeaveConversation',
+      conversation_id: conversationId
+    });
+  }
+  
+  // Fonction utilitaire pour générer un UUID simple
+  private generateUUID(): string {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
     });
   }
 
-  /**
-   * Envoyer un message dans un salon
-   */
+  // Obtenir ou créer l'UUID d'une room
+  private getRoomUuid(roomName: string): string {
+    if (!this.roomToUuidMap.has(roomName)) {
+      this.roomToUuidMap.set(roomName, this.generateUUID());
+    }
+    return this.roomToUuidMap.get(roomName)!;
+  }
+
   sendRoomMessage(roomName: string, content: string): boolean {
+    // Utiliser l'UUID fixe de la room
+    const conversationId = this.getRoomUuid(roomName);
+    
     return this.sendMessage({
-      type: 'message',
-      room: roomName,
-      content
+      type: 'SendMessage',
+      conversation_id: conversationId,
+      content: content.trim(),
+      parent_message_id: null
     });
   }
-
-  /**
-   * Envoyer un message privé
-   */
+  
   sendDirectMessage(toUserId: number, content: string): boolean {
     return this.sendMessage({
-      type: 'dm',
-      to: toUserId,
-      content
+      type: 'SendMessage',
+      conversation_id: this.generateUUID(),
+      content: content.trim(),
+      message_id: this.generateUUID(),
+      parent_message_id: null
     });
   }
-
-  /**
-   * Demander l'historique d'un salon
-   */
-  getRoomHistory(roomName: string, limit = 50): boolean {
-    return this.sendMessage({
-      type: 'room_history',
-      room: roomName,
-      limit
-    });
+  
+  async getRoomHistory(roomName: string, limit = 50): Promise<boolean> {
+    try {
+      // Utiliser l'API REST pour récupérer l'historique
+      const conversationId = this.getRoomUuid(roomName);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://10.5.191.175:8080'}/api/messages?room=${encodeURIComponent(conversationId)}&limit=${limit}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        // Émettre l'événement d'historique reçu
+        this.emit('room_history', data.data || []);
+        return true;
+      }
+    } catch (error) {
+      console.warn('Erreur récupération historique:', error);
+    }
+    return false;
   }
-
-  /**
-   * Demander l'historique des messages privés avec un utilisateur
-   */
+  
   getDMHistory(withUserId: number, limit = 50): boolean {
-    return this.sendMessage({
-      type: 'dm_history',
-      with: withUserId,
-      limit
-    });
+    // Pour l'instant, les DM ne sont pas implémentés dans l'API
+    return false;
+  }
+  
+  sendTyping(roomName?: string, toUserId?: number): boolean {
+    // Le serveur actuel ne supporte pas les messages de typing
+    // On peut ignorer silencieusement cette fonctionnalité
+    return true;
   }
 }
 

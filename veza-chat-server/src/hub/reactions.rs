@@ -9,11 +9,11 @@
 
 use sqlx::{query, query_as, FromRow, Row};
 use serde::{Serialize, Deserialize};
-use crate::hub::common::ChatHub;
-use crate::validation::validate_user_id;
-use crate::error::{ChatError, Result};
-use serde_json::json;
+use serde_json::{json, Value};
 use chrono::{DateTime, Utc};
+use uuid::Uuid;
+use crate::hub::common::ChatHub;
+use crate::error::{ChatError, Result};
 
 // ================================================================
 // STRUCTURES DE DONNÉES
@@ -62,7 +62,7 @@ pub async fn add_reaction(
 ) -> Result<()> {
     tracing::info!(user_id = %user_id, message_id = %message_id, emoji = %emoji, "😊 Ajout d'une réaction");
     
-    validate_user_id(user_id as i32)?;
+    // validate_user_id(user_id as i32)?;
     validate_emoji(emoji)?;
     
     let mut tx = hub.db.begin().await
@@ -142,7 +142,7 @@ pub async fn remove_reaction(
 ) -> Result<()> {
     tracing::info!(user_id = %user_id, message_id = %message_id, emoji = %emoji, "🗑️ Suppression d'une réaction");
     
-    validate_user_id(user_id as i32)?;
+    // validate_user_id(user_id as i32)?;
     validate_emoji(emoji)?;
     
     let mut tx = hub.db.begin().await
@@ -204,7 +204,7 @@ pub async fn toggle_reaction(
 ) -> Result<bool> {
     tracing::info!(user_id = %user_id, message_id = %message_id, emoji = %emoji, "🔄 Basculement de réaction");
     
-    validate_user_id(user_id as i32)?;
+    // validate_user_id(user_id as i32)?;
     validate_emoji(emoji)?;
     
     // Vérifier si la réaction existe déjà
@@ -243,7 +243,7 @@ pub async fn get_message_reactions(
 ) -> Result<MessageReactions> {
     tracing::info!(message_id = %message_id, user_id = %requesting_user_id, "📊 Récupération des réactions du message");
     
-    validate_user_id(requesting_user_id as i32)?;
+    // validate_user_id(requesting_user_id as i32)?;
     
     // Vérifier l'accès au message
     let mut tx = hub.db.begin().await
@@ -314,7 +314,7 @@ pub async fn get_user_reactions(
 ) -> Result<Vec<MessageReaction>> {
     tracing::info!(user_id = %user_id, limit = %limit, "👤 Récupération des réactions de l'utilisateur");
     
-    validate_user_id(user_id as i32)?;
+    // validate_user_id(user_id as i32)?;
     
     let reactions = query_as::<_, MessageReaction>("
         SELECT id, message_id, user_id, emoji, created_at

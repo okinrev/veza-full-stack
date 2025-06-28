@@ -31,6 +31,12 @@ pub enum AppError {
     // Erreurs de rate limiting
     RateLimited,
     
+    // Erreurs d'I/O
+    IoError(String),
+    
+    // Erreurs de parsing
+    ParseError(String),
+    
     // Erreurs internes
     Internal(String),
 }
@@ -49,6 +55,8 @@ impl fmt::Display for AppError {
             AppError::CacheError(msg) => write!(f, "Cache error: {}", msg),
             AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             AppError::RateLimited => write!(f, "Rate limit exceeded"),
+            AppError::IoError(msg) => write!(f, "I/O error: {}", msg),
+            AppError::ParseError(msg) => write!(f, "Parsing error: {}", msg),
             AppError::Internal(msg) => write!(f, "Internal error: {}", msg),
         }
     }
@@ -70,6 +78,8 @@ impl IntoResponse for AppError {
             AppError::CacheError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Cache error"),
             AppError::ValidationError(_) => (StatusCode::BAD_REQUEST, "Validation error"),
             AppError::RateLimited => (StatusCode::TOO_MANY_REQUESTS, "Rate limit exceeded"),
+            AppError::IoError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "I/O error"),
+            AppError::ParseError(_) => (StatusCode::BAD_REQUEST, "Parsing error"),
             AppError::Internal(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal error"),
         };
 

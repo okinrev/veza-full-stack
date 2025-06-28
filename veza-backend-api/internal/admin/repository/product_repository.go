@@ -3,16 +3,16 @@ package repository
 import (
 	"database/sql"
 
-	"github.com/google/uuid"
+	"github.com/okinrev/veza-web-app/internal/models"
 )
 
 type ProductRepository interface {
-	Create(product *admin.Product) error
-	GetByID(id uuid.UUID) (*admin.Product, error)
-	GetAll() ([]*admin.Product, error)
-	Update(product *admin.Product) error
-	Delete(id uuid.UUID) error
-	GetByCategory(category string) ([]*admin.Product, error)
+	Create(product *models.Product) error
+	GetByID(id int) (*models.Product, error)
+	GetAll() ([]*models.Product, error)
+	Update(product *models.Product) error
+	Delete(id int) error
+	GetByCategory(categoryID int) ([]*models.Product, error)
 }
 
 type productRepository struct {
@@ -23,39 +23,43 @@ func NewProductRepository(db *sql.DB) ProductRepository {
 	return &productRepository{db: db}
 }
 
-func (r *productRepository) Create(product *admin.Product) error {
+func (r *productRepository) Create(product *models.Product) error {
 	query := `
-        INSERT INTO products (id, name, description, price, category, user_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        INSERT INTO products (name, description, price, category_id, brand, model, status, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+        RETURNING id
     `
 
-	_, err := r.db.Exec(
+	err := r.db.QueryRow(
 		query,
-		product.ID,
 		product.Name,
 		product.Description,
 		product.Price,
-		product.Category,
-		product.UserID,
-	)
+		product.CategoryID,
+		product.Brand,
+		product.Model,
+		product.Status,
+	).Scan(&product.ID)
 
 	return err
 }
 
-func (r *productRepository) GetByID(id uuid.UUID) (*admin.Product, error) {
+func (r *productRepository) GetByID(id int) (*models.Product, error) {
 	query := `
-        SELECT id, name, description, price, category, user_id, created_at, updated_at
+        SELECT id, name, description, price, category_id, brand, model, status, created_at, updated_at
         FROM products WHERE id = $1
     `
 
-	product := &admin.Product{}
+	product := &models.Product{}
 	err := r.db.QueryRow(query, id).Scan(
 		&product.ID,
 		&product.Name,
 		&product.Description,
 		&product.Price,
-		&product.Category,
-		&product.UserID,
+		&product.CategoryID,
+		&product.Brand,
+		&product.Model,
+		&product.Status,
 		&product.CreatedAt,
 		&product.UpdatedAt,
 	)
@@ -67,9 +71,9 @@ func (r *productRepository) GetByID(id uuid.UUID) (*admin.Product, error) {
 	return product, nil
 }
 
-func (r *productRepository) GetAll() ([]*admin.Product, error) {
+func (r *productRepository) GetAll() ([]*models.Product, error) {
 	query := `
-        SELECT id, name, description, price, category, user_id, created_at, updated_at
+        SELECT id, name, description, price, category_id, brand, model, status, created_at, updated_at
         FROM products ORDER BY created_at DESC
     `
 
@@ -79,16 +83,18 @@ func (r *productRepository) GetAll() ([]*admin.Product, error) {
 	}
 	defer rows.Close()
 
-	var products []*admin.Product
+	var products []*models.Product
 	for rows.Next() {
-		product := &admin.Product{}
+		product := &models.Product{}
 		err := rows.Scan(
 			&product.ID,
 			&product.Name,
 			&product.Description,
 			&product.Price,
-			&product.Category,
-			&product.UserID,
+			&product.CategoryID,
+			&product.Brand,
+			&product.Model,
+			&product.Status,
 			&product.CreatedAt,
 			&product.UpdatedAt,
 		)
@@ -101,10 +107,10 @@ func (r *productRepository) GetAll() ([]*admin.Product, error) {
 	return products, nil
 }
 
-func (r *productRepository) Update(product *admin.Product) error {
+func (r *productRepository) Update(product *models.Product) error {
 	query := `
         UPDATE products 
-        SET name = $2, description = $3, price = $4, category = $5, updated_at = NOW()
+        SET name = $2, description = $3, price = $4, category_id = $5, brand = $6, model = $7, status = $8, updated_at = NOW()
         WHERE id = $1
     `
 
@@ -114,40 +120,45 @@ func (r *productRepository) Update(product *admin.Product) error {
 		product.Name,
 		product.Description,
 		product.Price,
-		product.Category,
+		product.CategoryID,
+		product.Brand,
+		product.Model,
+		product.Status,
 	)
 
 	return err
 }
 
-func (r *productRepository) Delete(id uuid.UUID) error {
+func (r *productRepository) Delete(id int) error {
 	query := `DELETE FROM products WHERE id = $1`
 	_, err := r.db.Exec(query, id)
 	return err
 }
 
-func (r *productRepository) GetByCategory(category string) ([]*admin.Product, error) {
+func (r *productRepository) GetByCategory(categoryID int) ([]*models.Product, error) {
 	query := `
-        SELECT id, name, description, price, category, user_id, created_at, updated_at
-        FROM products WHERE category = $1 ORDER BY created_at DESC
+        SELECT id, name, description, price, category_id, brand, model, status, created_at, updated_at
+        FROM products WHERE category_id = $1 ORDER BY created_at DESC
     `
 
-	rows, err := r.db.Query(query, category)
+	rows, err := r.db.Query(query, categoryID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var products []*admin.Product
+	var products []*models.Product
 	for rows.Next() {
-		product := &admin.Product{}
+		product := &models.Product{}
 		err := rows.Scan(
 			&product.ID,
 			&product.Name,
 			&product.Description,
 			&product.Price,
-			&product.Category,
-			&product.UserID,
+			&product.CategoryID,
+			&product.Brand,
+			&product.Model,
+			&product.Status,
 			&product.CreatedAt,
 			&product.UpdatedAt,
 		)

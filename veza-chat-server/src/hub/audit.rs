@@ -7,14 +7,15 @@
 //! - Rapports d'activité
 //! - Surveillance des patterns suspects
 
-use sqlx::{query, query_as, FromRow, Row};
 use serde::{Serialize, Deserialize};
 use crate::hub::common::ChatHub;
-use crate::validation::{validate_user_id, validate_limit};
 use crate::error::{ChatError, Result};
 use serde_json::{json, Value};
 use chrono::{DateTime, Utc, Duration};
 use std::collections::HashMap;
+use uuid::Uuid;
+use sqlx::{query, query_as, FromRow, Row, PgPool, Transaction, Postgres};
+// use crate::validation::{validate_user_id, validate_limit};
 
 // ================================================================
 // STRUCTURES DE DONNÉES
@@ -656,4 +657,26 @@ async fn check_audit_permissions(hub: &ChatHub, room_id: i64, user_id: i64) -> R
             }
         }
     }
+}
+
+// Fonction temporaire pour validation
+fn validate_limit(limit: i64) -> Result<i64> {
+    if limit > 100 {
+        return Err(ChatError::InvalidFormat {
+            field: "limit".to_string(),
+            reason: "Limit too high".to_string(),
+        });
+    }
+    Ok(limit)
+}
+
+// Fonction temporaire pour validation
+fn validate_user_id(user_id: i32) -> Result<()> {
+    if user_id <= 0 {
+        return Err(ChatError::InvalidFormat {
+            field: "user_id".to_string(),
+            reason: "Invalid user ID".to_string(),
+        });
+    }
+    Ok(())
 } 

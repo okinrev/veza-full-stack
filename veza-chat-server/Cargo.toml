@@ -33,7 +33,7 @@ tokio-tungstenite = "0.21"      # WebSocket server/client
 tungstenite = "0.21"            # Core WebSocket
 futures-util = "0.3"            # Utilitaires futures
 hyper = { version = "1.0", features = ["full"] }  # Client HTTP pour webhooks
-axum = { version = "0.7", features = ["macros"] }  # Framework web moderne
+axum = { version = "0.7", features = ["macros", "ws"] }  # Framework web moderne
 
 # ═══════════════════════════════════════════════════════════════════════
 # BASE DE DONNÉES ET CACHE

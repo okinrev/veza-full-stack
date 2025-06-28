@@ -1,17 +1,40 @@
-import React, { useState } from 'react';
-import { Navigate, Link } from 'react-router-dom';
-import { useAuthStore } from '@/shared/stores/authStore';
+import { useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+// import { Alert } from '@/components/ui/alert';
 
-const LoginPage = () => {
-  const { login, isAuthenticated, isLoading, error, clearError } = useAuthStore();
+export function LoginPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login, isLoading, error, clearError } = useAuthStore();
+  
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
 
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
+  // Récupérer la destination après connexion
+  const from = location.state?.from?.pathname || '/dashboard';
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    clearError();
+
+    if (!formData.email.trim() || !formData.password.trim()) {
+      return;
+    }
+
+    try {
+      await login(formData.email.trim(), formData.password);
+      navigate(from, { replace: true });
+    } catch (error) {
+      // L'erreur est déjà gérée par le store
+      console.error('Erreur de connexion:', error);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -20,109 +43,120 @@ const LoginPage = () => {
       [name]: value
     }));
     
+    // Effacer les erreurs lors de la saisie
     if (error) {
       clearError();
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    try {
-      await login({
-        email: formData.email,
-        password: formData.password
-      });
-    } catch (err) {
-      console.error('Erreur de connexion:', err);
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Connexion à votre compte
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Ou{' '}
-            <Link 
-              to="/register" 
-              className="font-medium text-indigo-600 hover:text-indigo-500"
-            >
-              créez un nouveau compte
-            </Link>
-          </p>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="max-w-md w-full">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">🎵 Veza</h1>
+          <h2 className="text-2xl font-semibold text-gray-800 mb-1">Connexion</h2>
+          <p className="text-gray-600">Accédez à votre espace personnel</p>
         </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+
+        {/* Formulaire */}
+        <div className="bg-white rounded-lg shadow-lg p-8">
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-700">
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
+              <div className="flex items-center">
+                <span className="text-red-600 mr-2">⚠️</span>
                 {error}
               </div>
             </div>
           )}
-          
-          <div className="rounded-md shadow-sm -space-y-px">
+
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="sr-only">
-                Adresse email
-              </label>
-              <input
+              <Label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Adresse email *
+              </Label>
+              <Input
                 id="email"
                 name="email"
                 type="email"
-                autoComplete="email"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Adresse email"
                 value={formData.email}
                 onChange={handleInputChange}
+                placeholder="votre@email.com"
+                required
+                disabled={isLoading}
+                className="w-full"
               />
             </div>
+
             <div>
-              <label htmlFor="password" className="sr-only">
-                Mot de passe
-              </label>
-              <input
+              <Label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Mot de passe *
+              </Label>
+              <Input
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Mot de passe"
                 value={formData.password}
                 onChange={handleInputChange}
+                placeholder="Votre mot de passe"
+                required
+                disabled={isLoading}
+                className="w-full"
               />
             </div>
-          </div>
 
-          <div>
-            <button
+            <Button
               type="submit"
-              disabled={isLoading || !formData.email || !formData.password}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isLoading || !formData.email.trim() || !formData.password.trim()}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition-colors"
             >
               {isLoading ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Connexion en cours...
-                </>
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                  Connexion...
+                </div>
               ) : (
-                'Se connecter'
+                <>
+                  <span className="mr-2">🔑</span>
+                  Se connecter
+                </>
               )}
-            </button>
+            </Button>
+          </form>
+
+          {/* Liens utiles */}
+          <div className="mt-6 text-center space-y-3">
+            <div className="text-sm text-gray-600">
+              Pas encore de compte ?{' '}
+              <Link 
+                to="/register" 
+                className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
+              >
+                Créer un compte
+              </Link>
+            </div>
+            
+            <div className="text-xs text-gray-500">
+              <Link 
+                to="/forgot-password" 
+                className="hover:text-gray-700 hover:underline"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
           </div>
-        </form>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 text-center text-xs text-gray-500">
+          <p>Veza - Plateforme collaborative de création musicale</p>
+          <p className="mt-1">
+            <Link to="/terms" className="hover:underline">Conditions d'utilisation</Link>
+            {' • '}
+            <Link to="/privacy" className="hover:underline">Confidentialité</Link>
+          </p>
+        </div>
       </div>
     </div>
   );
-};
-
-export default LoginPage; 
+} 

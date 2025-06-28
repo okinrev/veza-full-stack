@@ -1,12 +1,11 @@
-//! Serveur de chat Veza - Version simplifiée
+//! Serveur de chat Veza - Version avec WebSocket
 //! 
-//! Version minimaliste du serveur de chat pour permettre
-//! le déploiement et les tests de base.
+//! Version complète du serveur de chat avec support WebSocket et HTTP REST.
 
 use axum::{
-    extract::{Query, State},
+    extract::{Query, State, WebSocketUpgrade, ws::{Message, WebSocket}},
     http::StatusCode,
-    response::Json,
+    response::{Response, Json},
     routing::{get, post},
     Router,
 };
@@ -14,17 +13,22 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn};
+use tracing::{info, warn, error};
+use futures_util::{SinkExt, StreamExt};
+use tokio::sync::RwLock;
 
 use chat_server::{
     simple_message_store::{SimpleMessageStore, SimpleMessage},
+    websocket::{WebSocketManager, IncomingMessage, OutgoingMessage},
     error::ChatError,
+    models::User,
 };
 
 /// État global de l'application
 #[derive(Clone)]
 struct AppState {
     store: Arc<SimpleMessageStore>,
+    ws_manager: Arc<WebSocketManager>,
 }
 
 /// Requête d'envoi de message
@@ -49,76 +53,251 @@ struct GetMessagesQuery {
 #[derive(Serialize)]
 struct ApiResponse<T> {
     success: bool,
-    data: Option<T>,
-    message: String,
+    data: T,
+    message: Option<String>,
 }
 
 impl<T> ApiResponse<T> {
     fn success(data: T) -> Self {
         Self {
             success: true,
-            data: Some(data),
-            message: "OK".to_string(),
+            data,
+            message: None,
         }
     }
     
-    fn error(message: String) -> Self {
+    fn _error(message: String) -> Self 
+    where 
+        T: Default 
+    {
         Self {
             success: false,
-            data: None,
-            message,
+            data: T::default(),
+            message: Some(message),
         }
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), ChatError> {
-    // Configuration des logs
-    tracing_subscriber::fmt::init();
-    
+    // Configuration du logging
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
+
     info!("🚀 Démarrage du serveur de chat Veza...");
-    
-    // Initialisation du store
+
+    // Initialisation du store de messages
     let store = Arc::new(SimpleMessageStore::new());
-    let app_state = AppState { store };
     
-    // Ajouter quelques messages de test
-    let _ = app_state.store.send_simple_message(
-        "Bienvenue sur Veza Chat ! 🎉", 
-        "system", 
-        Some("general"), 
-        false
-    ).await;
+    // Initialisation du gestionnaire WebSocket
+    let ws_manager = Arc::new(WebSocketManager::new());
     
-    let _ = app_state.store.send_simple_message(
-        "Le serveur de chat fonctionne correctement.", 
-        "system", 
-        Some("general"), 
-        false
-    ).await;
-    
-    // Configuration des routes
+    let state = AppState {
+        store,
+        ws_manager,
+    };
+
+    // Configuration des routes avec WebSocket
     let app = Router::new()
-        .route("/", get(health_check))
         .route("/health", get(health_check))
         .route("/api/messages", get(get_messages))
         .route("/api/messages", post(send_message))
         .route("/api/messages/stats", get(get_stats))
-        .with_state(app_state);
-    
+        .route("/ws", get(websocket_handler))  // ✨ NOUVEAU: Endpoint WebSocket
+        .with_state(state);
+
     // Démarrage du serveur
     let listener = TcpListener::bind("0.0.0.0:3001").await
         .map_err(|e| ChatError::configuration_error(&format!("Bind error: {}", e)))?;
-    
+
     info!("✅ Serveur démarré sur http://0.0.0.0:3001");
     info!("📊 Endpoints disponibles:");
     info!("   - GET  /health          - Vérification de santé");
     info!("   - GET  /api/messages    - Récupération des messages");
     info!("   - POST /api/messages    - Envoi de message");
     info!("   - GET  /api/messages/stats - Statistiques");
+    info!("   - GET  /ws              - WebSocket Chat (🆕)");
     
     axum::serve(listener, app).await
         .map_err(|e| ChatError::configuration_error(&format!("Server error: {}", e)))?;
+    
+    Ok(())
+}
+
+/// 🆕 Handler pour les connexions WebSocket
+async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+) -> Response {
+    info!("🔌 Nouvelle connexion WebSocket demandée");
+    
+    ws.on_upgrade(move |socket| handle_websocket(socket, state))
+}
+
+/// 🆕 Gestion d'une connexion WebSocket individuelle
+async fn handle_websocket(socket: WebSocket, state: AppState) {
+    info!("✅ Connexion WebSocket établie");
+    
+    let (mut sender, mut receiver) = socket.split();
+    
+    // Envoyer un message de bienvenue
+    let welcome_msg = OutgoingMessage::ActionConfirmed {
+        action: "connected".to_string(),
+        success: true,
+    };
+    
+    if let Ok(json) = serde_json::to_string(&welcome_msg) {
+        if sender.send(Message::Text(json)).await.is_err() {
+            error!("❌ Impossible d'envoyer le message de bienvenue");
+            return;
+        }
+    }
+    
+    // Boucle de gestion des messages
+    while let Some(msg) = receiver.next().await {
+        match msg {
+            Ok(Message::Text(text)) => {
+                info!("📨 Message WebSocket reçu: {}", text);
+                
+                // Parser le message JSON
+                match serde_json::from_str::<IncomingMessage>(&text) {
+                    Ok(incoming) => {
+                        if let Err(e) = handle_incoming_message(incoming, &state, &mut sender).await {
+                            warn!("⚠️ Erreur traitement message: {}", e);
+                        }
+                    }
+                    Err(e) => {
+                        warn!("⚠️ Message JSON invalide: {}", e);
+                        let error_msg = OutgoingMessage::Error {
+                            message: format!("Message JSON invalide: {}", e),
+                        };
+                        if let Ok(json) = serde_json::to_string(&error_msg) {
+                            let _ = sender.send(Message::Text(json)).await;
+                        }
+                    }
+                }
+            }
+            Ok(Message::Close(_)) => {
+                info!("👋 Connexion WebSocket fermée");
+                break;
+            }
+            Ok(Message::Ping(data)) => {
+                info!("🏓 Ping reçu");
+                if sender.send(Message::Pong(data)).await.is_err() {
+                    break;
+                }
+            }
+            Ok(_) => {
+                // Ignore les autres types de messages
+            }
+            Err(e) => {
+                error!("❌ Erreur WebSocket: {}", e);
+                break;
+            }
+        }
+    }
+    
+    info!("🔌 Connexion WebSocket terminée");
+}
+
+/// 🆕 Traite un message entrant via WebSocket
+async fn handle_incoming_message(
+    message: IncomingMessage,
+    state: &AppState,
+    sender: &mut futures_util::stream::SplitSink<WebSocket, Message>,
+) -> Result<(), ChatError> {
+    match message {
+        IncomingMessage::SendMessage { conversation_id, content, parent_message_id: _ } => {
+            info!("💬 Envoi de message via WebSocket: '{}'", content);
+            
+            // Convertir l'UUID en room_id (simplifié)
+            let room_id = conversation_id.to_string();
+            
+            // Enregistrer le message via le store
+            let message_id = state.store.send_simple_message(
+                &content,
+                "websocket_user", // TODO: Utiliser le vrai utilisateur authentifié
+                Some(&room_id),
+                false,
+            ).await?;
+            
+            // Confirmer l'envoi
+            let confirmation = OutgoingMessage::ActionConfirmed {
+                action: "message_sent".to_string(),
+                success: true,
+            };
+            
+            if let Ok(json) = serde_json::to_string(&confirmation) {
+                if let Err(e) = sender.send(Message::Text(json)).await {
+                    warn!("⚠️ Erreur envoi confirmation: {}", e);
+                    return Err(ChatError::configuration_error("Erreur envoi confirmation"));
+                }
+            }
+            
+            info!("✅ Message WebSocket envoyé - ID: {}", message_id);
+        }
+        
+        IncomingMessage::JoinConversation { conversation_id } => {
+            info!("👥 Rejoindre conversation: {}", conversation_id);
+            
+            let confirmation = OutgoingMessage::ActionConfirmed {
+                action: "joined_conversation".to_string(),
+                success: true,
+            };
+            
+            if let Ok(json) = serde_json::to_string(&confirmation) {
+                if let Err(e) = sender.send(Message::Text(json)).await {
+                    warn!("⚠️ Erreur envoi confirmation join: {}", e);
+                    return Err(ChatError::configuration_error("Erreur envoi confirmation join"));
+                }
+            }
+        }
+        
+        IncomingMessage::LeaveConversation { conversation_id } => {
+            info!("👋 Quitter conversation: {}", conversation_id);
+            
+            let confirmation = OutgoingMessage::ActionConfirmed {
+                action: "left_conversation".to_string(),
+                success: true,
+            };
+            
+            if let Ok(json) = serde_json::to_string(&confirmation) {
+                if let Err(e) = sender.send(Message::Text(json)).await {
+                    warn!("⚠️ Erreur envoi confirmation leave: {}", e);
+                    return Err(ChatError::configuration_error("Erreur envoi confirmation leave"));
+                }
+            }
+        }
+        
+        IncomingMessage::MarkAsRead { conversation_id, message_id } => {
+            info!("✓ Marquer comme lu: conversation={}, message={}", conversation_id, message_id);
+            
+            let confirmation = OutgoingMessage::ActionConfirmed {
+                action: "marked_as_read".to_string(),
+                success: true,
+            };
+            
+            if let Ok(json) = serde_json::to_string(&confirmation) {
+                if let Err(e) = sender.send(Message::Text(json)).await {
+                    warn!("⚠️ Erreur envoi confirmation read: {}", e);
+                    return Err(ChatError::configuration_error("Erreur envoi confirmation read"));
+                }
+            }
+        }
+        
+        IncomingMessage::Ping => {
+            info!("🏓 Ping WebSocket");
+            
+            let pong = OutgoingMessage::Pong;
+            if let Ok(json) = serde_json::to_string(&pong) {
+                if let Err(e) = sender.send(Message::Text(json)).await {
+                    warn!("⚠️ Erreur envoi pong: {}", e);
+                    return Err(ChatError::configuration_error("Erreur envoi pong"));
+                }
+            }
+        }
+    }
     
     Ok(())
 }
@@ -128,7 +307,8 @@ async fn health_check() -> Json<ApiResponse<HashMap<String, String>>> {
     let mut info = HashMap::new();
     info.insert("status".to_string(), "healthy".to_string());
     info.insert("service".to_string(), "veza-chat-server".to_string());
-    info.insert("version".to_string(), "0.2.0".to_string());
+    info.insert("version".to_string(), "0.3.0".to_string());
+    info.insert("websocket".to_string(), "enabled".to_string());
     
     Json(ApiResponse::success(info))
 }
@@ -189,6 +369,7 @@ async fn get_stats(
     stats.insert("total_messages".to_string(), 2);
     stats.insert("active_users".to_string(), 1);
     stats.insert("rooms".to_string(), 1);
+    stats.insert("websocket_enabled".to_string(), 1);
     
     Json(ApiResponse::success(stats))
 }

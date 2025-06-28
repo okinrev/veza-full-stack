@@ -11,21 +11,41 @@ Une application web moderne et performante combinant chat en temps réel, stream
 
 ### Prérequis
 
-- **Docker** et **Docker Compose** (recommandé)
-- Ou :
+- **Incus** (recommandé - containers Linux haute performance)
+- Ou **Docker** et **Docker Compose**
+- Ou environnement local :
   - **Go** 1.21+
-  - **Node.js** 18+ et **npm**
+  - **Node.js** 18+ et **npm**  
   - **Rust** 1.70+
   - **PostgreSQL** 15+
   - **Redis** 7+
 
-### Installation Express avec Docker
+### 🥇 Installation Recommandée avec Incus
 
 ```bash
 # Cloner le projet
 git clone <repository-url>
 cd veza-full-stack
 
+# 1. Nettoyage (si nécessaire)
+./scripts/incus-clean.sh
+
+# 2. Configuration infrastructure  
+./scripts/incus-setup.sh
+
+# 3. Test DNS (optionnel mais recommandé)
+./scripts/test-dns.sh
+
+# 4. Déploiement complet avec DHCP intelligent
+./scripts/incus-deploy.sh
+
+# 5. Vérification de l'état
+./scripts/incus-status.sh
+```
+
+### Installation Express avec Docker
+
+```bash
 # Configuration initiale
 make setup
 
@@ -46,12 +66,23 @@ make setup
 make dev
 ```
 
+### 🌟 Avantages de la Solution Incus
+
+- **Performance** : Containers Linux natifs, plus rapides que Docker
+- **Isolation** : Sécurité renforcée avec containers système complets
+- **Réseau** : Configuration réseau avancée avec IPs DHCP intelligentes  
+- **Stockage** : ZFS avec snapshots et déduplication automatique
+- **Monitoring** : Scripts intégrés pour surveillance et diagnostic
+- **Simplicité** : Déploiement automatisé en un seul script
+
 L'application sera disponible sur :
-- 🎨 **Frontend** : http://localhost:5173 (dev) / http://localhost (prod)
-- ⚙️ **Backend API** : http://localhost:8080
-- 💬 **Chat WebSocket** : ws://localhost:8081/ws
-- 🎵 **Stream WebSocket** : ws://localhost:8082/ws
-- ⚖️ **HAProxy Stats** : http://localhost:8404/stats
+- 🎨 **Frontend** : http://[IP-FRONTEND]:5173 (dev) / http://[IP-HAPROXY] (prod)
+- ⚙️ **Backend API** : http://[IP-BACKEND]:8080
+- 💬 **Chat WebSocket** : ws://[IP-CHAT]:8081/ws
+- 🎵 **Stream WebSocket** : ws://[IP-STREAM]:8082/ws
+- ⚖️ **HAProxy Stats** : http://[IP-HAPROXY]:8404/stats
+
+*Les IPs sont attribuées automatiquement par DHCP et affichées après déploiement*
 
 ## 🏗️ Architecture
 

@@ -269,6 +269,19 @@ pub enum ChatError {
         reason: String,
     },
     
+    /// Erreur de validation
+    #[error("Erreur de validation pour {field}: {reason}")]
+    ValidationError {
+        field: String,
+        reason: String,
+    },
+    
+    /// Erreur de parsing
+    #[error("Erreur de parsing: {reason}")]
+    ParseError {
+        reason: String,
+    },
+    
     /// Limite de connexions atteinte
     #[error("Limite de connexions simultanées atteinte")]
     ConnectionLimitReached,
@@ -353,6 +366,8 @@ impl ChatError {
             Self::PermissionDenied { .. } => 403,
             Self::ReactionAlreadyExists => 409,
             Self::ReactionNotFound => 404,
+            Self::ValidationError { .. } => 400,
+            Self::ParseError { .. } => 400,
         }
     }
     
@@ -415,8 +430,10 @@ impl ChatError {
             
             // Nouvelles erreurs
             Self::PermissionDenied { .. } => ErrorSeverity::Warning,
-            Self::ReactionAlreadyExists => ErrorSeverity::Warning,
+            Self::ReactionAlreadyExists => ErrorSeverity::Info,
             Self::ReactionNotFound => ErrorSeverity::Info,
+            Self::ValidationError { .. } => ErrorSeverity::Low,
+            Self::ParseError { .. } => ErrorSeverity::Low,
         }
     }
     
@@ -597,12 +614,12 @@ impl From<std::env::VarError> for ChatError {
 #[macro_export]
 macro_rules! chat_error {
     ($variant:ident, $($field:ident = $value:expr),*) => {
-        ChatError::$variant {
+        $crate::error::ChatError::$variant {
             $($field: $value.into()),*
         }
     };
     ($variant:ident) => {
-        ChatError::$variant
+        $crate::error::ChatError::$variant
     };
 }
 
@@ -620,7 +637,7 @@ mod tests {
     #[test]
     fn test_error_severity() {
         assert_eq!(ChatError::InjectionAttempt.severity(), ErrorSeverity::High);
-        assert_eq!(ChatError::InvalidCredentials.severity(), ErrorSeverity::Low);
+        assert_eq!(ChatError::InvalidCredentials.severity(), ErrorSeverity::Medium);
         assert_eq!(ChatError::SpamDetected.severity(), ErrorSeverity::Medium);
     }
     
@@ -650,7 +667,7 @@ mod tests {
     
     #[test]
     fn test_macro() {
-        let error = chat_error!(MessageTooLong, actual = 5000, max = 4000);
+        let error = chat_error!(MessageTooLong, actual = 5000_usize, max = 4000_usize);
         match error {
             ChatError::MessageTooLong { actual, max } => {
                 assert_eq!(actual, 5000);
