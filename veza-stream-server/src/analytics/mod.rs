@@ -4,7 +4,7 @@ use std::{
     time::{SystemTime, Duration},
 };
 use tokio::sync::RwLock;
-use sqlx::{SqlitePool, Row};
+use sqlx::{PgPool, Row};
 use serde::{Serialize, Deserialize};
 use tracing::{info, debug, error, warn};
 use uuid::Uuid;
@@ -122,7 +122,7 @@ pub struct TopTrackNow {
 }
 
 pub struct AnalyticsEngine {
-    db_pool: SqlitePool,
+    db_pool: PgPool,
     active_sessions: Arc<RwLock<HashMap<Uuid, PlaySession>>>,
     track_analytics: Arc<RwLock<HashMap<String, TrackAnalytics>>>,
     user_analytics: Arc<RwLock<HashMap<String, UserAnalytics>>>,
@@ -132,20 +132,20 @@ pub struct AnalyticsEngine {
 
 impl AnalyticsEngine {
     pub async fn new(database_url: &str, config: Arc<Config>) -> Result<Self, sqlx::Error> {
-        let pool = SqlitePool::connect(database_url).await?;
+        let pool = PgPool::connect(database_url).await?;
         
         // Créer les tables si elles n'existent pas
         sqlx::query(r#"
             CREATE TABLE IF NOT EXISTS play_sessions (
-                session_id TEXT PRIMARY KEY,
+                session_id UUID PRIMARY KEY,
                 user_id TEXT,
                 track_id TEXT NOT NULL,
-                client_ip TEXT NOT NULL,
+                client_ip INET NOT NULL,
                 user_agent TEXT,
-                started_at INTEGER NOT NULL,
-                last_update INTEGER NOT NULL,
-                duration_played_ms INTEGER NOT NULL,
-                total_duration_ms INTEGER NOT NULL,
+                started_at TIMESTAMPTZ NOT NULL,
+                last_update TIMESTAMPTZ NOT NULL,
+                duration_played_ms BIGINT NOT NULL,
+                total_duration_ms BIGINT NOT NULL,
                 completion_percentage REAL NOT NULL,
                 quality TEXT NOT NULL,
                 platform TEXT NOT NULL,
@@ -161,26 +161,26 @@ impl AnalyticsEngine {
         sqlx::query(r#"
             CREATE TABLE IF NOT EXISTS track_analytics (
                 track_id TEXT PRIMARY KEY,
-                total_plays INTEGER NOT NULL,
-                unique_listeners INTEGER NOT NULL,
-                total_duration_played_ms INTEGER NOT NULL,
+                total_plays BIGINT NOT NULL,
+                unique_listeners BIGINT NOT NULL,
+                total_duration_played_ms BIGINT NOT NULL,
                 average_completion_rate REAL NOT NULL,
                 peak_concurrent_listeners INTEGER NOT NULL,
                 skip_rate REAL NOT NULL,
-                last_updated INTEGER NOT NULL
+                last_updated TIMESTAMPTZ NOT NULL
             )
         "#).execute(&pool).await?;
 
         sqlx::query(r#"
             CREATE TABLE IF NOT EXISTS user_analytics (
                 user_id TEXT PRIMARY KEY,
-                total_listening_time_ms INTEGER NOT NULL,
-                tracks_played INTEGER NOT NULL,
-                unique_tracks INTEGER NOT NULL,
-                average_session_duration_ms INTEGER NOT NULL,
+                total_listening_time_ms BIGINT NOT NULL,
+                tracks_played BIGINT NOT NULL,
+                unique_tracks BIGINT NOT NULL,
+                average_session_duration_ms BIGINT NOT NULL,
                 quality_preference TEXT,
                 discovery_rate REAL NOT NULL,
-                last_activity INTEGER NOT NULL
+                last_activity TIMESTAMPTZ NOT NULL
             )
         "#).execute(&pool).await?;
 

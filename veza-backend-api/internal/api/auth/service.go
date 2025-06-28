@@ -215,19 +215,38 @@ func (s *Service) Logout(refreshToken string) error {
 func (s *Service) GetMe(userID int) (*models.UserResponse, error) {
 	var user models.User
 	err := s.db.QueryRow(`
-		SELECT id, username, email, first_name, last_name, bio, avatar, 
-		       role, is_active, is_verified, last_login_at, created_at, updated_at
+		SELECT id, username, email, role, created_at, updated_at
 		FROM users WHERE id = $1 AND is_active = true
 	`, userID).Scan(
-		&user.ID, &user.Username, &user.Email, &user.FirstName,
-		&user.LastName, &user.Bio, &user.Avatar, &user.Role,
-		&user.IsActive, &user.IsVerified, &user.LastLoginAt,
+		&user.ID, &user.Username, &user.Email, &user.Role,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+		return nil, fmt.Errorf("user not found")
 	}
 
 	return user.ToResponse(), nil
+}
+
+// VerifyToken valide un token JWT et retourne les claims
+func (s *Service) VerifyToken(tokenString string) (*utils.Claims, error) {
+	fmt.Printf("🔍 Validation du token: %s\n", tokenString[:min(20, len(tokenString))]+"...")
+
+	token, err := utils.ValidateJWT(tokenString, s.jwtSecret)
+	if err != nil {
+		fmt.Printf("❌ Erreur de validation du token: %v\n", err)
+		return nil, fmt.Errorf("invalid token: %w", err)
+	}
+
+	fmt.Printf("✅ Token validé avec succès pour l'utilisateur ID: %d\n", token.UserID)
+	return token, nil
+}
+
+// min retourne le minimum de deux entiers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

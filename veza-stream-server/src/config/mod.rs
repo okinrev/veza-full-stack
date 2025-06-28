@@ -182,8 +182,10 @@ impl Config {
         let config = Self {
             secret_key: env::var("SECRET_KEY")
                 .unwrap_or_else(|_| "your-secret-key-change-in-production".to_string()),
-            port: env::var("PORT")
-                .unwrap_or_else(|_| "3000".to_string())
+            // CONFIGURATION PORT UNIFIÉE - Port 3002 selon guide déploiement
+            port: env::var("STREAM_PORT")
+                .or_else(|_| env::var("PORT"))
+                .unwrap_or_else(|_| "3002".to_string())
                 .parse()
                 .map_err(|_| ConfigError::InvalidPort)?,
             audio_dir: env::var("AUDIO_DIR")
@@ -207,8 +209,9 @@ impl Config {
                 .map_err(|_| ConfigError::InvalidSignatureTolerance)?,
 
             database: DatabaseConfig {
+                // CONFIGURATION DATABASE UNIFIÉE - PostgreSQL selon guide déploiement
                 url: env::var("DATABASE_URL")
-                    .unwrap_or_else(|_| "sqlite:stream_server.db".to_string()),
+                    .unwrap_or_else(|_| "postgres://veza_user:veza_password@10.5.191.154:5432/veza_db".to_string()),
                 max_connections: env::var("DB_MAX_CONNECTIONS")
                     .unwrap_or_else(|_| "10".to_string())
                     .parse()
@@ -271,7 +274,8 @@ impl Config {
             },
 
             security: SecurityConfig {
-                jwt_secret: env::var("JWT_SECRET").ok(),
+                jwt_secret: Some(env::var("JWT_SECRET")
+                    .unwrap_or_else(|_| "veza_unified_jwt_secret_key_2025_microservices_secure_32chars_minimum".to_string())),
                 jwt_expiration: Duration::from_secs(
                     env::var("JWT_EXPIRATION")
                         .unwrap_or_else(|_| "3600".to_string())

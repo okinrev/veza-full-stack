@@ -56,7 +56,7 @@ lz4_flex = "0.11"
 zstd = "0.13"
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "chrono", "uuid"] }
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
 
 # Metadata extraction
 id3 = "1.13"

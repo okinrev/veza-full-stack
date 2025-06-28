@@ -26,7 +26,7 @@ func (rg *RouteGroup) Register(router *gin.RouterGroup) {
 	{
 		// Routes publiques
 		rg.registerPublicRoutes(auth)
-		
+
 		// Routes protégées
 		rg.registerProtectedRoutes(auth)
 	}
@@ -36,16 +36,16 @@ func (rg *RouteGroup) Register(router *gin.RouterGroup) {
 func (rg *RouteGroup) registerPublicRoutes(router *gin.RouterGroup) {
 	// POST /api/v1/auth/register - Inscription d'un nouvel utilisateur
 	router.POST("/register", rg.handler.Register)
-	
+
 	// POST /api/v1/auth/signup - Alias pour l'inscription
 	router.POST("/signup", rg.handler.Register)
-	
+
 	// POST /api/v1/auth/login - Connexion
 	router.POST("/login", rg.handler.Login)
-	
+
 	// POST /api/v1/auth/refresh - Rafraîchissement du token
 	router.POST("/refresh", rg.handler.RefreshToken)
-	
+
 	// POST /api/v1/auth/logout - Déconnexion
 	router.POST("/logout", rg.handler.Logout)
 }
@@ -57,6 +57,9 @@ func (rg *RouteGroup) registerProtectedRoutes(router *gin.RouterGroup) {
 	{
 		// GET /api/v1/auth/me - Informations de l'utilisateur connecté
 		protected.GET("/me", rg.handler.GetMe)
+
+		// GET /api/v1/auth/test - Test de validation JWT pour tous les services
+		protected.GET("/test", rg.handler.TestAuthEndpoint)
 	}
 }
 

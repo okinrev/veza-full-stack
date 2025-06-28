@@ -257,7 +257,8 @@ impl Default for AudioProcessor {
                 max_range_size: 10 * 1024 * 1024,
                 signature_tolerance: 60,
                 database: crate::config::DatabaseConfig {
-                    url: "sqlite::memory:".to_string(),
+                    url: std::env::var("DATABASE_URL").unwrap_or_else(|_| 
+                    "postgres://veza_user:veza_password@10.5.191.154:5432/veza_db?sslmode=disable".to_string()),
                     max_connections: 10,
                     min_connections: 1,
                     connection_timeout: Duration::from_secs(30),

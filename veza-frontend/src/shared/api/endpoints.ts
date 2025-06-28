@@ -16,14 +16,14 @@ export const ENDPOINTS = {
   MY_PRODUCTS: '/products/me',
   
   // Chat endpoints - Conformes à la documentation backend
-  CHAT_CONVERSATIONS: '/api/v1/chat/conversations',
-  CHAT_ROOMS: '/api/v1/chat/rooms',
-  CHAT_ROOM_MESSAGES: (roomName: string) => `/api/v1/chat/rooms/${roomName}/messages`,
-  CHAT_DM: (userId: string | number) => `/api/v1/chat/dm/${userId}`,
-  CHAT_DM_READ: (userId: string | number) => `/api/v1/chat/messages/${userId}/read`,
-  CHAT_UNREAD: '/api/v1/chat/unread',
-  CHAT_CREATE_ROOM: '/api/v1/chat/rooms',
-  CHAT_USERS: '/api/v1/users/except-me', // Utilisateurs pour les DM
+  CHAT_CONVERSATIONS: '/chat/conversations',
+  CHAT_ROOMS: '/chat/rooms',
+  CHAT_ROOM_MESSAGES: (roomName: string) => `/chat/rooms/${roomName}/messages`,
+  CHAT_DM: (userId: string | number) => `/chat/dm/${userId}`,
+  CHAT_DM_READ: (userId: string | number) => `/chat/messages/${userId}/read`,
+  CHAT_UNREAD: '/chat/unread',
+  CHAT_CREATE_ROOM: '/chat/rooms',
+  CHAT_USERS: '/users/except-me', // Utilisateurs pour les DM
   
   // Tracks
   TRACKS: '/tracks',

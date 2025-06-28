@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/okinrev/veza-web-app/internal/common"
@@ -157,4 +158,44 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	response.Success(c, user, "User profile retrieved")
+}
+
+// TestAuthEndpoint teste la validité des tokens JWT pour tous les services
+func (h *Handler) TestAuthEndpoint(c *gin.Context) {
+	// Récupérer le token depuis l'en-tête Authorization
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		response.Error(c, http.StatusUnauthorized, "Token d'autorisation manquant")
+		return
+	}
+
+	// Extraire le token (format: "Bearer <token>")
+	tokenParts := strings.Split(authHeader, " ")
+	if len(tokenParts) != 2 || tokenParts[0] != "Bearer" {
+		response.Error(c, http.StatusUnauthorized, "Format de token invalide")
+		return
+	}
+
+	tokenString := tokenParts[1]
+
+	// Valider le token
+	tokenClaims, err := h.service.VerifyToken(tokenString)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "Token invalide: "+err.Error())
+		return
+	}
+
+	// Réponse avec les informations d'authentification
+	response.Success(c, map[string]interface{}{
+		"user_id":   tokenClaims.UserID,
+		"username":  tokenClaims.Username,
+		"role":      tokenClaims.Role,
+		"issued_at": time.Now().Unix(),
+		"service":   "backend-go",
+		"endpoints": map[string]string{
+			"chat_ws":   "ws://10.5.191.108:3001/ws",
+			"stream_ws": "ws://10.5.191.188:3002/ws",
+			"api_rest":  "http://10.5.191.175:8080/api/v1",
+		},
+	}, "Token validé avec succès")
 }

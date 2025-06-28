@@ -87,6 +87,11 @@ async fn main() -> Result<(), ChatError> {
 
     info!("🚀 Démarrage du serveur de chat Veza...");
 
+    // Lire le port depuis les variables d'environnement
+    let port = std::env::var("CHAT_PORT")
+        .unwrap_or_else(|_| "3001".to_string());
+    let bind_addr = format!("0.0.0.0:{}", port);
+
     // Initialisation du store de messages
     let store = Arc::new(SimpleMessageStore::new());
     
@@ -108,10 +113,10 @@ async fn main() -> Result<(), ChatError> {
         .with_state(state);
 
     // Démarrage du serveur
-    let listener = TcpListener::bind("0.0.0.0:3001").await
-        .map_err(|e| ChatError::configuration_error(&format!("Bind error: {}", e)))?;
+    let listener = TcpListener::bind(&bind_addr).await
+        .map_err(|e| ChatError::configuration_error(&format!("Bind error on {}: {}", bind_addr, e)))?;
 
-    info!("✅ Serveur démarré sur http://0.0.0.0:3001");
+    info!("✅ Serveur démarré sur http://{}", bind_addr);
     info!("📊 Endpoints disponibles:");
     info!("   - GET  /health          - Vérification de santé");
     info!("   - GET  /api/messages    - Récupération des messages");

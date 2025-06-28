@@ -397,7 +397,9 @@ export class ChatWebSocketManager extends EventTarget {
     try {
       // Utiliser l'API REST pour récupérer l'historique
       const conversationId = this.getRoomUuid(roomName);
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://10.5.191.175:8080'}/api/messages?room=${encodeURIComponent(conversationId)}&limit=${limit}`);
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://10.5.191.175:8080/api/v1';
+      // Correction: utiliser l'API Go au lieu de l'API Rust
+      const response = await fetch(`${baseUrl}/chat/rooms/${encodeURIComponent(conversationId)}/messages?limit=${limit}`);
       
       if (response.ok) {
         const data = await response.json();

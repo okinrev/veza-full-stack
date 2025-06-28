@@ -192,9 +192,19 @@ pub struct ServerSettings {
 impl Default for ServerSettings {
     fn default() -> Self {
         Self {
-            bind_addr: "127.0.0.1:8080".parse().unwrap(),
-            environment: Environment::Development,
-            workers: 0, // Auto-détection
+            // CONFIGURATION RÉSEAU UNIFIÉE - Port 3001 selon guide déploiement
+            bind_addr: std::env::var("CHAT_SERVER_BIND_ADDR")
+                .unwrap_or_else(|_| "0.0.0.0:3001".to_string())
+                .parse()
+                .unwrap_or_else(|_| "0.0.0.0:3001".parse().unwrap()),
+            environment: std::env::var("ENVIRONMENT")
+                .unwrap_or_else(|_| "development".to_string())
+                .parse()
+                .unwrap_or(Environment::Development),
+            workers: std::env::var("WORKERS")
+                .unwrap_or_else(|_| "0".to_string())
+                .parse()
+                .unwrap_or(0), // Auto-détection
             connection_timeout: Duration::from_secs(30),
             heartbeat_interval: Duration::from_secs(30),
             shutdown_timeout: Duration::from_secs(30),
@@ -227,7 +237,9 @@ pub struct DatabaseConfig {
 impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
-            url: "postgresql://postgres:password@localhost:5432/veza_chat"
+            // CONFIGURATION DATABASE UNIFIÉE - IP selon guide déploiement
+            url: std::env::var("DATABASE_URL")
+                .unwrap_or_else(|_| "postgres://veza_user:veza_password@10.5.191.154:5432/veza_db".to_string())
                 .parse()
                 .unwrap(),
             max_connections: 10,
@@ -264,7 +276,11 @@ pub struct CacheConfig {
 impl Default for CacheConfig {
     fn default() -> Self {
         Self {
-            url: "redis://localhost:6379".parse().unwrap(),
+            // CONFIGURATION REDIS UNIFIÉE - IP selon guide déploiement
+            url: std::env::var("REDIS_URL")
+                .unwrap_or_else(|_| "redis://10.5.191.95:6379".to_string())
+                .parse()
+                .unwrap(),
             pool_size: 10,
             connect_timeout: Duration::from_secs(5),
             default_ttl: Duration::from_secs(3600), // 1 heure
@@ -314,12 +330,16 @@ pub struct SecurityConfig {
 impl Default for SecurityConfig {
     fn default() -> Self {
         Self {
-            jwt_secret: "your-super-secret-jwt-key-change-this-in-production".to_string(),
-            jwt_access_duration: Duration::from_secs(900), // 15 minutes
+            // CONFIGURATION JWT UNIFIÉE - Compatible avec Backend Go
+            jwt_secret: std::env::var("JWT_SECRET")
+                .unwrap_or_else(|_| "veza_unified_jwt_secret_key_2025_microservices_secure_32chars_minimum".to_string()),
+            jwt_access_duration: Duration::from_secs(3600), // 1 heure
             jwt_refresh_duration: Duration::from_secs(604800), // 7 jours
             jwt_algorithm: "HS256".to_string(),
-            jwt_audience: "veza-chat".to_string(),
-            jwt_issuer: "veza-chat-server".to_string(),
+            jwt_audience: std::env::var("JWT_AUDIENCE")
+                .unwrap_or_else(|_| "veza-services".to_string()),
+            jwt_issuer: std::env::var("JWT_ISSUER")
+                .unwrap_or_else(|_| "veza-platform".to_string()),
             enable_2fa: false,
             totp_window: 1,
             content_filtering: true,
