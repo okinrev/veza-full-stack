@@ -330,11 +330,11 @@ pub struct SecurityConfig {
 impl Default for SecurityConfig {
     fn default() -> Self {
         Self {
-            // CONFIGURATION JWT UNIFIÉE - Compatible avec Backend Go
+            // CONFIGURATION JWT UNIFIÉE TALAS - Compatible avec tous les services
             jwt_secret: std::env::var("JWT_SECRET")
                 .unwrap_or_else(|_| "veza_unified_jwt_secret_key_2025_microservices_secure_32chars_minimum".to_string()),
-            jwt_access_duration: Duration::from_secs(3600), // 1 heure
-            jwt_refresh_duration: Duration::from_secs(604800), // 7 jours
+            jwt_access_duration: Duration::from_secs(86400), // 24 heures (unifié)
+            jwt_refresh_duration: Duration::from_secs(604800), // 168 heures (7 jours)
             jwt_algorithm: "HS256".to_string(),
             jwt_audience: std::env::var("JWT_AUDIENCE")
                 .unwrap_or_else(|_| "veza-services".to_string()),

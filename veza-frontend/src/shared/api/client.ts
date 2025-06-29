@@ -38,20 +38,26 @@ export const apiClient = axios.create({
   withCredentials: false
 });
 
-// Intercepteur de requête pour ajouter le token d'authentification
+// Intercepteur de requête pour ajouter le token d'authentification JWT unifié
 apiClient.interceptors.request.use(
   (config) => {
     // Ajouter le token d'authentification
     const token = localStorage.getItem('access_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      
+      // Ajouter les headers JWT unifiés pour compatibilité inter-services Talas
+      config.headers['X-JWT-Issuer'] = import.meta.env.VITE_JWT_ISSUER || 'veza-platform';
+      config.headers['X-JWT-Audience'] = import.meta.env.VITE_JWT_AUDIENCE || 'veza-services';
+      config.headers['X-Service-Name'] = 'frontend-react';
     }
 
     // Logs de debug
     if (DEBUG) {
       console.log(`🔵 [API] ${config.method?.toUpperCase()} ${config.url}`, {
         params: config.params,
-        data: config.data
+        data: config.data,
+        jwtHeaders: token ? { issuer: config.headers['X-JWT-Issuer'], audience: config.headers['X-JWT-Audience'] } : null
       });
     }
 

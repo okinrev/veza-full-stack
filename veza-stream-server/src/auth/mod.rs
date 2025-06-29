@@ -132,8 +132,8 @@ impl AuthManager {
         let decoding_key = DecodingKey::from_secret(jwt_secret.as_bytes());
         
         let mut validation = Validation::new(Algorithm::HS256);
-        validation.set_audience(&["stream_server"]);
-        validation.set_issuer(&["stream_server"]);
+        validation.set_audience(&["veza-services"]);
+        validation.set_issuer(&["veza-platform"]);
 
         Ok(Self {
             config,
