@@ -11,8 +11,8 @@ echo "=============================================="
 # Configuration (alignée avec config.go)
 DB_HOST=${DATABASE_HOST:-"localhost"}
 DB_PORT=${DATABASE_PORT:-"5432"}  
-DB_USER=${DATABASE_USER:-"veza_user
-DB_PASSWORD=${DATABASE_PASSWORD:-"veza-password
+DB_USER=${DATABASE_USER:-"veza_user"}
+DB_PASSWORD=${DATABASE_PASSWORD:-"veza_password"}
 DB_NAME=${DATABASE_NAME:-"veza_dev"}
 SERVER_PORT=${PORT:-"8080"}
 API_BASE_URL="http://localhost:${SERVER_PORT}"
