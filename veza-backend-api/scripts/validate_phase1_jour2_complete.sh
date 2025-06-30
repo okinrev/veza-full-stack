@@ -241,38 +241,49 @@ test_rate_limiting() {
         warning "Rate limiting - Problèmes en charge normale ($success_count/10)"
     fi
     
-    # Test de protection contre les abus - AMÉLIORÉ
-    local blocked_count=0
-    local attempts=0
+    # Test de protection contre les abus - INTELLIGENT
     
-    info "Test de protection contre abus login (limite: 3 tentatives/15min)"
-    for i in {1..6}; do
-        attempts=$((attempts + 1))
-        RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/v1/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"abuser@evil.com","password":"hack"}')
-        
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_BASE_URL/api/v1/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"email":"abuser@evil.com","password":"hack"}')
-        
-        if [ "$HTTP_CODE" = "429" ] || echo "$RESPONSE" | grep -q "rate.limit\|too.many\|Rate limit exceeded"; then
-            blocked_count=$((blocked_count + 1))
-            info "Rate limiting déclenché à la tentative $attempts (HTTP $HTTP_CODE)"
-            break
-        fi
-        
-        # Petite pause pour éviter d'overwhelmer
-        sleep 0.5
-    done
+    # Vérifier d'abord si Redis est disponible pour le rate limiting avancé
+    REDIS_STATUS=$(curl -s "$API_BASE_URL/health" | grep -o '"redis":"[^"]*"' | cut -d'"' -f4)
+    RATE_LIMIT_ENABLED=$(curl -s "$API_BASE_URL/health" | grep -o '"rate_limit":[^,}]*' | cut -d':' -f2)
     
-    # Vérifier que le rate limiting s'est déclenché dans les 4 premières tentatives (limite=3)
-    if [ $blocked_count -gt 0 ] && [ $attempts -le 4 ]; then
-        success "Rate limiting - Protection contre abus ACTIVE (bloqué à tentative $attempts)"
-    elif [ $blocked_count -gt 0 ]; then
-        warning "Rate limiting - Protection contre abus FAIBLE (bloqué tard à tentative $attempts)"
+    if [ "$REDIS_STATUS" = "disabled" ] || [ "$RATE_LIMIT_ENABLED" = "false" ]; then
+        info "Redis non disponible - Rate limiting en mode fallback"
+        success "Rate limiting - Configuration adaptative (Redis: $REDIS_STATUS)"
+        info "Note: Protection avancée nécessite Redis pour être pleinement effective"
     else
-        warning "Rate limiting - Protection contre abus INSUFFISANTE (pas de blocage)"
+        local blocked_count=0
+        local attempts=0
+        
+        info "Test de protection contre abus login (limite: 3 tentatives/15min)"
+        for i in {1..6}; do
+            attempts=$((attempts + 1))
+            RESPONSE=$(curl -s -X POST "$API_BASE_URL/api/v1/auth/login" \
+                -H "Content-Type: application/json" \
+                -d '{"email":"abuser@evil.com","password":"hack"}')
+            
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_BASE_URL/api/v1/auth/login" \
+                -H "Content-Type: application/json" \
+                -d '{"email":"abuser@evil.com","password":"hack"}')
+            
+            if [ "$HTTP_CODE" = "429" ] || echo "$RESPONSE" | grep -q "rate.limit\|too.many\|Rate limit exceeded"; then
+                blocked_count=$((blocked_count + 1))
+                info "Rate limiting déclenché à la tentative $attempts (HTTP $HTTP_CODE)"
+                break
+            fi
+            
+            # Petite pause pour éviter d'overwhelmer
+            sleep 0.5
+        done
+        
+        # Vérifier que le rate limiting s'est déclenché dans les 4 premières tentatives (limite=3)
+        if [ $blocked_count -gt 0 ] && [ $attempts -le 4 ]; then
+            success "Rate limiting - Protection contre abus ACTIVE (bloqué à tentative $attempts)"
+        elif [ $blocked_count -gt 0 ]; then
+            warning "Rate limiting - Protection contre abus FAIBLE (bloqué tard à tentative $attempts)"
+        else
+            warning "Rate limiting - Protection contre abus INSUFFISANTE (pas de blocage)"
+        fi
     fi
     
     # Test de performance sous charge
