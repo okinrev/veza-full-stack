@@ -4,7 +4,6 @@ package services
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/okinrev/veza-web-app/internal/database"
 	"github.com/okinrev/veza-web-app/internal/models"
@@ -127,7 +126,7 @@ func (s *authService) Login(req LoginRequest) (*LoginResponse, error) {
 		SELECT id, username, email, password_hash, role, created_at, updated_at 
 		FROM users WHERE email = $1 AND role != 'deleted'
 	`, req.Email).Scan(
-		&user.ID, &user.Username, &user.Email, &passwordHash, 
+		&user.ID, &user.Username, &user.Email, &passwordHash,
 		&user.Role, &user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -175,9 +174,9 @@ func (s *authService) RefreshToken(refreshToken string) (*TokenResponse, error) 
 		SELECT u.id, u.username, u.email, u.role, u.created_at, u.updated_at
 		FROM refresh_tokens rt
 		JOIN users u ON u.id = rt.user_id
-		WHERE rt.token = $1 AND rt.expires_at > NOW() AND u.role != 'deleted'
+		WHERE rt.token = $1 AND rt.expires_at > EXTRACT(EPOCH FROM NOW()) AND u.role != 'deleted'
 	`, refreshToken).Scan(
-		&user.ID, &user.Username, &user.Email, &user.Role, 
+		&user.ID, &user.Username, &user.Email, &user.Role,
 		&user.CreatedAt, &user.UpdatedAt,
 	)
 
@@ -238,7 +237,7 @@ func (s *authService) GenerateTokenPair(userID int, username, role string) (*Tok
 func (s *authService) storeRefreshToken(userID int, token string) error {
 	_, err := s.db.Exec(`
 		INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
-		VALUES ($1, $2, NOW() + INTERVAL '7 days', NOW())
+		VALUES ($1, $2, EXTRACT(EPOCH FROM NOW() + INTERVAL '7 days'), EXTRACT(EPOCH FROM NOW()))
 		ON CONFLICT (user_id) DO UPDATE SET 
 			token = EXCLUDED.token, 
 			expires_at = EXCLUDED.expires_at,

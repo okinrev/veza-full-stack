@@ -105,14 +105,36 @@ func main() {
 		chatManager.HandleWebSocket(c)
 	})
 
-	// Endpoint de santé simple pour HAProxy
+	// Endpoint de santé avec test DB pour HAProxy
 	router.GET("/api/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":    "ok",
-			"service":   "veza-backend",
+		// Test database connection
+		dbStatus := "ok"
+		dbConnected := true
+		if err := db.Ping(); err != nil {
+			dbStatus = "error: " + err.Error()
+			dbConnected = false
+		}
+
+		// Overall health status
+		overallStatus := "healthy"
+		httpStatus := http.StatusOK
+		if !dbConnected {
+			overallStatus = "unhealthy"
+			httpStatus = http.StatusServiceUnavailable
+		}
+
+		c.JSON(httpStatus, gin.H{
+			"status":    overallStatus,
+			"service":   "veza-backend-dev",
 			"version":   "2.0.0",
 			"frontend":  "react",
 			"timestamp": time.Now().Unix(),
+			"database":  dbStatus,
+			"components": gin.H{
+				"database_connected": dbConnected,
+				"websocket_active":   true,
+				"frontend_path":      reactFrontendPath,
+			},
 		})
 	})
 

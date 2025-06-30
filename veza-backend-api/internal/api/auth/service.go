@@ -151,13 +151,17 @@ func (s *Service) Login(req LoginRequest) (*LoginResponse, error) {
 	}
 	fmt.Printf("🔑 Refresh token existant: %s\n", existingToken)
 
+	// D'abord supprimer les anciens tokens pour cet utilisateur
+	_, err = s.db.Exec("DELETE FROM refresh_tokens WHERE user_id = $1", user.ID)
+	if err != nil {
+		fmt.Printf("❌ Erreur lors de la suppression des anciens tokens: %v\n", err)
+		return nil, fmt.Errorf("failed to clean old tokens: %w", err)
+	}
+
+	// Puis insérer le nouveau token
 	_, err = s.db.Exec(`
 		INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
-		VALUES ($1, $2, NOW() + INTERVAL '7 days', NOW())
-		ON CONFLICT (user_id) DO UPDATE SET 
-			token = EXCLUDED.token, 
-			expires_at = EXCLUDED.expires_at,
-			created_at = EXCLUDED.created_at
+		VALUES ($1, $2, EXTRACT(EPOCH FROM NOW() + INTERVAL '7 days'), EXTRACT(EPOCH FROM NOW()))
 	`, user.ID, refreshToken)
 
 	if err != nil {
@@ -184,7 +188,7 @@ func (s *Service) RefreshToken(refreshToken string) (*TokenResponse, error) {
 		SELECT u.id, u.username, u.email, u.role, u.created_at, u.updated_at
 		FROM refresh_tokens rt
 		JOIN users u ON u.id = rt.user_id
-		WHERE rt.token = $1 AND rt.expires_at > NOW() AND u.is_active = true
+		WHERE rt.token = $1 AND rt.expires_at > EXTRACT(EPOCH FROM NOW()) AND u.is_active = true
 	`, refreshToken).Scan(
 		&user.ID, &user.Username, &user.Email, &user.Role,
 		&user.CreatedAt, &user.UpdatedAt,

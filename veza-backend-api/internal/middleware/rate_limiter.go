@@ -417,54 +417,132 @@ func (rl *DistributedRateLimiter) rejectRequestWithResult(c *gin.Context, result
 	c.Abort()
 }
 
-// GetDefaultConfig retourne une configuration par défaut
+// GetDefaultConfig retourne une configuration par défaut SÉCURISÉE
 func GetDefaultRateLimitConfig(redisClient *redis.Client, logger *zap.Logger) *RateLimitConfig {
 	return &RateLimitConfig{
 		EndpointLimits: map[string]EndpointLimit{
+			// Authentification - PROTECTION RENFORCÉE
+			"POST:/api/v1/auth/login": {
+				Path:           "/api/v1/auth/login",
+				Method:         "POST",
+				Limit:          3, // Réduit de 5 à 3 tentatives
+				Window:         15 * time.Minute,
+				AuthRequired:   false,
+				BypassForAdmin: false,
+			},
 			"POST:/api/auth/login": {
 				Path:           "/api/auth/login",
 				Method:         "POST",
-				Limit:          5,
+				Limit:          3, // Réduit de 5 à 3 tentatives
 				Window:         15 * time.Minute,
+				AuthRequired:   false,
+				BypassForAdmin: false,
+			},
+			"POST:/api/v1/auth/register": {
+				Path:           "/api/v1/auth/register",
+				Method:         "POST",
+				Limit:          2, // Réduit de 3 à 2 tentatives
+				Window:         time.Hour,
 				AuthRequired:   false,
 				BypassForAdmin: false,
 			},
 			"POST:/api/auth/register": {
 				Path:           "/api/auth/register",
 				Method:         "POST",
+				Limit:          2, // Réduit de 3 à 2 tentatives
+				Window:         time.Hour,
+				AuthRequired:   false,
+				BypassForAdmin: false,
+			},
+			"POST:/api/v1/auth/refresh": {
+				Path:           "/api/v1/auth/refresh",
+				Method:         "POST",
+				Limit:          8, // Réduit de 10 à 8 tentatives
+				Window:         time.Hour,
+				AuthRequired:   true,
+				BypassForAdmin: true,
+			},
+			"POST:/api/auth/refresh": {
+				Path:           "/api/auth/refresh",
+				Method:         "POST",
+				Limit:          8, // Réduit de 10 à 8 tentatives
+				Window:         time.Hour,
+				AuthRequired:   true,
+				BypassForAdmin: true,
+			},
+			// Endpoints sensibles ajoutés
+			"POST:/api/v1/auth/forgot-password": {
+				Path:           "/api/v1/auth/forgot-password",
+				Method:         "POST",
 				Limit:          3,
 				Window:         time.Hour,
 				AuthRequired:   false,
 				BypassForAdmin: false,
 			},
-			"POST:/api/auth/refresh": {
-				Path:           "/api/auth/refresh",
+			"POST:/api/v1/auth/reset-password": {
+				Path:           "/api/v1/auth/reset-password",
 				Method:         "POST",
-				Limit:          10,
+				Limit:          5,
+				Window:         time.Hour,
+				AuthRequired:   false,
+				BypassForAdmin: false,
+			},
+			// Endpoints d'écriture - limites strictes
+			"POST:/api/v1/*": {
+				Path:           "/api/v1/*",
+				Method:         "POST",
+				Limit:          30, // 30 POST par heure
 				Window:         time.Hour,
 				AuthRequired:   true,
+				BypassForAdmin: true,
+			},
+			"PUT:/api/v1/*": {
+				Path:           "/api/v1/*",
+				Method:         "PUT",
+				Limit:          20, // 20 PUT par heure
+				Window:         time.Hour,
+				AuthRequired:   true,
+				BypassForAdmin: true,
+			},
+			"DELETE:/api/v1/*": {
+				Path:           "/api/v1/*",
+				Method:         "DELETE",
+				Limit:          10, // 10 DELETE par heure
+				Window:         time.Hour,
+				AuthRequired:   true,
+				BypassForAdmin: true,
+			},
+			// Endpoints de lecture - limites généreuses mais contrôlées
+			"GET:/api/v1/*": {
+				Path:           "/api/v1/*",
+				Method:         "GET",
+				Limit:          500, // Réduit de 1000 à 500
+				Window:         time.Hour,
+				AuthRequired:   false,
 				BypassForAdmin: true,
 			},
 			"GET:/api/*": {
 				Path:           "/api/*",
 				Method:         "GET",
-				Limit:          1000,
+				Limit:          500, // Réduit de 1000 à 500
 				Window:         time.Hour,
 				AuthRequired:   false,
 				BypassForAdmin: true,
 			},
 		},
 
-		GlobalIPLimit:  60, // 60 req/min par IP
+		// Limites globales RENFORCÉES
+		GlobalIPLimit:  30, // Réduit de 60 à 30 req/min par IP
 		GlobalIPWindow: time.Minute,
 
-		UserLimit:  100, // 100 req/min par utilisateur
+		UserLimit:  80, // Réduit de 100 à 80 req/min par utilisateur
 		UserWindow: time.Minute,
 
-		DDoSThreshold:   200, // 200 req/min déclenche DDoS
-		DDoSBanDuration: 10 * time.Minute,
+		// Protection DDoS RENFORCÉE
+		DDoSThreshold:   100,              // Réduit de 200 à 100 req/min déclenche DDoS
+		DDoSBanDuration: 30 * time.Minute, // Augmenté de 10 à 30 minutes
 
-		WhitelistIPs: []string{"127.0.0.1", "::1"},
+		WhitelistIPs: []string{"127.0.0.1", "::1", "localhost"},
 		BlacklistIPs: []string{},
 
 		RedisClient: redisClient,

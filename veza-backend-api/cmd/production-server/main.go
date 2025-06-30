@@ -197,16 +197,48 @@ func main() {
 
 	// Health check endpoint for load balancer
 	router.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status":     "healthy",
+		// Test database connection
+		dbStatus := "ok"
+		dbConnected := true
+		if err := db.Ping(); err != nil {
+			dbStatus = "error: " + err.Error()
+			dbConnected = false
+		}
+
+		// Test Redis connection if available
+		redisStatus := "disabled"
+		if redisClient != nil {
+			if err := redisClient.Ping(redisClient.Context()).Err(); err != nil {
+				redisStatus = "error: " + err.Error()
+			} else {
+				redisStatus = "ok"
+			}
+		}
+
+		// Overall health status
+		overallStatus := "healthy"
+		httpStatus := http.StatusOK
+		if !dbConnected {
+			overallStatus = "unhealthy"
+			httpStatus = http.StatusServiceUnavailable
+		}
+
+		c.JSON(httpStatus, gin.H{
+			"status":     overallStatus,
 			"service":    "veza-backend-production",
 			"version":    "1.0.0",
 			"timestamp":  time.Now().Unix(),
-			"uptime":     time.Since(startTime).Seconds(),
-			"database":   "connected",
+			"uptime":     fmt.Sprintf("%.2fs", time.Since(startTime).Seconds()),
+			"database":   dbStatus,
 			"websocket":  "enabled",
 			"rate_limit": redisClient != nil,
-			"redis":      redisClient != nil,
+			"redis":      redisStatus,
+			"components": gin.H{
+				"database_connected": dbConnected,
+				"redis_available":    redisClient != nil,
+				"websocket_active":   true,
+				"api_endpoints":      38,
+			},
 		})
 	})
 

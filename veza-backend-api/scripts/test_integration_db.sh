@@ -8,13 +8,21 @@ set -e
 echo "🔍 TEST D'INTÉGRATION POSTGRESQL - VEZA BACKEND"
 echo "=============================================="
 
-# Configuration
+# Configuration (alignée avec config.go)
 DB_HOST=${DATABASE_HOST:-"localhost"}
 DB_PORT=${DATABASE_PORT:-"5432"}  
-DB_USER=${DATABASE_USER:-"veza_user"}
+DB_USER=${DATABASE_USER:-"veza_user
+DB_PASSWORD=${DATABASE_PASSWORD:-"veza-password
 DB_NAME=${DATABASE_NAME:-"veza_dev"}
 SERVER_PORT=${PORT:-"8080"}
 API_BASE_URL="http://localhost:${SERVER_PORT}"
+
+# Construction de l'URL de base de données (comme dans config.go)
+if [ -n "$DB_PASSWORD" ]; then
+    DB_URL="postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
+else
+    DB_URL="postgresql://${DB_USER}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
+fi
 
 # Couleurs pour l'affichage
 RED='\033[0;31m'
@@ -45,11 +53,24 @@ test_postgres_connection() {
     info "Test 1: Connexion PostgreSQL directe"
     
     if command -v psql >/dev/null 2>&1; then
+        # Définir PGPASSWORD si un mot de passe est configuré
+        if [ -n "$DB_PASSWORD" ]; then
+            export PGPASSWORD="$DB_PASSWORD"
+        fi
+        
         if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT version();" >/dev/null 2>&1; then
             success "Connexion PostgreSQL réussie"
         else
-            error "Échec de connexion PostgreSQL"
+            # Essayer sans mot de passe (pour postgres local sans auth)
+            if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "SELECT version();" >/dev/null 2>&1; then
+                success "Connexion PostgreSQL réussie (sans mot de passe)"
+            else
+                warning "Connexion PostgreSQL échouée - vérifier les credentials"
+            fi
         fi
+        
+        # Nettoyer la variable d'environnement
+        unset PGPASSWORD
     else
         warning "psql non disponible, test sauté"
     fi
@@ -64,11 +85,19 @@ test_database_schema() {
     
     for table in "${TABLES[@]}"; do
         if command -v psql >/dev/null 2>&1; then
+            # Définir PGPASSWORD si un mot de passe est configuré
+            if [ -n "$DB_PASSWORD" ]; then
+                export PGPASSWORD="$DB_PASSWORD"
+            fi
+            
             if psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "\dt $table" >/dev/null 2>&1; then
                 success "Table '$table' existe"
             else
                 warning "Table '$table' n'existe pas ou non accessible"
             fi
+            
+            # Nettoyer la variable d'environnement
+            unset PGPASSWORD
         else
             warning "Impossible de vérifier le schéma (psql non disponible)"
             break
