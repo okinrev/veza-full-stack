@@ -29,6 +29,7 @@ pub mod hub;
 pub mod messages;
 pub mod websocket;
 pub mod models;
+pub mod grpc_server;
 
 // ═══════════════════════════════════════════════════════════════════════
 // TESTS (CONDITIONNELS)

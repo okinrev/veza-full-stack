@@ -1,0 +1,89 @@
+syntax = "proto3";
+
+package veza.common.auth;
+
+option go_package = "veza-backend-api/proto/common/auth";
+
+// Service d'authentification partagé
+service AuthService {
+  // Valider un JWT token
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  
+  // Obtenir les informations utilisateur
+  rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse);
+  
+  // Vérifier les permissions
+  rpc CheckPermissions(CheckPermissionsRequest) returns (CheckPermissionsResponse);
+  
+  // Révoquer un token
+  rpc RevokeToken(RevokeTokenRequest) returns (RevokeTokenResponse);
+}
+
+// Messages de requête/réponse
+message ValidateTokenRequest {
+  string token = 1;
+  string service = 2; // service qui fait la demande (chat, stream)
+}
+
+message ValidateTokenResponse {
+  bool valid = 1;
+  UserClaims user = 2;
+  string error = 3;
+}
+
+message GetUserInfoRequest {
+  int64 user_id = 1;
+  string token = 2;
+}
+
+message GetUserInfoResponse {
+  UserInfo user = 1;
+  string error = 2;
+}
+
+message CheckPermissionsRequest {
+  int64 user_id = 1;
+  string resource = 2; // "chat.room", "stream.channel"
+  string action = 3;   // "read", "write", "moderate"
+  string resource_id = 4;
+}
+
+message CheckPermissionsResponse {
+  bool allowed = 1;
+  repeated string permissions = 2;
+  string error = 3;
+}
+
+message RevokeTokenRequest {
+  string token = 1;
+  string reason = 2;
+}
+
+message RevokeTokenResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// Types de données
+message UserClaims {
+  int64 user_id = 1;
+  string username = 2;
+  string email = 3;
+  string role = 4;
+  bool is_active = 5;
+  int64 issued_at = 6;
+  int64 expires_at = 7;
+}
+
+message UserInfo {
+  int64 id = 1;
+  string username = 2;
+  string email = 3;
+  string first_name = 4;
+  string last_name = 5;
+  string role = 6;
+  bool is_active = 7;
+  bool is_verified = 8;
+  int64 created_at = 9;
+  int64 last_login_at = 10;
+} 

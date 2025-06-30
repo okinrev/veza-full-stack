@@ -10,6 +10,7 @@ pub mod audio;
 pub mod utils;
 pub mod middleware;
 pub mod routes;
+pub mod grpc_server;
 
 // Re-exports pour faciliter l'utilisation
 pub use error::{AppError, Result};

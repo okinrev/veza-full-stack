@@ -1,0 +1,372 @@
+package services
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
+
+	"github.com/okinrev/veza-web-app/internal/domain/entities"
+	"github.com/okinrev/veza-web-app/internal/domain/repositories"
+	"github.com/okinrev/veza-web-app/internal/infrastructure/jwt"
+)
+
+// AuthCompleteService est le service d'authentification complet pour la Phase 2
+type AuthCompleteService struct {
+	userRepo   repositories.UserRepository
+	cacheRepo  repositories.CacheRepository
+	jwtService *jwt.JWTService
+	hashCost   int
+}
+
+// NewAuthCompleteService crée une nouvelle instance du service d'authentification complet
+func NewAuthCompleteService(
+	userRepo repositories.UserRepository,
+	cacheRepo repositories.CacheRepository,
+	jwtService *jwt.JWTService,
+) *AuthCompleteService {
+	return &AuthCompleteService{
+		userRepo:   userRepo,
+		cacheRepo:  cacheRepo,
+		jwtService: jwtService,
+		hashCost:   12, // bcrypt cost élevé pour la sécurité
+	}
+}
+
+// RegisterRequest représente une demande d'inscription
+type RegisterRequest struct {
+	Username string `json:"username" validate:"required,min=3,max=30,alphanum"`
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8,max=128"`
+}
+
+// LoginRequest représente une demande de connexion
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+// AuthResponse représente la réponse d'authentification
+type AuthResponse struct {
+	AccessToken  string               `json:"access_token"`
+	RefreshToken string               `json:"refresh_token"`
+	User         *entities.PublicUser `json:"user"`
+	ExpiresAt    time.Time            `json:"expires_at"`
+}
+
+// Register inscrit un nouvel utilisateur
+func (s *AuthCompleteService) Register(ctx context.Context, req *RegisterRequest) (*AuthResponse, error) {
+	// 1. Validation des entrées
+	if err := s.validateRegisterRequest(req); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
+	}
+
+	// 2. Vérifier que l'utilisateur n'existe pas déjà
+	existingByEmail, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err == nil && existingByEmail != nil {
+		return nil, errors.New("user with this email already exists")
+	}
+
+	existingByUsername, err := s.userRepo.GetByUsername(ctx, req.Username)
+	if err == nil && existingByUsername != nil {
+		return nil, errors.New("user with this username already exists")
+	}
+
+	// 3. Hacher le mot de passe
+	hashedPassword, err := s.hashPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// 4. Créer l'entité utilisateur
+	user, err := entities.NewUser(req.Username, req.Email, hashedPassword)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user entity: %w", err)
+	}
+
+	// 5. Sauvegarder en base de données
+	createdUser, err := s.userRepo.Create(ctx, user)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create user in database: %w", err)
+	}
+
+	// 6. Générer les tokens JWT
+	accessToken, err := s.jwtService.GenerateAccessToken(createdUser.ToSession())
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	refreshToken, err := s.jwtService.GenerateRefreshToken(createdUser.ToSession())
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	// 7. Sauvegarder le refresh token
+	if err := s.userRepo.SaveRefreshToken(ctx, createdUser.ID, refreshToken, time.Now().Add(7*24*time.Hour)); err != nil {
+		return nil, fmt.Errorf("failed to save refresh token: %w", err)
+	}
+
+	// 8. Mettre en cache la session utilisateur
+	if err := s.cacheUserSession(ctx, createdUser); err != nil {
+		// Log l'erreur mais ne pas faire échouer l'inscription
+		fmt.Printf("Warning: failed to cache user session: %v\n", err)
+	}
+
+	return &AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		User:         createdUser.ToPublic(),
+		ExpiresAt:    time.Now().Add(15 * time.Minute), // Token expire dans 15 minutes
+	}, nil
+}
+
+// Login authentifie un utilisateur existant
+func (s *AuthCompleteService) Login(ctx context.Context, req *LoginRequest) (*AuthResponse, error) {
+	// 1. Validation des entrées
+	if err := s.validateLoginRequest(req); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
+	}
+
+	// 2. Récupérer l'utilisateur par email
+	user, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err != nil {
+		return nil, errors.New("invalid credentials")
+	}
+	if user == nil {
+		return nil, errors.New("invalid credentials")
+	}
+
+	// 3. Vérifier que l'utilisateur peut se connecter
+	if !user.IsAllowedToLogin() {
+		return nil, errors.New("account is disabled or not verified")
+	}
+
+	// 4. Vérifier le mot de passe
+	if err := s.verifyPassword(user.Password, req.Password); err != nil {
+		return nil, errors.New("invalid credentials")
+	}
+
+	// 5. Mettre à jour la dernière connexion
+	user.UpdateLastLogin()
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		// Log l'erreur mais ne pas faire échouer la connexion
+		fmt.Printf("Warning: failed to update last login: %v\n", err)
+	}
+
+	// 6. Générer les tokens JWT
+	accessToken, err := s.jwtService.GenerateAccessToken(user.ToSession())
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+
+	refreshToken, err := s.jwtService.GenerateRefreshToken(user.ToSession())
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
+	}
+
+	// 7. Sauvegarder le refresh token
+	if err := s.userRepo.SaveRefreshToken(ctx, user.ID, refreshToken, time.Now().Add(7*24*time.Hour)); err != nil {
+		return nil, fmt.Errorf("failed to save refresh token: %w", err)
+	}
+
+	// 8. Mettre en cache la session utilisateur
+	if err := s.cacheUserSession(ctx, user); err != nil {
+		fmt.Printf("Warning: failed to cache user session: %v\n", err)
+	}
+
+	return &AuthResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		User:         user.ToPublic(),
+		ExpiresAt:    time.Now().Add(15 * time.Minute),
+	}, nil
+}
+
+// RefreshToken renouvelle les tokens d'accès
+func (s *AuthCompleteService) RefreshToken(ctx context.Context, refreshToken string) (*AuthResponse, error) {
+	// 1. Valider le refresh token
+	session, err := s.jwtService.ValidateRefreshToken(refreshToken)
+	if err != nil {
+		return nil, fmt.Errorf("invalid refresh token: %w", err)
+	}
+
+	// 2. Vérifier que le token existe en base
+	storedToken, err := s.userRepo.GetRefreshToken(ctx, session.UserID, refreshToken)
+	if err != nil || storedToken == nil {
+		return nil, errors.New("refresh token not found or expired")
+	}
+
+	// 3. Récupérer l'utilisateur
+	user, err := s.userRepo.GetByID(ctx, session.UserID)
+	if err != nil || user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	if !user.IsAllowedToLogin() {
+		return nil, errors.New("account is disabled")
+	}
+
+	// 4. Générer de nouveaux tokens
+	newAccessToken, err := s.jwtService.GenerateAccessToken(user.ToSession())
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate new access token: %w", err)
+	}
+
+	newRefreshToken, err := s.jwtService.GenerateRefreshToken(user.ToSession())
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate new refresh token: %w", err)
+	}
+
+	// 5. Révoquer l'ancien refresh token et sauvegarder le nouveau
+	if err := s.userRepo.RevokeRefreshToken(ctx, session.UserID, refreshToken); err != nil {
+		fmt.Printf("Warning: failed to revoke old refresh token: %v\n", err)
+	}
+
+	if err := s.userRepo.SaveRefreshToken(ctx, user.ID, newRefreshToken, time.Now().Add(7*24*time.Hour)); err != nil {
+		return nil, fmt.Errorf("failed to save new refresh token: %w", err)
+	}
+
+	// 6. Mettre à jour le cache
+	if err := s.cacheUserSession(ctx, user); err != nil {
+		fmt.Printf("Warning: failed to cache user session: %v\n", err)
+	}
+
+	return &AuthResponse{
+		AccessToken:  newAccessToken,
+		RefreshToken: newRefreshToken,
+		User:         user.ToPublic(),
+		ExpiresAt:    time.Now().Add(15 * time.Minute),
+	}, nil
+}
+
+// Logout déconnecte un utilisateur et révoque ses tokens
+func (s *AuthCompleteService) Logout(ctx context.Context, userID int64, refreshToken string) error {
+	// Révoquer le refresh token spécifique
+	if refreshToken != "" {
+		if err := s.userRepo.RevokeRefreshToken(ctx, userID, refreshToken); err != nil {
+			return fmt.Errorf("failed to revoke refresh token: %w", err)
+		}
+	}
+
+	// Supprimer la session du cache
+	sessionKey := fmt.Sprintf("user_session:%d", userID)
+	if err := s.cacheRepo.Delete(ctx, sessionKey); err != nil {
+		fmt.Printf("Warning: failed to delete user session from cache: %v\n", err)
+	}
+
+	return nil
+}
+
+// LogoutAll déconnecte un utilisateur de toutes ses sessions
+func (s *AuthCompleteService) LogoutAll(ctx context.Context, userID int64) error {
+	// Révoquer tous les refresh tokens de l'utilisateur
+	if err := s.userRepo.RevokeAllUserTokens(ctx, userID); err != nil {
+		return fmt.Errorf("failed to revoke all user tokens: %w", err)
+	}
+
+	// Supprimer la session du cache
+	sessionKey := fmt.Sprintf("user_session:%d", userID)
+	if err := s.cacheRepo.Delete(ctx, sessionKey); err != nil {
+		fmt.Printf("Warning: failed to delete user session from cache: %v\n", err)
+	}
+
+	return nil
+}
+
+// GetProfile récupère le profil d'un utilisateur connecté
+func (s *AuthCompleteService) GetProfile(ctx context.Context, userID int64) (*entities.PublicUser, error) {
+	// Essayer le cache d'abord
+	sessionKey := fmt.Sprintf("user_session:%d", userID)
+	if cachedUser, err := s.getCachedUserSession(ctx, sessionKey); err == nil && cachedUser != nil {
+		return cachedUser.ToPublic(), nil
+	}
+
+	// Sinon, récupérer depuis la base de données
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Mettre en cache pour la prochaine fois
+	if err := s.cacheUserSession(ctx, user); err != nil {
+		fmt.Printf("Warning: failed to cache user session: %v\n", err)
+	}
+
+	return user.ToPublic(), nil
+}
+
+// validateRegisterRequest valide une demande d'inscription
+func (s *AuthCompleteService) validateRegisterRequest(req *RegisterRequest) error {
+	if req.Username == "" {
+		return errors.New("username is required")
+	}
+	if req.Email == "" {
+		return errors.New("email is required")
+	}
+	if req.Password == "" {
+		return errors.New("password is required")
+	}
+
+	// Utiliser la validation de l'entité User
+	tempUser := &entities.User{
+		Username: req.Username,
+		Email:    req.Email,
+	}
+
+	if err := tempUser.ValidateUsername(); err != nil {
+		return err
+	}
+	if err := tempUser.ValidateEmail(); err != nil {
+		return err
+	}
+	if err := tempUser.ValidatePassword(req.Password); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateLoginRequest valide une demande de connexion
+func (s *AuthCompleteService) validateLoginRequest(req *LoginRequest) error {
+	if req.Email == "" {
+		return errors.New("email is required")
+	}
+	if req.Password == "" {
+		return errors.New("password is required")
+	}
+	return nil
+}
+
+// hashPassword hache un mot de passe avec bcrypt
+func (s *AuthCompleteService) hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), s.hashCost)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
+}
+
+// verifyPassword vérifie un mot de passe avec son hash
+func (s *AuthCompleteService) verifyPassword(hashedPassword, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
+
+// cacheUserSession met en cache la session d'un utilisateur
+func (s *AuthCompleteService) cacheUserSession(ctx context.Context, user *entities.User) error {
+	sessionKey := fmt.Sprintf("user_session:%d", user.ID)
+	return s.cacheRepo.Set(ctx, sessionKey, user, 30*time.Minute)
+}
+
+// getCachedUserSession récupère une session utilisateur du cache
+func (s *AuthCompleteService) getCachedUserSession(ctx context.Context, sessionKey string) (*entities.User, error) {
+	var user entities.User
+	if err := s.cacheRepo.Get(ctx, sessionKey, &user); err != nil {
+		return nil, err
+	}
+	return &user, nil
+}

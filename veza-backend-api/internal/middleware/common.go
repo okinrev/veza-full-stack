@@ -128,4 +128,60 @@ func ValidateContentType(contentType string) gin.HandlerFunc {
 		}
 		c.Next()
 	}
-} 
+}
+
+// SecurityHeaders middleware pour ajouter les headers de sécurité
+func SecurityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Headers de sécurité avancés
+		c.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+		c.Writer.Header().Set("X-Frame-Options", "DENY")
+		c.Writer.Header().Set("X-XSS-Protection", "1; mode=block")
+		c.Writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		c.Writer.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+		c.Writer.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		c.Writer.Header().Set("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+
+		c.Next()
+	}
+}
+
+// Note: AuditLogger et CSRFProtection sont définis dans leurs fichiers dédiés
+
+// RateLimiterAdvanced middleware pour le rate limiting intelligent
+func RateLimiterAdvanced() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		clientIP := c.ClientIP()
+
+		// Limites différenciées par endpoint
+		var limit int
+		var window time.Duration
+
+		switch {
+		case c.Request.URL.Path == "/api/auth/login":
+			limit = 5 // 5 tentatives de login
+			window = time.Minute * 15
+		case c.Request.URL.Path == "/api/auth/register":
+			limit = 3 // 3 registrations
+			window = time.Hour
+		default:
+			limit = 100 // 100 requêtes générales
+			window = time.Minute
+		}
+
+		// Utiliser le rate limiter existant
+		limiter := utils.NewRateLimiter(limit, window)
+		if !limiter.Allow(clientIP) {
+			c.JSON(429, gin.H{
+				"success":     false,
+				"error":       "Rate limit exceeded",
+				"code":        "RATE_LIMIT_EXCEEDED",
+				"retry_after": int(window.Seconds()),
+			})
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}

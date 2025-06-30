@@ -131,6 +131,15 @@ tempfile = { version = "3.8", optional = true }                # Fichiers tempor
 zip = { version = "0.6", optional = true }                     # Archives ZIP
 
 # ═══════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
+# gRPC ET COMMUNICATION INTER-SERVICES
+# ═══════════════════════════════════════════════════════════════════════
+tonic = { version = "0.11", features = ["transport", "prost"] }
+prost = "0.12"
+prost-types = "0.12"
+tokio-stream = "0.1"
+
+# ═══════════════════════════════════════════════════════════════════════
 # INTÉGRATIONS EXTERNES (OPTIONAL)
 # ═══════════════════════════════════════════════════════════════════════
 lettre = { version = "0.11", features = ["tokio1-native-tls"], optional = true } # Envoi d'emails
@@ -148,6 +157,9 @@ criterion = { version = "0.5", features = ["html_reports"] } # Benchmarks
 insta = "1.34"                  # Tests de snapshot
 test-log = "0.2"                # Logging dans les tests
 pretty_assertions = "1.4"       # Assertions plus lisibles
+
+[build-dependencies]
+tonic-build = "0.11"            # Génération de code protobuf
 
 [features]
 # Fonctionnalités par défaut

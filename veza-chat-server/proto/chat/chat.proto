@@ -1,0 +1,320 @@
+syntax = "proto3";
+
+package veza.chat;
+
+option go_package = "veza-backend-api/proto/chat";
+
+import "common/auth.proto";
+
+// Service Chat pour communication avec le module Rust
+service ChatService {
+  // Gestion des salles
+  rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
+  rpc JoinRoom(JoinRoomRequest) returns (JoinRoomResponse);
+  rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
+  rpc GetRoomInfo(GetRoomInfoRequest) returns (Room);
+  rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
+  
+  // Gestion des messages
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+  rpc GetMessageHistory(GetMessageHistoryRequest) returns (GetMessageHistoryResponse);
+  rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
+  
+  // Messages directs
+  rpc SendDirectMessage(SendDirectMessageRequest) returns (SendDirectMessageResponse);
+  rpc GetDirectMessages(GetDirectMessagesRequest) returns (GetDirectMessagesResponse);
+  
+  // Modération
+  rpc MuteUser(MuteUserRequest) returns (MuteUserResponse);
+  rpc BanUser(BanUserRequest) returns (BanUserResponse);
+  rpc ModerateMessage(ModerateMessageRequest) returns (ModerateMessageResponse);
+  
+  // Statistiques temps réel
+  rpc GetRoomStats(GetRoomStatsRequest) returns (RoomStats);
+  rpc GetUserActivity(GetUserActivityRequest) returns (UserActivity);
+}
+
+// Messages pour les salles
+message CreateRoomRequest {
+  string name = 1;
+  string description = 2;
+  RoomType type = 3;
+  RoomVisibility visibility = 4;
+  int64 created_by = 5;
+  string auth_token = 6;
+}
+
+message CreateRoomResponse {
+  Room room = 1;
+  string error = 2;
+}
+
+message JoinRoomRequest {
+  string room_id = 1;
+  int64 user_id = 2;
+  string auth_token = 3;
+}
+
+message JoinRoomResponse {
+  bool success = 1;
+  RoomMember member = 2;
+  string error = 3;
+}
+
+message LeaveRoomRequest {
+  string room_id = 1;
+  int64 user_id = 2;
+  string auth_token = 3;
+}
+
+message LeaveRoomResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message GetRoomInfoRequest {
+  string room_id = 1;
+  string auth_token = 2;
+}
+
+message ListRoomsRequest {
+  RoomVisibility visibility = 1;
+  int32 page = 2;
+  int32 limit = 3;
+  string auth_token = 4;
+}
+
+message ListRoomsResponse {
+  repeated Room rooms = 1;
+  int32 total = 2;
+  string error = 3;
+}
+
+// Messages pour les messages
+message SendMessageRequest {
+  string room_id = 1;
+  int64 sender_id = 2;
+  string content = 3;
+  MessageType type = 4;
+  string auth_token = 5;
+  string reply_to = 6; // ID du message parent
+}
+
+message SendMessageResponse {
+  Message message = 1;
+  string error = 2;
+}
+
+message GetMessageHistoryRequest {
+  string room_id = 1;
+  int32 limit = 2;
+  string before_id = 3; // pagination
+  string auth_token = 4;
+}
+
+message GetMessageHistoryResponse {
+  repeated Message messages = 1;
+  bool has_more = 2;
+  string error = 3;
+}
+
+message DeleteMessageRequest {
+  string message_id = 1;
+  int64 user_id = 2;
+  string auth_token = 3;
+}
+
+message DeleteMessageResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// Messages directs
+message SendDirectMessageRequest {
+  int64 sender_id = 1;
+  int64 recipient_id = 2;
+  string content = 3;
+  MessageType type = 4;
+  string auth_token = 5;
+}
+
+message SendDirectMessageResponse {
+  DirectMessage message = 1;
+  string error = 2;
+}
+
+message GetDirectMessagesRequest {
+  int64 user_id = 1;
+  int64 other_user_id = 2;
+  int32 limit = 3;
+  string before_id = 4;
+  string auth_token = 5;
+}
+
+message GetDirectMessagesResponse {
+  repeated DirectMessage messages = 1;
+  bool has_more = 2;
+  string error = 3;
+}
+
+// Modération
+message MuteUserRequest {
+  string room_id = 1;
+  int64 user_id = 2;
+  int64 moderator_id = 3;
+  int64 duration_seconds = 4;
+  string reason = 5;
+  string auth_token = 6;
+}
+
+message MuteUserResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message BanUserRequest {
+  string room_id = 1;
+  int64 user_id = 2;
+  int64 moderator_id = 3;
+  string reason = 4;
+  string auth_token = 5;
+}
+
+message BanUserResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message ModerateMessageRequest {
+  string message_id = 1;
+  int64 moderator_id = 2;
+  ModerationAction action = 3;
+  string reason = 4;
+  string auth_token = 5;
+}
+
+message ModerateMessageResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+// Statistiques
+message GetRoomStatsRequest {
+  string room_id = 1;
+  string auth_token = 2;
+}
+
+message GetUserActivityRequest {
+  int64 user_id = 1;
+  string auth_token = 2;
+}
+
+// Types de données
+message Room {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  RoomType type = 4;
+  RoomVisibility visibility = 5;
+  int64 created_by = 6;
+  int64 created_at = 7;
+  int32 member_count = 8;
+  int32 online_count = 9;
+  bool is_active = 10;
+}
+
+message RoomMember {
+  int64 user_id = 1;
+  string username = 2;
+  RoomRole role = 3;
+  int64 joined_at = 4;
+  bool is_online = 5;
+  int64 last_seen = 6;
+}
+
+message Message {
+  string id = 1;
+  string room_id = 2;
+  int64 sender_id = 3;
+  string sender_username = 4;
+  string content = 5;
+  MessageType type = 6;
+  int64 created_at = 7;
+  int64 updated_at = 8;
+  bool is_edited = 9;
+  bool is_deleted = 10;
+  string reply_to = 11;
+  repeated MessageReaction reactions = 12;
+}
+
+message DirectMessage {
+  string id = 1;
+  int64 sender_id = 2;
+  int64 recipient_id = 3;
+  string content = 4;
+  MessageType type = 5;
+  int64 created_at = 6;
+  bool is_read = 7;
+  bool is_deleted = 8;
+}
+
+message MessageReaction {
+  string emoji = 1;
+  repeated int64 user_ids = 2;
+  int32 count = 3;
+}
+
+message RoomStats {
+  string room_id = 1;
+  int32 total_members = 2;
+  int32 online_members = 3;
+  int32 messages_today = 4;
+  int32 total_messages = 5;
+  repeated int64 active_users = 6;
+}
+
+message UserActivity {
+  int64 user_id = 1;
+  int32 rooms_joined = 2;
+  int32 messages_sent = 3;
+  int64 last_activity = 4;
+  bool is_online = 5;
+  string current_status = 6;
+}
+
+// Énumérations
+enum RoomType {
+  PUBLIC = 0;
+  PRIVATE = 1;
+  DIRECT = 2;
+  PREMIUM = 3;
+}
+
+enum RoomVisibility {
+  OPEN = 0;
+  INVITE_ONLY = 1;
+  HIDDEN = 2;
+}
+
+enum RoomRole {
+  MEMBER = 0;
+  MODERATOR = 1;
+  ADMIN = 2;
+  OWNER = 3;
+}
+
+enum MessageType {
+  TEXT = 0;
+  IMAGE = 1;
+  FILE = 2;
+  AUDIO = 3;
+  VIDEO = 4;
+  SYSTEM = 5;
+}
+
+enum ModerationAction {
+  WARN = 0;
+  DELETE = 1;
+  EDIT = 2;
+  FLAG = 3;
+} 

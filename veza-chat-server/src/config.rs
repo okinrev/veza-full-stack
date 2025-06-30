@@ -173,6 +173,9 @@ pub struct ServerSettings {
     /// Adresse de bind du serveur
     pub bind_addr: SocketAddr,
     
+    /// Port gRPC du serveur
+    pub grpc_port: u16,
+    
     /// Environnement d'exécution
     pub environment: Environment,
     
@@ -197,6 +200,11 @@ impl Default for ServerSettings {
                 .unwrap_or_else(|_| "0.0.0.0:3001".to_string())
                 .parse()
                 .unwrap_or_else(|_| "0.0.0.0:3001".parse().unwrap()),
+            // Port gRPC - 50051 pour Chat Server
+            grpc_port: std::env::var("CHAT_SERVER_GRPC_PORT")
+                .unwrap_or_else(|_| "50051".to_string())
+                .parse()
+                .unwrap_or(50051),
             environment: std::env::var("ENVIRONMENT")
                 .unwrap_or_else(|_| "development".to_string())
                 .parse()
