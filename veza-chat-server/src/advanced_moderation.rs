@@ -15,6 +15,7 @@ use tokio::sync::RwLock;
 use serde::{Serialize, Deserialize};
 use regex::Regex;
 use dashmap::DashMap;
+use chrono::{DateTime, Utc, Timelike};
 
 use crate::error::{ChatError, Result};
 use crate::monitoring::ChatMetrics;
@@ -61,8 +62,8 @@ pub enum AbuseType {
 pub struct UserBehaviorProfile {
     pub user_id: i32,
     pub username: String,
-    pub created_at: Instant,
-    pub last_updated: Instant,
+    pub created_at: DateTime<Utc>,
+    pub last_updated: DateTime<Utc>,
     
     // Statistiques de base
     pub total_messages: u64,
@@ -70,7 +71,7 @@ pub struct UserBehaviorProfile {
     pub trust_score: f32, // 0.0 (suspect) à 1.0 (confiance totale)
     
     // Patterns de comportement
-    pub message_frequency: VecDeque<Instant>, // Fréquence des messages
+    pub message_frequency: VecDeque<DateTime<Utc>>, // Fréquence des messages
     pub repeated_content: HashMap<String, u32>, // Contenu répété
     pub room_activity: HashMap<String, u32>, // Activité par salon
     pub warning_history: Vec<ViolationType>, // Historique des violations
@@ -96,8 +97,8 @@ impl UserBehaviorProfile {
         Self {
             user_id,
             username,
-            created_at: Instant::now(),
-            last_updated: Instant::now(),
+            created_at: Utc::now(),
+            last_updated: Utc::now(),
             total_messages: 0,
             total_violations: 0,
             trust_score: 0.5, // Score neutre initial
@@ -120,10 +121,10 @@ impl UserBehaviorProfile {
     /// Met à jour le profil avec un nouveau message
     pub fn update_with_message(&mut self, content: &str, room: &str, typing_duration: Option<Duration>) {
         self.total_messages += 1;
-        self.last_updated = Instant::now();
+        self.last_updated = Utc::now();
         
         // Fréquence des messages
-        let now = Instant::now();
+        let now = Utc::now();
         self.message_frequency.push_back(now);
         if self.message_frequency.len() > 100 {
             self.message_frequency.pop_front();
@@ -547,7 +548,7 @@ impl AdvancedModerationEngine {
     /// Détecte le contenu inapproprié
     async fn detect_inappropriate_content(&self, content: &str) -> Result<Option<ViolationType>> {
         let content_lower = content.to_lowercase();
-        let mut inappropriate_score = 0.0;
+        let mut inappropriate_score: f32 = 0.0;
         let mut category = String::new();
         
         // Contenu NSFW
@@ -597,7 +598,7 @@ impl AdvancedModerationEngine {
     /// Détecte les tentatives de fraude
     async fn detect_fraud(&self, content: &str) -> Result<Option<ViolationType>> {
         let content_lower = content.to_lowercase();
-        let mut fraud_score = 0.0;
+        let mut fraud_score: f32 = 0.0;
         let mut scheme_type = String::new();
         
         // Phishing
@@ -648,7 +649,7 @@ impl AdvancedModerationEngine {
     
     /// Détecte les abus (flood, raid, etc.)
     async fn detect_abuse(&self, profile: &UserBehaviorProfile) -> Result<Option<ViolationType>> {
-        let mut abuse_score = 0.0;
+        let mut abuse_score: f32 = 0.0;
         let mut abuse_type = AbuseType::SystemAbuse;
         
         // Flood de messages

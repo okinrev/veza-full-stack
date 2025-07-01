@@ -31,6 +31,39 @@ pub mod websocket;
 pub mod models;
 pub mod grpc_server;
 
+// MODULES EXISTANTS
+pub mod advanced_moderation;
+pub mod message_store;
+pub mod message_handler;
+pub mod monitoring;
+pub mod optimized_persistence;
+pub mod security;
+pub mod cache;
+pub mod services;
+pub mod authentication;
+pub mod connection_pool;
+pub mod presence;
+pub mod moderation;
+pub mod permissions;
+
+// 🆕 NOUVELLE ARCHITECTURE PRODUCTION
+pub mod core;
+
+// Re-exports pour faciliter l'utilisation
+pub use core::{
+    ConnectionManager, 
+    ConnectionConfig, 
+    UserConnection,
+    Room,
+    RoomSettings,
+    PresenceTracker,
+    PresenceStatus,
+    IncomingMessage,
+    OutgoingMessage,
+    StoredMessage,
+    MessageType,
+};
+
 // ═══════════════════════════════════════════════════════════════════════
 // TESTS (CONDITIONNELS)
 // ═══════════════════════════════════════════════════════════════════════

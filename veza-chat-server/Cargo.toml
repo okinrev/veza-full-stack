@@ -20,6 +20,11 @@ path = "src/lib.rs"
 name = "chat-server"
 path = "src/main.rs"
 
+# Nouveau binaire de test pour l'architecture production
+[[bin]]
+name = "test_new_architecture"
+path = "src/bin/test_new_architecture.rs"
+
 [dependencies]
 # ═══════════════════════════════════════════════════════════════════════
 # RUNTIME ASYNCHRONE ET RÉSEAU
@@ -47,10 +52,11 @@ sqlx = { version = "0.7", features = [
     "migrate",           # Migrations de base de données
     "macros",            # Macros query!
 ] }
-redis = { version = "0.24", features = [
+redis = { version = "0.25", features = [
     "tokio-comp",        # Support Tokio
     "connection-manager", # Gestionnaire de connexions
 ], optional = true }
+lz4 = "1.24"                     # Compression pour message storage
 
 # ═══════════════════════════════════════════════════════════════════════
 # SÉRIALISATION ET FORMATS
@@ -118,6 +124,8 @@ metrics = { version = "0.22", optional = true }                # Métriques de p
 metrics-exporter-prometheus = { version = "0.13", optional = true }  # Export Prometheus
 dashmap = "5.5"                 # HashMap concurrent
 parking_lot = "0.12"            # Mutex plus performants
+rayon = "1.10"                  # Parallel processing pour batching
+bytes = "1.6"                   # Zero-copy message handling
 once_cell = "1.19"              # Initialisation paresseuse thread-safe
 
 # ═══════════════════════════════════════════════════════════════════════
