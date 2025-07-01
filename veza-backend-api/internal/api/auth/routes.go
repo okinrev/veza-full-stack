@@ -7,15 +7,18 @@ import (
 
 // RouteGroup représente un groupe de routes pour le module d'authentification
 type RouteGroup struct {
-	handler *Handler
-	secret  string
+	handler      *Handler
+	oauthHandler *OAuthHandler
+	secret       string
 }
 
 // NewRouteGroup crée une nouvelle instance de RouteGroup
 func NewRouteGroup(handler *Handler, jwtSecret string) *RouteGroup {
+	service := handler.service
 	return &RouteGroup{
-		handler: handler,
-		secret:  jwtSecret,
+		handler:      handler,
+		oauthHandler: NewOAuthHandler(service),
+		secret:       jwtSecret,
 	}
 }
 
@@ -26,6 +29,9 @@ func (rg *RouteGroup) Register(router *gin.RouterGroup) {
 	{
 		// Routes publiques
 		rg.registerPublicRoutes(auth)
+
+		// Routes OAuth2
+		rg.registerOAuthRoutes(auth)
 
 		// Routes protégées
 		rg.registerProtectedRoutes(auth)
@@ -48,6 +54,39 @@ func (rg *RouteGroup) registerPublicRoutes(router *gin.RouterGroup) {
 
 	// POST /api/v1/auth/logout - Déconnexion
 	router.POST("/logout", rg.handler.Logout)
+}
+
+// registerOAuthRoutes enregistre les routes OAuth2
+func (rg *RouteGroup) registerOAuthRoutes(router *gin.RouterGroup) {
+	oauth := router.Group("/oauth")
+	{
+		// Google OAuth2
+		google := oauth.Group("/google")
+		{
+			// GET /api/v1/auth/oauth/google - URL d'authentification Google
+			google.GET("", rg.oauthHandler.GoogleOAuthURL)
+			// GET /api/v1/auth/oauth/google/callback - Callback Google
+			google.GET("/callback", rg.oauthHandler.GoogleOAuthCallback)
+		}
+
+		// GitHub OAuth2
+		github := oauth.Group("/github")
+		{
+			// GET /api/v1/auth/oauth/github - URL d'authentification GitHub
+			github.GET("", rg.oauthHandler.GitHubOAuthURL)
+			// GET /api/v1/auth/oauth/github/callback - Callback GitHub
+			github.GET("/callback", rg.oauthHandler.GitHubOAuthCallback)
+		}
+
+		// Discord OAuth2
+		discord := oauth.Group("/discord")
+		{
+			// GET /api/v1/auth/oauth/discord - URL d'authentification Discord
+			discord.GET("", rg.oauthHandler.DiscordOAuthURL)
+			// GET /api/v1/auth/oauth/discord/callback - Callback Discord
+			discord.GET("/callback", rg.oauthHandler.DiscordOAuthCallback)
+		}
+	}
 }
 
 // registerProtectedRoutes enregistre les routes protégées

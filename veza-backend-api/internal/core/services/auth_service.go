@@ -53,6 +53,7 @@ type AuthService interface {
 type authService struct {
 	userRepo     repositories.UserRepository
 	emailService EmailService
+	oauthService *OAuthService
 	logger       *zap.Logger
 	config       *config.Config
 
@@ -77,6 +78,7 @@ func NewAuthService(
 	service := &authService{
 		userRepo:      userRepo,
 		emailService:  emailService,
+		oauthService:  NewOAuthService(logger),
 		logger:        logger,
 		config:        cfg,
 		jwtSecret:     []byte(cfg.JWT.Secret),
@@ -759,8 +761,20 @@ func (s *authService) auditLog(ctx context.Context, userID int64, action, resour
 
 // fetchOAuthUserInfo récupère les informations utilisateur OAuth2
 func (s *authService) fetchOAuthUserInfo(ctx context.Context, provider, accessToken string) (*OAuthUserInfo, error) {
-	// TODO: Implémenter la récupération des infos utilisateur pour chaque provider
-	return &OAuthUserInfo{}, nil
+	userInfo, err := s.oauthService.FetchOAuthUserInfo(ctx, provider, accessToken)
+	if err != nil {
+		s.logger.Error("Erreur récupération infos OAuth2",
+			zap.String("provider", provider),
+			zap.Error(err))
+		return nil, fmt.Errorf("échec récupération infos %s: %w", provider, err)
+	}
+
+	s.logger.Info("Infos utilisateur OAuth2 récupérées",
+		zap.String("provider", provider),
+		zap.String("email", userInfo.Email),
+		zap.String("username", userInfo.Username))
+
+	return userInfo, nil
 }
 
 // verifyRecoveryCode vérifie un code de récupération 2FA

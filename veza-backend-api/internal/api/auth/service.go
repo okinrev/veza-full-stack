@@ -254,3 +254,35 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+// GetUserByEmail récupère un utilisateur par email
+func (s *Service) GetUserByEmail(email string) (*models.User, error) {
+	var user models.User
+	err := s.db.QueryRow(`
+		SELECT id, username, email, password_hash, role, created_at, updated_at
+		FROM users WHERE email = $1 AND role != 'deleted'
+	`, email).Scan(
+		&user.ID, &user.Username, &user.Email, &user.PasswordHash,
+		&user.Role, &user.CreatedAt, &user.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+// UsernameExists vérifie si un nom d'utilisateur existe
+func (s *Service) UsernameExists(username string) bool {
+	var count int
+	err := s.db.QueryRow(`
+		SELECT COUNT(*) FROM users WHERE username = $1 AND role != 'deleted'
+	`, username).Scan(&count)
+
+	if err != nil {
+		return true // En cas d'erreur, on considère que le nom existe pour éviter les doublons
+	}
+
+	return count > 0
+}
