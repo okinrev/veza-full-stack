@@ -121,21 +121,70 @@
 - [ ] **11.5** Documentation validation
 
 ### **📚 PHASE 6 : DOCUMENTATION & DÉPLOIEMENT (2 jours)**
-**Objectif** : Production-ready avec documentation complète
+**Objectif** : Production-ready avec documentation complète et infrastructure Ansible/Incus
 
 #### **Jour 12 - Documentation Enterprise**
-- [ ] **12.1** OpenAPI 3.1 specs complètes
-- [ ] **12.2** Architecture diagrams (C4 model)
-- [ ] **12.3** Runbooks pour incidents
-- [ ] **12.4** Developer onboarding guide
-- [ ] **12.5** API SDKs auto-générés
+- [ ] **12.1** OpenAPI 3.1 specs complètes avec examples
+- [ ] **12.2** Architecture diagrams (C4 model) incluant topologie Incus
+- [ ] **12.3** Runbooks Ansible pour incidents courants
+- [ ] **12.4** Developer onboarding guide avec setup Incus local
+- [ ] **12.5** API SDKs auto-générés (Go, JS, Python)
 
-#### **Jour 13 - Deployment Production**
-- [ ] **13.1** Dockerfiles optimisés multi-stage
-- [ ] **13.2** Kubernetes Helm charts
-- [ ] **13.3** CI/CD pipeline complet
-- [ ] **13.4** Infrastructure as Code (Terraform)
-- [ ] **13.5** Monitoring & Alerting (Prometheus/Grafana)
+#### **Jour 13 - Deployment Production avec Ansible/Incus**
+- [ ] **13.1** Images Incus optimisées
+  - Base images Alpine/Ubuntu minimales
+  - Build multi-stage pour réduire la taille
+  - Profils de sécurité AppArmor
+  - Resource limits et quotas
+  
+- [ ] **13.2** Playbooks Ansible complets
+  ```yaml
+  ansible-talas/
+  ├── inventories/
+  │   ├── production/
+  │   ├── staging/
+  │   └── development/
+  ├── roles/
+  │   ├── incus-cluster/
+  │   ├── backend-api/
+  │   ├── rust-modules/
+  │   ├── postgresql/
+  │   ├── redis/
+  │   └── monitoring/
+  ├── playbooks/
+  │   ├── site.yml
+  │   ├── deploy.yml
+  │   ├── rollback.yml
+  │   └── maintenance.yml
+  └── group_vars/
+      └── all.yml (encrypted with ansible-vault)
+  ```
+
+- [ ] **13.3** CI/CD pipeline avec Incus
+  - Build et test dans containers Incus éphémères
+  - Push des images vers registry privé
+  - Déploiement Blue-Green via Ansible
+  - Rollback automatique par snapshots Incus
+  
+- [ ] **13.4** Infrastructure as Code avec Ansible
+  - Provisioning cluster Incus multi-nodes
+  - Configuration réseau (bridges, VLANs)
+  - Storage pools ZFS/Btrfs
+  - Backup automatisé vers S3
+  - Disaster recovery playbooks
+  
+- [ ] **13.5** Monitoring & Alerting
+  - Prometheus node exporters dans chaque container
+  - Grafana dashboards pré-configurés
+  - AlertManager avec routing intelligent
+  - Log aggregation avec Loki
+  - Tracing distribué avec Jaeger
+
+**Livrables supplémentaires** :
+- Script `bootstrap.sh` pour setup initial du cluster Incus
+- Ansible Galaxy requirements avec roles communautaires
+- Documentation spécifique Incus (profiles, devices, networking)
+- Playbook de migration depuis Docker/K8s vers Incus
 
 ---
 

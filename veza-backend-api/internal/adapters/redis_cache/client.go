@@ -11,14 +11,10 @@ import (
 
 // NewClient crée une nouvelle connexion Redis
 func NewClient(cfg config.RedisConfig) (*redis.Client, error) {
-	if !cfg.Enabled {
-		return nil, fmt.Errorf("Redis désactivé dans la configuration")
-	}
-
 	client := redis.NewClient(&redis.Options{
-		Addr:         fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
+		Addr:         fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		Password:     cfg.Password,
-		DB:           cfg.Database,
+		DB:           cfg.DB,
 		PoolSize:     cfg.PoolSize,
 		MinIdleConns: cfg.MinIdleConns,
 		// Configuration avancée pour la production

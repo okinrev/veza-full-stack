@@ -254,7 +254,7 @@ func (r *RBACCacheService) getUserRoleCached(ctx context.Context, userID int64) 
 
 	// TODO: Ici, vous devriez récupérer depuis la base de données
 	// Pour l'instant, retourner un rôle par défaut
-	defaultRole := string(constants.UserRole)
+	defaultRole := string(constants.RoleUser)
 
 	// Mettre en cache
 	userRole := UserRoleCache{
@@ -312,18 +312,18 @@ func (r *RBACCacheService) loadRolePermissions(ctx context.Context, role string)
 	permissions := make(map[string][]string)
 
 	switch role {
-	case string(constants.AdminRole):
+	case string(constants.RoleAdmin):
 		permissions = map[string][]string{
 			"*": {"*"}, // Admin a tous les droits
 		}
-	case string(constants.UserRole):
+	case string(constants.RoleUser):
 		permissions = map[string][]string{
 			"profile": {"read", "update"},
 			"chat":    {"read", "write"},
 			"stream":  {"read"},
 			"upload":  {"create"},
 		}
-	case string(constants.ModeratorRole):
+	case string(constants.RoleModerator):
 		permissions = map[string][]string{
 			"profile": {"read", "update"},
 			"chat":    {"read", "write", "moderate"},
@@ -391,13 +391,13 @@ func (r *RBACCacheService) preloadBasePermissions() {
 		resource string
 		action   string
 	}{
-		{string(constants.UserRole), "profile", "read"},
-		{string(constants.UserRole), "profile", "update"},
-		{string(constants.UserRole), "chat", "read"},
-		{string(constants.UserRole), "chat", "write"},
-		{string(constants.ModeratorRole), "chat", "moderate"},
-		{string(constants.AdminRole), "users", "read"},
-		{string(constants.AdminRole), "users", "write"},
+		{string(constants.RoleUser), "profile", "read"},
+		{string(constants.RoleUser), "profile", "update"},
+		{string(constants.RoleUser), "chat", "read"},
+		{string(constants.RoleUser), "chat", "write"},
+		{string(constants.RoleModerator), "chat", "moderate"},
+		{string(constants.RoleAdmin), "users", "read"},
+		{string(constants.RoleAdmin), "users", "write"},
 	}
 
 	for _, perm := range basePermissions {

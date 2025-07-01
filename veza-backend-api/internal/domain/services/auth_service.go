@@ -8,9 +8,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/okinrev/veza-web-app/internal/config"
 	"github.com/okinrev/veza-web-app/internal/domain/entities"
 	"github.com/okinrev/veza-web-app/internal/domain/repositories"
-	"github.com/okinrev/veza-web-app/internal/infrastructure/config"
 	"github.com/okinrev/veza-web-app/internal/infrastructure/jwt"
 )
 

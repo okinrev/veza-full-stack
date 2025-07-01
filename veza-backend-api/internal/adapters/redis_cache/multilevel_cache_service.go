@@ -426,6 +426,86 @@ func (c *MultiLevelCacheService) startMetricsReporter() {
 	}
 }
 
+// ============================================================================
+// MÉTHODES GÉNÉRIQUES POUR CACHE WARMER
+// ============================================================================
+
+// Set méthode générique pour stocker des données dans le cache multi-niveaux
+func (c *MultiLevelCacheService) Set(ctx context.Context, key string, value interface{}, ttl time.Duration) error {
+	// Stocker en cache mémoire (L1)
+	if c.config.EnableLevel1 {
+		c.setInMemory(key, value, ttl)
+	}
+
+	// Stocker en Redis (L2)
+	if c.config.EnableLevel2 {
+		data, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Errorf("erreur sérialisation pour cache: %w", err)
+		}
+
+		if err := c.redis.Set(ctx, key, data, ttl).Err(); err != nil {
+			return fmt.Errorf("erreur stockage Redis: %w", err)
+		}
+	}
+
+	c.recordWrite()
+	return nil
+}
+
+// Get méthode générique pour récupérer des données du cache multi-niveaux
+func (c *MultiLevelCacheService) Get(ctx context.Context, key string, dest interface{}) (bool, error) {
+	start := time.Now()
+	defer func() {
+		c.recordLatency(time.Since(start))
+	}()
+
+	// Niveau 1 : Cache mémoire local
+	if c.config.EnableLevel1 {
+		if item, found := c.getFromMemory(key); found {
+			c.recordHit(CacheLevel1)
+			// Copy data to destination
+			switch v := dest.(type) {
+			case *interface{}:
+				*v = item.Data
+			default:
+				// Try JSON marshaling for type conversion
+				data, err := json.Marshal(item.Data)
+				if err != nil {
+					return false, fmt.Errorf("erreur conversion cache L1: %w", err)
+				}
+				if err := json.Unmarshal(data, dest); err != nil {
+					return false, fmt.Errorf("erreur désérialisation cache L1: %w", err)
+				}
+			}
+			return true, nil
+		}
+	}
+
+	// Niveau 2 : Redis distribué
+	if c.config.EnableLevel2 {
+		data, err := c.redis.Get(ctx, key).Result()
+		if err == nil {
+			c.recordHit(CacheLevel2)
+
+			// Désérialiser les données
+			if err := json.Unmarshal([]byte(data), dest); err != nil {
+				return false, fmt.Errorf("erreur désérialisation Redis: %w", err)
+			}
+
+			// Remonter en cache L1
+			if c.config.EnableLevel1 {
+				c.setInMemory(key, dest, SessionCacheStrategy.TTLLevel1)
+			}
+
+			return true, nil
+		}
+	}
+
+	c.recordMiss()
+	return false, nil
+}
+
 // Health check du service de cache
 func (c *MultiLevelCacheService) HealthCheck(ctx context.Context) error {
 	// Test Redis

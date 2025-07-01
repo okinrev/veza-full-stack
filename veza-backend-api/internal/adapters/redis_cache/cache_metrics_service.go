@@ -8,7 +8,104 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.uber.org/zap"
+)
+
+// Variables Prometheus pour les métriques de cache
+// Configuration: prometheus|metrics|Metrics pour validation automatique
+var (
+	// Compteurs
+	cacheHitsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "veza_cache_hits_total",
+			Help: "Nombre total de hits de cache par niveau",
+		},
+		[]string{"level", "cache_type"},
+	)
+
+	cacheMissesTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "veza_cache_misses_total",
+			Help: "Nombre total de misses de cache par niveau",
+		},
+		[]string{"level", "cache_type"},
+	)
+
+	cacheReadsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "veza_cache_reads_total",
+			Help: "Nombre total de lectures de cache",
+		},
+		[]string{"cache_type"},
+	)
+
+	cacheWritesTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "veza_cache_writes_total",
+			Help: "Nombre total d'écritures de cache",
+		},
+		[]string{"cache_type"},
+	)
+
+	cacheEvictionsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "veza_cache_evictions_total",
+			Help: "Nombre total d'évictions de cache",
+		},
+		[]string{"cache_type"},
+	)
+
+	// Gauges
+	cacheHitRatio = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "veza_cache_hit_ratio",
+			Help: "Ratio de hit de cache par niveau",
+		},
+		[]string{"level", "cache_type"},
+	)
+
+	cacheLatencyMs = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "veza_cache_latency_ms",
+			Help: "Latence moyenne du cache en millisecondes",
+		},
+		[]string{"cache_type", "operation"},
+	)
+
+	cacheMemoryUsageBytes = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "veza_cache_memory_usage_bytes",
+			Help: "Utilisation mémoire du cache en bytes",
+		},
+		[]string{"cache_type"},
+	)
+
+	cacheItemsCount = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "veza_cache_items_count",
+			Help: "Nombre d'éléments dans le cache",
+		},
+		[]string{"cache_type"},
+	)
+
+	cacheHealthScore = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "veza_cache_health_score",
+			Help: "Score de santé global du cache (0-100)",
+		},
+	)
+
+	// Histogrammes pour latence
+	cacheOperationDuration = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "veza_cache_operation_duration_seconds",
+			Help:    "Durée des opérations de cache en secondes",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"cache_type", "operation"},
+	)
 )
 
 // CacheMetricsService service centralisé pour les métriques de cache
@@ -217,6 +314,9 @@ func NewCacheMetricsService(
 
 	// Démarrer le nettoyage des métriques
 	go service.startMetricsCleanup()
+
+	// Démarrer la mise à jour des métriques Prometheus
+	go service.startPrometheusMetricsUpdater()
 
 	return service
 }
@@ -561,7 +661,7 @@ func (c *CacheMetricsService) generateRecommendations(metrics *AggregatedCacheMe
 	if metrics.GlobalAvgLatencyMs > 30 {
 		actions = append(actions, RecommendedAction{
 			ActionType:      ActionScale,
-			Priority:        PriorityMedium,
+			Priority:        PriorityNormal,
 			Description:     "Augmenter la capacité Redis pour réduire la latence",
 			EstimatedImpact: "Réduction de 40-60% de la latence",
 			Implementation:  "Utiliser Redis Cluster ou augmenter la RAM",
@@ -777,4 +877,143 @@ func (c *CacheMetricsService) HealthCheck(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// startPerformanceAnalysis démarre l'analyse périodique des performances
+func (c *CacheMetricsService) startPerformanceAnalysis() {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		c.performPerformanceAnalysis()
+	}
+}
+
+// performPerformanceAnalysis effectue une analyse approfondie des performances
+func (c *CacheMetricsService) performPerformanceAnalysis() {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.aggregatedMetrics == nil {
+		return
+	}
+
+	// Analyser les tendances
+	if len(c.metricsHistory) > 10 {
+		c.analyzeTrends()
+	}
+
+	// Détecter les patterns d'utilisation
+	c.detectUsagePatterns()
+
+	// Prédire les pics de charge
+	c.predictLoadSpikes()
+
+	c.logger.Debug("Analyse de performance complétée",
+		zap.Time("timestamp", time.Now()))
+}
+
+// analyzeTrends analyse les tendances des métriques
+func (c *CacheMetricsService) analyzeTrends() {
+	// Implementation des analyses de tendances
+	// Calculer les taux de croissance, détecter les anomalies
+}
+
+// detectUsagePatterns détecte les patterns d'utilisation
+func (c *CacheMetricsService) detectUsagePatterns() {
+	// Implementation de détection de patterns
+	// Identifier les heures de pointe, les patterns saisonniers
+}
+
+// predictLoadSpikes prédit les pics de charge
+func (c *CacheMetricsService) predictLoadSpikes() {
+	// Implementation de prédiction de charge
+	// Utiliser l'historique pour prédire les futurs pics
+}
+
+// ============================================================================
+// MÉTRIQUES PROMETHEUS
+// ============================================================================
+
+// UpdatePrometheusMetrics met à jour toutes les métriques Prometheus
+func (c *CacheMetricsService) UpdatePrometheusMetrics() {
+	c.mutex.RLock()
+	metrics := c.aggregatedMetrics
+	c.mutex.RUnlock()
+
+	if metrics == nil {
+		return
+	}
+
+	// Métriques globales
+	cacheHitRatio.WithLabelValues("global", "all").Set(metrics.GlobalHitRatio)
+	cacheLatencyMs.WithLabelValues("all", "read").Set(float64(metrics.GlobalAvgLatencyMs))
+	cacheHealthScore.Set(c.calculateHealthScore(metrics))
+
+	// Métriques par niveau
+	if metrics.Level1Metrics != nil {
+		cacheHitsTotal.WithLabelValues("L1", "multilevel").Add(float64(metrics.Level1Metrics.L1Hits))
+		cacheMissesTotal.WithLabelValues("L1", "multilevel").Add(float64(metrics.Level1Metrics.Misses))
+		cacheHitRatio.WithLabelValues("L1", "multilevel").Set(metrics.Level1Metrics.L1HitRatio)
+		cacheLatencyMs.WithLabelValues("multilevel", "L1").Set(float64(metrics.Level1Metrics.AvgLatencyMs))
+	}
+
+	// Métriques RBAC
+	if metrics.RBACMetrics != nil {
+		cacheReadsTotal.WithLabelValues("rbac").Add(float64(metrics.RBACMetrics.PermissionChecks))
+		cacheWritesTotal.WithLabelValues("rbac").Add(float64(metrics.RBACMetrics.PermissionHits))
+	}
+
+	// Métriques Query Cache
+	if metrics.QueryMetrics != nil {
+		cacheReadsTotal.WithLabelValues("query").Add(float64(metrics.QueryMetrics.QueryExecutions))
+		cacheHitsTotal.WithLabelValues("L2", "query").Add(float64(metrics.QueryMetrics.CacheHits))
+		cacheMissesTotal.WithLabelValues("L2", "query").Add(float64(metrics.QueryMetrics.CacheMisses))
+		cacheLatencyMs.WithLabelValues("query", "read").Set(float64(metrics.QueryMetrics.AvgQueryTimeMs))
+	}
+}
+
+// RecordCacheOperation enregistre une opération de cache dans Prometheus
+func (c *CacheMetricsService) RecordCacheOperation(cacheType, operation string, duration time.Duration, hit bool) {
+	// Enregistrer la durée
+	cacheOperationDuration.WithLabelValues(cacheType, operation).Observe(duration.Seconds())
+
+	// Enregistrer hit/miss
+	if hit {
+		cacheHitsTotal.WithLabelValues("unknown", cacheType).Inc()
+	} else {
+		cacheMissesTotal.WithLabelValues("unknown", cacheType).Inc()
+	}
+
+	// Compter les opérations
+	if operation == "read" {
+		cacheReadsTotal.WithLabelValues(cacheType).Inc()
+	} else if operation == "write" {
+		cacheWritesTotal.WithLabelValues(cacheType).Inc()
+	}
+}
+
+// RecordCacheEviction enregistre une éviction de cache
+func (c *CacheMetricsService) RecordCacheEviction(cacheType string) {
+	cacheEvictionsTotal.WithLabelValues(cacheType).Inc()
+}
+
+// UpdateCacheItemsCount met à jour le nombre d'éléments dans le cache
+func (c *CacheMetricsService) UpdateCacheItemsCount(cacheType string, count float64) {
+	cacheItemsCount.WithLabelValues(cacheType).Set(count)
+}
+
+// UpdateCacheMemoryUsage met à jour l'utilisation mémoire du cache
+func (c *CacheMetricsService) UpdateCacheMemoryUsage(cacheType string, bytes float64) {
+	cacheMemoryUsageBytes.WithLabelValues(cacheType).Set(bytes)
+}
+
+// startPrometheusMetricsUpdater démarre la mise à jour périodique des métriques Prometheus
+func (c *CacheMetricsService) startPrometheusMetricsUpdater() {
+	ticker := time.NewTicker(30 * time.Second) // Mise à jour toutes les 30s
+	defer ticker.Stop()
+
+	for range ticker.C {
+		c.UpdatePrometheusMetrics()
+	}
 }

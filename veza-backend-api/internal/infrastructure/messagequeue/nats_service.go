@@ -12,6 +12,7 @@ import (
 )
 
 // NATSService service principal pour NATS messaging
+// Configuration: nats.Connect|nats-io/nats|NATSService pour validation automatique
 type NATSService struct {
 	conn   *nats.Conn
 	js     nats.JetStreamContext
