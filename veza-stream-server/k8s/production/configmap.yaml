@@ -1,0 +1,101 @@
+# === CONFIGMAP ===
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: veza-stream-config
+  namespace: veza-production
+data:
+  # Application config
+  RUST_LOG: "info"
+  ENVIRONMENT: "production"
+  SERVICE_NAME: "veza-stream-server"
+  VERSION: "2.0.0"
+  
+  # Network config
+  HOST: "0.0.0.0"
+  PORT: "8080"
+  WS_PORT: "8081"
+  GRPC_PORT: "50051"
+  PROMETHEUS_PORT: "9090"
+  
+  # Performance config
+  MAX_CONNECTIONS: "100000"
+  WORKER_THREADS: "16"
+  BLOCKING_THREADS: "32"
+  MEMORY_LIMIT_MB: "8192"
+  
+  # Audio streaming config
+  MAX_STREAMS: "10000"
+  MAX_LISTENERS_PER_STREAM: "10000"
+  ADAPTIVE_BITRATE: "true"
+  DEFAULT_BITRATE: "128"
+  CODECS_ENABLED: "opus,aac,mp3"
+  
+  # Chat config
+  MAX_MESSAGE_SIZE: "8192"
+  MESSAGE_HISTORY_LIMIT: "1000"
+  MODERATION_ENABLED: "true"
+  E2E_ENCRYPTION: "optional"
+  
+  # Monitoring config
+  METRICS_ENABLED: "true"
+  TRACING_ENABLED: "true"
+
+---
+# === INGRESS ===
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: veza-stream-ingress
+  namespace: veza-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/websocket-services: "veza-stream-server"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "86400"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "86400"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  tls:
+  - hosts:
+    - stream.veza.live
+    - ws.veza.live
+    secretName: veza-stream-tls
+  rules:
+  - host: stream.veza.live
+    http:
+      paths:
+      - path: /api/v1/stream
+        pathType: Prefix
+        backend:
+          service:
+            name: veza-stream-server
+            port:
+              number: 8080
+      - path: /health
+        pathType: Prefix
+        backend:
+          service:
+            name: veza-stream-server
+            port:
+              number: 8080
+      - path: /metrics
+        pathType: Prefix
+        backend:
+          service:
+            name: veza-stream-server
+            port:
+              number: 9090
+  - host: ws.veza.live
+    http:
+      paths:
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: veza-stream-server
+            port:
+              number: 8081

@@ -12,6 +12,13 @@ pub mod middleware;
 pub mod routes;
 pub mod grpc_server;
 
+// Nouveaux modules production-ready
+pub mod core;
+pub mod codecs;
+pub mod soundcloud;
+pub mod grpc;
+pub mod eventbus;
+
 // Re-exports pour faciliter l'utilisation
 pub use error::{AppError, Result};
 pub use config::Config;
@@ -625,4 +632,301 @@ pub fn validate_message(message: &serde_json::Value) -> Result<()> {
 
 pub fn parse_websocket_message(message: &str) -> Result<serde_json::Value> {
     serde_json::from_str(message).map_err(|e| AppError::ParseError(e.to_string()))
-} 
+}
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+    use tokio::time::sleep;
+    use crate::core::*;
+    use crate::audio::*;
+    use crate::soundcloud::*;
+
+    /// Tests de performance pour 1k streams + 10k listeners
+    #[tokio::test]
+    async fn test_stream_performance_1k_streams_10k_listeners() {
+        println!("🚀 JOUR 14 - Test de performance : 1k streams + 10k listeners");
+        
+        let config = StreamConfig::default();
+        let stream_manager = StreamManager::new(config).unwrap();
+        
+        let start_time = Instant::now();
+        
+        // Créer 1000 streams
+        let mut stream_ids = Vec::new();
+        for i in 0..1000 {
+            let stream_id = stream_manager.create_stream(
+                StreamSource::File(format!("test_stream_{}.mp3", i)),
+                vec![StreamOutput {
+                    id: uuid::Uuid::new_v4(),
+                    codec: AudioCodec::Opus { bitrate: 128000, complexity: 5 },
+                    target_bitrate: 128000,
+                    enabled: true,
+                }],
+                StreamMetadata {
+                    title: format!("Test Stream {}", i),
+                    description: Some("Performance test stream".to_string()),
+                    tags: vec!["test".to_string(), "performance".to_string()],
+                    thumbnail_url: None,
+                    duration: Some(Duration::from_secs(180)),
+                    created_at: SystemTime::now(),
+                },
+            ).await.unwrap();
+            
+            stream_ids.push(stream_id);
+            
+            if i % 100 == 0 {
+                println!("✅ Créé {} streams", i + 1);
+            }
+        }
+        
+        let stream_creation_time = start_time.elapsed();
+        println!("⏱️  Temps création 1k streams: {:?}", stream_creation_time);
+        
+        // Ajouter 10 listeners par stream (10k total)
+        let listener_start = Instant::now();
+        let mut total_listeners = 0;
+        
+        for (i, stream_id) in stream_ids.iter().enumerate() {
+            for j in 0..10 {
+                let listener = Listener {
+                    id: uuid::Uuid::new_v4(),
+                    user_id: (i * 10 + j) as i64,
+                    connection_info: ConnectionInfo {
+                        ip: format!("192.168.1.{}", (i % 254) + 1),
+                        user_agent: "Test Agent".to_string(),
+                        connection_quality: ConnectionQuality::High,
+                    },
+                    subscribed_at: SystemTime::now(),
+                    last_activity: SystemTime::now(),
+                    buffer_health: BufferHealth::Good,
+                };
+                
+                stream_manager.add_listener(*stream_id, listener).await.unwrap();
+                total_listeners += 1;
+            }
+            
+            if i % 100 == 0 {
+                println!("✅ Ajouté {} listeners pour {} streams", (i + 1) * 10, i + 1);
+            }
+        }
+        
+        let listener_creation_time = listener_start.elapsed();
+        println!("⏱️  Temps ajout 10k listeners: {:?}", listener_creation_time);
+        
+        // Test de charge pendant 30 secondes
+        println!("🔥 Test de charge pendant 30 secondes...");
+        let load_test_start = Instant::now();
+        
+        while load_test_start.elapsed() < Duration::from_secs(30) {
+            // Simuler activité
+            sleep(Duration::from_millis(100)).await;
+        }
+        
+        let total_time = start_time.elapsed();
+        println!("🎯 Test terminé ! Temps total: {:?}", total_time);
+        println!("📊 Performance:");
+        println!("   - Streams créés: {}", stream_ids.len());
+        println!("   - Listeners totaux: {}", total_listeners);
+        println!("   - Temps/stream: {:?}", stream_creation_time / stream_ids.len() as u32);
+        println!("   - Temps/listener: {:?}", listener_creation_time / total_listeners as u32);
+        
+        // Validation des métriques
+        assert_eq!(stream_ids.len(), 1000);
+        assert_eq!(total_listeners, 10000);
+        assert!(stream_creation_time < Duration::from_secs(30), "Création streams trop lente");
+        assert!(listener_creation_time < Duration::from_secs(60), "Ajout listeners trop lent");
+    }
+
+    /// Tests des modules SoundCloud-like
+    #[tokio::test]
+    async fn test_soundcloud_modules_integration() {
+        println!("🎵 Test d'intégration modules SoundCloud-like");
+        
+        // Test Upload Manager
+        let upload_config = upload::UploadConfig::default();
+        let upload_manager = upload::UploadManager::new(upload_config).await.unwrap();
+        
+        let session_id = upload_manager.start_upload(
+            1001, // user_id
+            "test_track.mp3".to_string(),
+            5_000_000, // 5MB
+            "audio/mpeg".to_string(),
+        ).await.unwrap();
+        
+        println!("✅ Upload session créée: {}", session_id);
+        
+        // Test Waveform Generator
+        let waveform_generator = waveform::WaveformGenerator::new();
+        let test_samples = vec![0.5, -0.3, 0.8, -0.1, 0.2]; // Simulation
+        
+        let waveform = waveform_generator.generate_from_samples(
+            &test_samples,
+            44100,
+            2,
+        ).await.unwrap();
+        
+        println!("✅ Waveform générée: {} peaks", waveform.peaks.len());
+        
+        // Test Discovery Engine
+        let discovery_config = discovery::DiscoveryConfig::default();
+        let discovery_engine = discovery::DiscoveryEngine::new(discovery_config).await.unwrap();
+        
+        let recommendations = discovery_engine.get_recommendations(
+            1001, // user_id
+            discovery::RecommendationType::PersonalizedFeed,
+            20, // limit
+        ).await.unwrap();
+        
+        println!("✅ Recommandations générées: {} items", recommendations.len());
+        
+        // Test Social Manager
+        let social_manager = social::SocialManager::new();
+        
+        let follow_result = social_manager.follow_user(1001, 1002).await.unwrap();
+        println!("✅ Follow réussi");
+        
+        let like_result = social_manager.like_track(
+            1001, 
+            uuid::Uuid::new_v4(),
+            social::LikeSource::Player,
+        ).await.unwrap();
+        println!("✅ Like ajouté");
+    }
+
+    /// Tests des effets audio temps réel
+    #[tokio::test]
+    async fn test_realtime_audio_processing() {
+        println!("🎚️  Test traitement audio temps réel");
+        
+        let config = RealtimeConfig {
+            sample_rate: 48000,
+            channels: 2,
+            buffer_size: 1024,
+            max_latency_ms: 10.0,
+            enable_adaptive_buffering: true,
+            enable_jitter_compensation: true,
+            thread_priority: ThreadPriority::High,
+        };
+        
+        let mut processor = RealtimeAudioProcessor::new(config).unwrap();
+        processor.start().unwrap();
+        
+        // Test avec buffer audio simulé
+        let test_samples = vec![0.1, 0.2, -0.1, -0.2, 0.3, -0.3]; // 6 samples
+        let written = processor.write_input(&test_samples).unwrap();
+        println!("✅ Échantillons écrits: {}", written);
+        
+        // Attendre traitement
+        sleep(Duration::from_millis(50)).await;
+        
+        // Lire sortie
+        let mut output_buffer = vec![0.0f32; 6];
+        let read = processor.read_output(&mut output_buffer).unwrap();
+        println!("✅ Échantillons lus: {}", read);
+        
+        // Vérifier métriques
+        let metrics = processor.get_metrics();
+        println!("📊 Métriques temps réel:");
+        println!("   - Latence: {}μs", metrics.current_latency_us);
+        println!("   - Samples traités: {}", metrics.samples_processed);
+        println!("   - CPU: {:.1}%", metrics.cpu_usage_percent);
+        
+        processor.stop().unwrap();
+        
+        // Validation
+        assert!(metrics.current_latency_us < 15000, "Latence trop élevée"); // <15ms
+        assert_eq!(written, test_samples.len());
+    }
+
+    /// Tests des codecs MP3
+    #[tokio::test]
+    async fn test_mp3_codec_performance() {
+        println!("🎼 Test performance codec MP3");
+        
+        let encoder_config = crate::codecs::mp3::Mp3EncoderConfig::default();
+        let mut encoder = crate::codecs::mp3::Mp3EncoderImpl::new(encoder_config);
+        
+        let decoder_config = crate::codecs::mp3::Mp3DecoderConfig::default();
+        let mut decoder = crate::codecs::mp3::Mp3DecoderImpl::new(decoder_config);
+        
+        // Test encodage
+        let test_samples = vec![0.1f32; 1152 * 2]; // Frame stéréo complète
+        let start_encode = Instant::now();
+        
+        let encoded_data = encoder.encode(&test_samples, 44100, 2).unwrap();
+        let encode_time = start_encode.elapsed();
+        
+        println!("✅ Encodage MP3: {} bytes en {:?}", encoded_data.len(), encode_time);
+        
+        // Test décodage
+        let start_decode = Instant::now();
+        let decoded_audio = decoder.decode(&encoded_data).unwrap();
+        let decode_time = start_decode.elapsed();
+        
+        println!("✅ Décodage MP3: {} samples en {:?}", decoded_audio.samples.len(), decode_time);
+        
+        // Validation performance
+        assert!(encode_time < Duration::from_millis(50), "Encodage trop lent");
+        assert!(decode_time < Duration::from_millis(30), "Décodage trop lent");
+        assert!(!encoded_data.is_empty());
+        assert!(!decoded_audio.samples.is_empty());
+    }
+
+    /// Test de stress avec reconnexions
+    #[tokio::test]
+    async fn test_connection_resilience() {
+        println!("🔄 Test de résilience des connexions");
+        
+        let config = StreamConfig::default();
+        let stream_manager = StreamManager::new(config).unwrap();
+        
+        // Créer un stream
+        let stream_id = stream_manager.create_stream(
+            StreamSource::Live,
+            vec![StreamOutput {
+                id: uuid::Uuid::new_v4(),
+                codec: AudioCodec::Opus { bitrate: 128000, complexity: 5 },
+                target_bitrate: 128000,
+                enabled: true,
+            }],
+            StreamMetadata {
+                title: "Resilience Test".to_string(),
+                description: None,
+                tags: vec!["test".to_string()],
+                thumbnail_url: None,
+                duration: None,
+                created_at: SystemTime::now(),
+            },
+        ).await.unwrap();
+        
+        // Simuler connexions/déconnexions rapides
+        for i in 0..100 {
+            let listener = Listener {
+                id: uuid::Uuid::new_v4(),
+                user_id: i,
+                connection_info: ConnectionInfo {
+                    ip: format!("10.0.0.{}", i % 255),
+                    user_agent: "Stress Test Client".to_string(),
+                    connection_quality: ConnectionQuality::Medium,
+                },
+                subscribed_at: SystemTime::now(),
+                last_activity: SystemTime::now(),
+                buffer_health: BufferHealth::Good,
+            };
+            
+            let listener_id = listener.id;
+            stream_manager.add_listener(stream_id, listener).await.unwrap();
+            
+            // Déconnexion immédiate pour simuler instabilité réseau
+            if i % 3 == 0 {
+                stream_manager.remove_listener(stream_id, listener_id).await.unwrap();
+            }
+        }
+        
+        println!("✅ Test de résilience terminé - 100 connexions/déconnexions");
+    }
+}
+
+pub mod testing;

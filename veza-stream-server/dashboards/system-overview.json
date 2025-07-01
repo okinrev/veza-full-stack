@@ -1,0 +1,25 @@
+{
+  "dashboard": {
+    "title": "🖥️ System Overview - Veza Stream Server",
+    "tags": ["veza", "system"],
+    "refresh": "5s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "CPU Usage",
+        "type": "gauge",
+        "targets": [{"expr": "system_cpu_usage_percent"}],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0, "max": 100, "unit": "percent",
+            "thresholds": {"steps": [
+              {"color": "green", "value": 0},
+              {"color": "yellow", "value": 70},
+              {"color": "red", "value": 85}
+            ]}
+          }
+        }
+      }
+    ]
+  }
+}

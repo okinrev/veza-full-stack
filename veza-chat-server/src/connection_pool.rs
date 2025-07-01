@@ -10,13 +10,15 @@
 use std::collections::HashMap;
 use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
 use std::time::{Duration, Instant};
-use tokio::sync::{RwLock, mpsc, broadcast};
+use tokio::sync::{RwLock, mpsc, broadcast, Mutex};
 use tokio::time::{interval, timeout};
 use serde::{Serialize, Deserialize};
 use dashmap::DashMap;
 use uuid::Uuid;
 use futures_util::{SinkExt, StreamExt};
 use axum::extract::ws::{WebSocket, Message};
+use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::WebSocketStream;
 
 use crate::error::{ChatError, Result};
 use crate::monitoring::ChatMetrics;
@@ -52,7 +54,7 @@ impl Default for ConnectionPoolConfig {
 }
 
 /// Métadonnées d'une connexion WebSocket
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug)]
 pub struct ConnectionMetadata {
     pub connection_id: Uuid,
     pub user_id: i32,
@@ -218,6 +220,10 @@ impl ConnectionPool {
         // Créer le canal de communication
         let (sender, mut receiver) = mpsc::unbounded_channel::<String>();
         
+        // Cloner les variables nécessaires pour les tâches
+        let metadata_clone = metadata.clone();
+        let sender_clone = sender.clone();
+        
         // Stocker la connexion
         self.connections.insert(user_id, metadata.clone());
         self.senders.insert(user_id, sender);
@@ -245,9 +251,9 @@ impl ConnectionPool {
 
         // Gérer la connexion WebSocket dans une tâche séparée
         let pool_clone = self.clone();
-        let metadata_clone = metadata.clone();
+        let metadata_clone_task = metadata_clone.clone();
         tokio::spawn(async move {
-            pool_clone.handle_connection(user_id, websocket, receiver, metadata_clone).await;
+            pool_clone.handle_connection(user_id, websocket, receiver, metadata_clone_task).await;
         });
 
         Ok(())
@@ -261,51 +267,46 @@ impl ConnectionPool {
         mut receiver: mpsc::UnboundedReceiver<String>,
         metadata: Arc<RwLock<ConnectionMetadata>>,
     ) {
-        let (mut ws_sender, mut ws_receiver) = websocket.split();
-        let pool_clone = self.clone();
+        let (ws_sender, mut ws_receiver) = websocket.split();
+        let ws_sender = Arc::new(Mutex::new(ws_sender));
+        let ws_sender_clone = ws_sender.clone();
+        let metadata_send = metadata.clone();
+        let metadata_recv = metadata.clone();
 
-        // Tâche d'envoi des messages
+        // Tâche d'envoi de messages
         let send_task = tokio::spawn(async move {
             while let Some(message) = receiver.recv().await {
-                if let Err(e) = timeout(
-                    pool_clone.config.send_timeout,
-                    ws_sender.send(Message::Text(message)),
-                ).await {
-                    tracing::warn!(user_id = %user_id, error = %e, "⚠️ Timeout envoi message");
+                let mut sender = ws_sender.lock().await;
+                if let Err(e) = sender.send(Message::Text(message)).await {
+                    tracing::error!("Erreur envoi WebSocket: {}", e);
                     break;
                 }
-                metadata.read().await.increment_sent();
+                drop(sender);
+                metadata_send.read().await.increment_sent();
             }
         });
 
-        // Tâche de réception des messages
-        let pool_clone2 = self.clone();
+        // Tâche de réception de messages  
         let receive_task = tokio::spawn(async move {
-            while let Some(msg) = ws_receiver.next().await {
-                match msg {
-                    Ok(Message::Text(text)) => {
-                        metadata.read().await.increment_received();
-                        pool_clone2.handle_incoming_message(user_id, text).await;
+            while let Some(message) = ws_receiver.next().await {
+                match message {
+                    Ok(Message::Text(_text)) => {
+                        metadata_recv.read().await.increment_received();
+                        // Traiter le message reçu ici
                     }
                     Ok(Message::Ping(data)) => {
-                        // Répondre au ping avec pong
-                        if let Err(e) = ws_sender.send(Message::Pong(data)).await {
-                            tracing::warn!(user_id = %user_id, error = %e, "❌ Erreur envoi pong");
+                        let mut sender = ws_sender_clone.lock().await;
+                        if let Err(e) = sender.send(Message::Pong(data)).await {
+                            tracing::error!("Erreur envoi Pong: {}", e);
                             break;
                         }
-                        // Mettre à jour le heartbeat
-                        metadata.write().await.last_heartbeat = Instant::now();
-                    }
-                    Ok(Message::Pong(_)) => {
-                        // Heartbeat reçu
-                        metadata.write().await.last_heartbeat = Instant::now();
                     }
                     Ok(Message::Close(_)) => {
-                        tracing::info!(user_id = %user_id, "👋 Connexion fermée par le client");
+                        tracing::info!("Connexion fermée par le client");
                         break;
                     }
                     Err(e) => {
-                        tracing::error!(user_id = %user_id, error = %e, "❌ Erreur WebSocket");
+                        tracing::error!("Erreur WebSocket: {}", e);
                         break;
                     }
                     _ => {}
@@ -313,7 +314,7 @@ impl ConnectionPool {
             }
         });
 
-        // Attendre que l'une des tâches se termine
+        // Attendre la fin des tâches
         tokio::select! {
             _ = send_task => {},
             _ = receive_task => {},
@@ -349,7 +350,7 @@ impl ConnectionPool {
                 duration = ?duration,
                 messages_sent = %metadata.messages_sent.load(Ordering::Relaxed),
                 messages_received = %metadata.messages_received.load(Ordering::Relaxed),
-                "🚪 Connexion supprimée du pool"
+                "🗑 Connexion supprimée du pool"
             );
         }
 

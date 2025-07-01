@@ -1,8 +1,20 @@
+//! Système de channels Discord-like avancé
+//! 
+//! Ce module implémente un système de channels complet avec :
+//! - Types de channels variés (Text, Voice, Stage, Forum, etc.)
+//! - Permissions granulaires par rôle et utilisateur
+//! - Catégories et organisation hiérarchique
+//! - Support vocal avec gestion des membres connectés
+//! - Slow mode et limitations
+//! - Statistiques détaillées
+
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
+use uuid::Uuid;
+
 use crate::permissions::{Permission, UserPermissions};
 use crate::error::{ChatError, Result};
 
@@ -112,6 +124,7 @@ pub struct Channel {
     pub last_activity: DateTime<Utc>,
     
     /// Membres connectés (pour channels vocaux)
+    #[serde(skip)]
     pub connected_members: Arc<DashMap<i64, VoiceMember>>,
     
     /// Statistiques du channel
@@ -175,7 +188,7 @@ impl ChannelManager {
         &self,
         server_id: &str,
         config: ChannelConfig,
-        creator_id: i64,
+        _creator_id: i64,
         creator_permissions: &UserPermissions,
     ) -> Result<String> {
         // Vérifier les permissions
@@ -183,7 +196,7 @@ impl ChannelManager {
             return Err(ChatError::unauthorized_simple("insufficient_permissions"));
         }
         
-        let channel_id = format!("ch_{}", uuid::Uuid::new_v4());
+        let channel_id = format!("ch_{}", Uuid::new_v4());
         
         let channel = Channel {
             id: channel_id.clone(),

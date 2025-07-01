@@ -18,7 +18,7 @@ use crate::error::ChatError;
 
 /// Gestionnaire principal des connexions WebSocket
 /// Optimisé pour 100k+ connexions simultanées
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ConnectionManager {
     /// Connexions actives indexées par ID
     connections: Arc<DashMap<Uuid, UserConnection>>,
@@ -249,7 +249,7 @@ impl RateLimiter {
         let mut last_refill = self.last_refill.lock();
 
         // Token bucket algorithm
-        let elapsed = now.duration_since(*last_refill).timestamp() as f64;
+        let elapsed = now.signed_duration_since(*last_refill).num_seconds() as f64;
         *tokens = (*tokens + elapsed * self.rate).min(self.burst);
         *last_refill = now;
 

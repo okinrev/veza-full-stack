@@ -209,7 +209,7 @@ impl UserBehaviorProfile {
         if self.message_frequency.len() >= 10 {
             let recent_messages = self.message_frequency.iter().rev().take(10).collect::<Vec<_>>();
             let avg_interval = recent_messages.windows(2)
-                .map(|w| w[0].duration_since(*w[1]).as_secs_f32())
+                .map(|w| w[0].signed_duration_since(*w[1]).num_seconds() as f32)
                 .sum::<f32>() / (recent_messages.len() - 1) as f32;
             
             if avg_interval < 1.0 { // Moins d'1 seconde entre messages
@@ -300,6 +300,7 @@ impl Default for AdvancedModerationConfig {
 }
 
 /// Système de modération automatique avancé
+#[derive(Debug)]
 pub struct AdvancedModerationEngine {
     config: AdvancedModerationConfig,
     user_profiles: Arc<DashMap<i32, UserBehaviorProfile>>,
@@ -456,9 +457,9 @@ impl AdvancedModerationEngine {
         // Vérifier la fréquence des messages
         if profile.message_frequency.len() >= 5 {
             let recent_messages = profile.message_frequency.iter().rev().take(5).collect::<Vec<_>>();
-            let total_duration = recent_messages.first().unwrap().duration_since(**recent_messages.last().unwrap());
+            let total_duration = recent_messages.first().unwrap().signed_duration_since(**recent_messages.last().unwrap());
             
-            if total_duration.as_secs() < 10 { // 5 messages en moins de 10 secondes
+            if total_duration.num_seconds() < 10 { // 5 messages en moins de 10 secondes
                 spam_score += 0.25;
                 detected_patterns.push("Flood détecté".to_string());
             }
@@ -655,9 +656,9 @@ impl AdvancedModerationEngine {
         // Flood de messages
         if profile.message_frequency.len() >= 10 {
             let recent_messages = profile.message_frequency.iter().rev().take(10).collect::<Vec<_>>();
-            let total_duration = recent_messages.first().unwrap().duration_since(**recent_messages.last().unwrap());
+            let total_duration = recent_messages.first().unwrap().signed_duration_since(**recent_messages.last().unwrap());
             
-            if total_duration.as_secs() < 30 { // 10 messages en moins de 30 secondes
+            if total_duration.num_seconds() < 30 { // 10 messages en moins de 30 secondes
                 abuse_score += 0.6;
                 abuse_type = AbuseType::MessageFlood;
             }
@@ -812,7 +813,7 @@ impl AdvancedModerationEngine {
     
     /// Nettoie les profils anciens
     pub async fn cleanup_old_profiles(&self) {
-        let cutoff_time = Instant::now() - self.config.profile_retention_duration;
+        let cutoff_time = Utc::now() - chrono::Duration::from_std(self.config.profile_retention_duration).unwrap();
         let mut removed_count = 0;
         
         self.user_profiles.retain(|_, profile| {

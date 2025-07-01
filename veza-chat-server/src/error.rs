@@ -554,6 +554,36 @@ impl ChatError {
             reason: reason.to_string(),
         }
     }
+    
+    /// Helper pour les erreurs de validation
+    pub fn validation_error(reason: &str) -> Self {
+        Self::ValidationError {
+            field: "general".to_string(),
+            reason: reason.to_string(),
+        }
+    }
+    
+    /// Helper pour les erreurs de permission
+    pub fn permission_denied(message: &str) -> Self {
+        Self::PermissionDenied {
+            message: message.to_string(),
+        }
+    }
+    
+    /// Helper pour les erreurs internes
+    pub fn internal_error(message: &str) -> Self {
+        Self::Internal {
+            message: message.to_string(),
+        }
+    }
+    
+    /// Helper pour les erreurs not found avec un seul paramètre
+    pub fn not_found_simple(message: &str) -> Self {
+        Self::NotFound {
+            resource: "resource".to_string(),
+            id: message.to_string(),
+        }
+    }
 }
 
 /// Niveaux de sévérité des erreurs

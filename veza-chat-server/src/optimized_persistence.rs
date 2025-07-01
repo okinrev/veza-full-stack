@@ -233,10 +233,10 @@ impl OptimizedPersistenceEngine {
             .map_err(|e| ChatError::configuration_error(&format!("Redis connection: {}", e)))?;
         
         // Test de connexion Redis
-        let mut redis_conn = redis_client.get_async_connection().await
-            .map_err(|e| ChatError::configuration_error(&format!("Redis test: {}", e)))?;
-        let _: String = redis_conn.ping().await
-            .map_err(|e| ChatError::configuration_error(&format!("Redis ping: {}", e)))?;
+        let mut redis_conn = redis_client.get_multiplexed_async_connection().await
+            .map_err(|e| ChatError::Cache { operation: format!("redis connection: {}", e) })?;
+        let _: String = redis::cmd("PING").query_async(&mut redis_conn).await
+            .map_err(|e| ChatError::Cache { operation: format!("redis ping: {}", e) })?;
         
         // Batch processing channel
         let (batch_sender, batch_receiver) = mpsc::unbounded_channel();
@@ -542,7 +542,7 @@ impl OptimizedPersistenceEngine {
     async fn store_in_l2_cache(&self, message: OptimizedMessage) -> Result<()> {
         let mut conn = timeout(
             self.config.cache_timeout,
-            self.redis_client.get_async_connection()
+            self.redis_client.get_multiplexed_async_connection()
         ).await
         .map_err(|_| ChatError::configuration_error("Redis connection timeout"))?
         .map_err(|e| ChatError::configuration_error(&format!("Redis connection: {}", e)))?;
@@ -562,7 +562,7 @@ impl OptimizedPersistenceEngine {
         let key = format!("msg:{}", message.id);
         let ttl = self.config.l2_cache_ttl.as_secs() as usize;
         
-        let _: () = conn.setex(&key, ttl, data).await
+        let _: () = conn.set_ex(&key, data, ttl as u64).await
             .map_err(|e| ChatError::configuration_error(&format!("Redis setex: {}", e)))?;
         
         self.l2_cache_keys.insert(message.id, key);
@@ -577,7 +577,7 @@ impl OptimizedPersistenceEngine {
         
         let mut conn = timeout(
             self.config.cache_timeout,
-            self.redis_client.get_async_connection()
+            self.redis_client.get_multiplexed_async_connection()
         ).await
         .map_err(|_| ChatError::configuration_error("Redis connection timeout"))?
         .map_err(|e| ChatError::configuration_error(&format!("Redis connection: {}", e)))?;
@@ -845,7 +845,7 @@ impl OptimizedPersistenceEngine {
         
         // Supprimer du L2
         if let Some((_, key)) = self.l2_cache_keys.remove(&message_id) {
-            let mut conn = self.redis_client.get_async_connection().await
+            let mut conn = self.redis_client.get_multiplexed_async_connection().await
                 .map_err(|e| ChatError::configuration_error(&format!("Redis invalidation: {}", e)))?;
             
             let _: () = conn.del(key).await

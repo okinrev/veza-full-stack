@@ -1,0 +1,76 @@
+# === DOCKERFILE PRODUCTION OPTIMISÉ ===
+# Multi-stage build pour minimiser la taille finale
+
+# ======= STAGE 1: Builder =======
+FROM rust:1.75-alpine AS builder
+
+# Install system dependencies
+RUN apk add --no-cache \
+    musl-dev \
+    openssl-dev \
+    pkgconfig \
+    protobuf-dev \
+    postgresql-dev
+
+# Set working directory
+WORKDIR /app
+
+# Copy manifest files
+COPY Cargo.toml Cargo.lock ./
+COPY proto/ ./proto/
+
+# Build dependencies (cached layer)
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN cargo build --release --locked
+RUN rm -f target/release/deps/veza_stream_server*
+
+# Copy source code
+COPY src/ ./src/
+COPY build.rs ./
+
+# Build production binary
+RUN cargo build --release --locked
+
+# Strip binary to reduce size
+RUN strip target/release/veza-stream-server
+
+# ======= STAGE 2: Runtime =======
+FROM alpine:3.18 AS runtime
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    libgcc \
+    openssl \
+    postgresql-client
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S veza && \
+    adduser -u 1001 -S veza -G veza
+
+# Create directories
+RUN mkdir -p /app/data /app/logs /app/certs && \
+    chown -R veza:veza /app
+
+# Copy binary from builder
+COPY --from=builder /app/target/release/veza-stream-server /usr/local/bin/
+COPY --chown=veza:veza audio/ /app/audio/
+
+# Switch to non-root user
+USER veza
+WORKDIR /app
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
+
+# Expose ports
+EXPOSE 8080 8081 50051 9090
+
+# Set environment variables
+ENV RUST_LOG=info \
+    RUST_BACKTRACE=1 \
+    APP_ENV=production
+
+# Start the application
+CMD ["veza-stream-server"]

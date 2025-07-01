@@ -35,6 +35,7 @@ pub enum MetricType {
 }
 
 /// Gestionnaire de métriques en temps réel
+#[derive(Debug)]
 pub struct MetricsCollector {
     metrics: Arc<RwLock<HashMap<String, Vec<Metric>>>>,
     counters: Arc<RwLock<HashMap<String, u64>>>,
@@ -190,6 +191,7 @@ impl MetricsCollector {
 }
 
 /// Métriques spécifiques au chat
+#[derive(Debug)]
 pub struct ChatMetrics {
     collector: MetricsCollector,
 }

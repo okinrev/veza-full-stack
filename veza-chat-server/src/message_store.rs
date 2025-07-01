@@ -601,11 +601,11 @@ impl MessageStore {
 
         Ok(GlobalMessageStats {
             total_messages: stats.total_messages.unwrap_or(0) as u64,
-            unique_authors: stats.unique_authors.unwrap_or(0) as u64,
-            room_messages: stats.room_messages.unwrap_or(0) as u64,
-            dm_messages: stats.dm_messages.unwrap_or(0) as u64,
-            edited_messages: stats.edited_messages.unwrap_or(0) as u64,
-            deleted_messages: stats.deleted_messages.unwrap_or(0) as u64,
+            unique_authors: stats.total_users as u64,
+            room_messages: stats.total_room_messages as u64,
+            dm_messages: stats.total_dm_messages as u64,
+            edited_messages: 0, // Champ non disponible dans la base
+            deleted_messages: 0, // Champ non disponible dans la base
         })
     }
 
@@ -626,8 +626,8 @@ impl MessageStore {
         use sqlx::Row;
         
         let message_id: i64 = row.get("id")?;
-        let mention_ids: Option<Vec<Option<i32>>> = row.get("mention_ids").unwrap_or(None);
-        let mentions: Vec<i32> = mention_ids.unwrap_or_default().into_iter().flatten().collect();
+        let mention_ids: Option<Vec<i32>> = row.get("mention_ids");
+        let mentions: Vec<i32> = mention_ids.unwrap_or_default();
         
         let message_type_str: String = row.get("message_type")?;
         let message_type = match message_type_str.as_str() {

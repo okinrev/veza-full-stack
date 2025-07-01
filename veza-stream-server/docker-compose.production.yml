@@ -1,0 +1,193 @@
+# === DOCKER COMPOSE PRODUCTION ===
+version: '3.8'
+
+services:
+  # === VEZA STREAM SERVER ===
+  stream-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    image: veza/stream-server:2.0.0
+    container_name: veza-stream-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"   # HTTP API
+      - "8081:8081"   # WebSocket
+      - "50051:50051" # gRPC
+      - "9090:9090"   # Metrics
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://veza:${POSTGRES_PASSWORD}@postgres:5432/veza_prod
+      - REDIS_URL=redis://redis:6379
+      - PROMETHEUS_PORT=9090
+      - MAX_CONNECTIONS=100000
+      - WORKER_THREADS=16
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./certs:/app/certs:ro
+    networks:
+      - veza-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '8'
+          memory: 16G
+        reservations:
+          cpus: '2'
+          memory: 4G
+
+  # === CHAT SERVER ===
+  chat-server:
+    build:
+      context: ../veza-chat-server
+      dockerfile: Dockerfile.production
+    image: veza/chat-server:2.0.0
+    container_name: veza-chat-server
+    restart: unless-stopped
+    ports:
+      - "8082:8080"   # HTTP API
+      - "8083:8081"   # WebSocket
+      - "50052:50051" # gRPC
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=postgresql://veza:${POSTGRES_PASSWORD}@postgres:5432/veza_prod
+      - REDIS_URL=redis://redis:6379
+      - MAX_CONNECTIONS=100000
+    networks:
+      - veza-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # === POSTGRESQL DATABASE ===
+  postgres:
+    image: postgres:15-alpine
+    container_name: veza-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=veza_prod
+      - POSTGRES_USER=veza
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --lc-collate=C --lc-ctype=C
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - veza-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veza -d veza_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+
+  # === REDIS CACHE ===
+  redis:
+    image: redis:7-alpine
+    container_name: veza-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - veza-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # === MONITORING STACK ===
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: veza-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - veza-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: veza-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - veza-network
+
+  # === LOAD BALANCER ===
+  nginx:
+    image: nginx:alpine
+    container_name: veza-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    networks:
+      - veza-network
+    depends_on:
+      - stream-server
+      - chat-server
+
+# === NETWORKS ===
+networks:
+  veza-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# === VOLUMES ===
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
