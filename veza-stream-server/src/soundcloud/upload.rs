@@ -16,7 +16,7 @@ use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use tokio::fs;
 use tokio::sync::{mpsc, RwLock};
-use tracing::{info, warn, error, debug};
+use tracing::{info, error};
 
 use crate::error::AppError;
 use crate::soundcloud::waveform::{WaveformGenerator, WaveformData};
@@ -175,6 +175,7 @@ pub struct MetadataExtractorConfig {
 }
 
 /// Trait pour le stockage de fichiers
+#[async_trait::async_trait]
 pub trait FileStorage: std::fmt::Debug {
     async fn store_file(&self, file_path: &Path, metadata: &TrackMetadata) -> Result<StoredFile, AppError>;
     async fn get_file(&self, file_id: &str) -> Result<StoredFile, AppError>;
@@ -313,14 +314,14 @@ impl UploadManager {
     ) -> Result<(), AppError> {
         let mut sessions = self.active_uploads.write().await;
         let session = sessions.get_mut(&session_id)
-            .ok_or_else(|| AppError::UploadSessionNotFound { session_id })?;
+            .ok_or_else(|| AppError::UploadSessionNotFound { session_id: session_id.to_string() })?;
         
         // Vérifier le status
         match &session.status {
             UploadStatus::Uploading { .. } => {},
             _ => return Err(AppError::InvalidUploadState { 
-                session_id, 
-                current_state: format!("{:?}", session.status) 
+                current: format!("{:?}", session.status),
+                expected: "Uploading".to_string()
             }),
         }
         
@@ -367,18 +368,18 @@ impl UploadManager {
     async fn process_uploaded_file(&self, session_id: Uuid) -> Result<(), AppError> {
         // Étape 1: Extraction des métadonnées
         self.update_processing_stage(session_id, ProcessingStage::ExtractingMetadata).await?;
-        let metadata = self.extract_metadata(session_id).await?;
+        let _metadata = self.extract_metadata(session_id).await?;
         
         // Étape 2: Génération de waveform
         if self.config.enable_waveform_generation {
             self.update_processing_stage(session_id, ProcessingStage::GeneratingWaveform).await?;
-            let waveform = self.generate_waveform(session_id, &metadata).await?;
+            let waveform = self.generate_waveform(session_id, &_metadata).await?;
             self.update_session_waveform(session_id, waveform).await?;
         }
         
         // Étape 3: Stockage final
         self.update_processing_stage(session_id, ProcessingStage::UploadingToStorage).await?;
-        let stored_file = self.store_file(session_id, &metadata).await?;
+        let stored_file = self.store_file(session_id, &_metadata).await?;
         
         // Marquer comme terminé
         self.complete_upload(session_id, stored_file.id).await?;
@@ -622,8 +623,9 @@ impl LocalFileStorage {
     }
 }
 
+#[async_trait::async_trait]
 impl FileStorage for LocalFileStorage {
-    async fn store_file(&self, file_path: &Path, metadata: &TrackMetadata) -> Result<StoredFile, AppError> {
+    async fn store_file(&self, file_path: &Path, _metadata: &TrackMetadata) -> Result<StoredFile, AppError> {
         let file_id = Uuid::new_v4().to_string();
         let stored_path = self.base_path.join(&file_id);
         
@@ -648,7 +650,7 @@ impl FileStorage for LocalFileStorage {
     
     async fn get_file(&self, file_id: &str) -> Result<StoredFile, AppError> {
         // Simulation de récupération
-        Err(AppError::NotFound(format!("File not found: {}", file_id)))
+        Err(AppError::NotFound { resource: format!("File not found: {}", file_id) })
     }
     
     async fn delete_file(&self, _file_id: &str) -> Result<(), AppError> {

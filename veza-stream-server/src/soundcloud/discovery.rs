@@ -9,17 +9,17 @@
 /// - Analytics d'engagement
 
 use std::sync::Arc;
-use std::collections::{HashMap, BTreeMap, VecDeque};
-use std::time::{Duration, SystemTime, Instant};
+use std::collections::{HashMap, VecDeque};
+use std::time::{Duration, SystemTime};
 
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use tokio::sync::RwLock;
 use parking_lot::Mutex;
-use tracing::{info, debug, warn};
+use tracing::{info};
 
 use crate::error::AppError;
-use crate::soundcloud::social::{SocialManager, UserSocialStats};
+use crate::soundcloud::social::SocialManager;
 
 /// Gestionnaire principal de la découverte
 #[derive(Debug)]
@@ -501,7 +501,7 @@ pub struct EngagementTracker {
 }
 
 /// Métriques d'une recommandation
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct RecommendationMetrics {
     pub recommendation_id: Uuid,
     pub user_id: i64,
@@ -515,6 +515,25 @@ pub struct RecommendationMetrics {
     pub shared: bool,
     pub feedback_score: Option<f32>, // 1-5 stars
     pub timestamp: SystemTime,
+}
+
+impl Default for RecommendationMetrics {
+    fn default() -> Self {
+        Self {
+            recommendation_id: Uuid::new_v4(),
+            user_id: 0,
+            track_id: Uuid::new_v4(),
+            algorithm_used: String::new(),
+            confidence_score: 0.0,
+            clicked: false,
+            played: false,
+            completion_rate: 0.0,
+            liked: false,
+            shared: false,
+            feedback_score: None,
+            timestamp: SystemTime::now(),
+        }
+    }
 }
 
 /// Feedback utilisateur
@@ -682,7 +701,7 @@ impl DiscoveryEngine {
     /// Crée un nouveau moteur de découverte
     pub async fn new(
         config: DiscoveryConfig,
-        social_manager: Arc<SocialManager>,
+        _social_manager: Arc<SocialManager>,
     ) -> Result<Self, AppError> {
         let recommendation_engine = Arc::new(RecommendationEngine::new(config.recommendation_config.clone()).await?);
         let trending_manager = Arc::new(TrendingManager::new(config.trending_config.clone()));
@@ -703,17 +722,17 @@ impl DiscoveryEngine {
     /// Obtient des recommandations personnalisées pour un utilisateur
     pub async fn get_personalized_recommendations(
         &self,
-        user_id: i64,
+        _user_id: i64,
         count: usize,
-        seed_tracks: Option<Vec<Uuid>>,
+        _seed_tracks: Option<Vec<Uuid>>,
     ) -> Result<Vec<RecommendationResult>, AppError> {
         let count = count.min(self.config.max_recommendations_per_request);
         
         // Obtenir le profil utilisateur
         let user_profile = self.recommendation_engine
-            .get_user_profile(user_id)
+            .get_user_profile(_user_id)
             .await
-            .unwrap_or_else(|| UserListeningProfile::new(user_id));
+            .unwrap_or_else(|| UserListeningProfile::new(_user_id));
         
         // Générer les recommandations selon différents algorithmes
         let mut recommendations = Vec::new();
@@ -721,20 +740,20 @@ impl DiscoveryEngine {
         // 60% collaborative filtering
         let collaborative_count = (count as f32 * 0.6) as usize;
         let mut collaborative = self.recommendation_engine
-            .get_collaborative_recommendations(user_id, collaborative_count)
+            .get_collaborative_recommendations(_user_id, collaborative_count)
             .await?;
         recommendations.append(&mut collaborative);
         
         // 30% content-based
         let content_count = (count as f32 * 0.3) as usize;
         let mut content_based = self.recommendation_engine
-            .get_content_based_recommendations(user_id, content_count, seed_tracks.clone())
+            .get_content_based_recommendations(_user_id, content_count, _seed_tracks.clone())
             .await?;
         recommendations.append(&mut content_based);
         
         // 10% trending/social
         let trending_count = count - recommendations.len();
-        let mut trending = self.get_trending_recommendations(user_id, trending_count).await?;
+        let mut trending = self.get_trending_recommendations(_user_id, trending_count).await?;
         recommendations.append(&mut trending);
         
         // Diversifier et re-scorer
@@ -745,7 +764,7 @@ impl DiscoveryEngine {
         ).await?;
         
         // Tracker les recommandations pour analytics
-        self.track_recommendations(&final_recommendations, user_id).await?;
+        self.track_recommendations(&final_recommendations, _user_id).await?;
         
         Ok(final_recommendations)
     }
@@ -773,17 +792,17 @@ impl DiscoveryEngine {
     /// Crée une station radio personnalisée
     pub async fn create_radio_station(
         &self,
-        user_id: i64,
+        _user_id: i64,
         station_type: RadioStationType,
         name: String,
     ) -> Result<Uuid, AppError> {
-        self.radio_manager.create_station(user_id, station_type, name).await
+        self.radio_manager.create_station(_user_id, station_type, name).await
     }
     
     /// Obtient les recommendations trending
     async fn get_trending_recommendations(
         &self,
-        user_id: i64,
+        _user_id: i64,
         count: usize,
     ) -> Result<Vec<RecommendationResult>, AppError> {
         // Simulation - obtenir les tracks trending qui correspondent au profil utilisateur
@@ -843,7 +862,7 @@ impl DiscoveryEngine {
                 score *= user_profile.discovery_preferences.popularity_bias;
             }
             RecommendationReason::SimilarToLiked => {
-                score *= (1.0 - user_profile.discovery_preferences.familiarity_ratio);
+                score *= 1.0 - user_profile.discovery_preferences.familiarity_ratio;
             }
             _ => {}
         }
@@ -865,12 +884,12 @@ impl DiscoveryEngine {
     async fn track_recommendations(
         &self,
         recommendations: &[RecommendationResult],
-        user_id: i64,
+        _user_id: i64,
     ) -> Result<(), AppError> {
         for rec in recommendations {
             let metrics = RecommendationMetrics {
                 recommendation_id: Uuid::new_v4(),
-                user_id,
+                user_id: _user_id,
                 track_id: rec.track_id,
                 algorithm_used: rec.algorithm_used.clone(),
                 confidence_score: rec.confidence_score,
@@ -913,9 +932,9 @@ pub enum RecommendationReason {
 }
 
 impl UserListeningProfile {
-    fn new(user_id: i64) -> Self {
+    fn new(_user_id: i64) -> Self {
         Self {
-            user_id,
+            user_id: _user_id,
             listening_history: VecDeque::new(),
             genre_preferences: HashMap::new(),
             artist_preferences: HashMap::new(),
@@ -951,7 +970,7 @@ impl RecommendationEngine {
     
     async fn get_collaborative_recommendations(
         &self,
-        user_id: i64,
+        _user_id: i64,
         count: usize,
     ) -> Result<Vec<RecommendationResult>, AppError> {
         // Simulation collaborative filtering
@@ -972,9 +991,9 @@ impl RecommendationEngine {
     
     async fn get_content_based_recommendations(
         &self,
-        user_id: i64,
+        _user_id: i64,
         count: usize,
-        seed_tracks: Option<Vec<Uuid>>,
+        _seed_tracks: Option<Vec<Uuid>>,
     ) -> Result<Vec<RecommendationResult>, AppError> {
         // Simulation content-based filtering
         let mut recommendations = Vec::new();

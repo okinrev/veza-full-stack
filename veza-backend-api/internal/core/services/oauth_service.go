@@ -30,17 +30,7 @@ func NewOAuthService(logger *zap.Logger) *OAuthService {
 	}
 }
 
-// OAuthUserInfo informations utilisateur OAuth2
-type OAuthUserInfo struct {
-	Email       string `json:"email"`
-	Username    string `json:"username"`
-	FirstName   string `json:"first_name"`
-	LastName    string `json:"last_name"`
-	DisplayName string `json:"display_name"`
-	Avatar      string `json:"avatar"`
-	Provider    string `json:"provider"`
-	ProviderID  string `json:"provider_id"`
-}
+// OAuthUserInfo est défini dans auth_service.go
 
 // GoogleUserInfo structure réponse Google
 type GoogleUserInfo struct {

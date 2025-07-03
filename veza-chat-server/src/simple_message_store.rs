@@ -1,10 +1,10 @@
 //! Store de messages simple et fonctionnel
 
-use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Deserialize};
 use tokio::sync::RwLock;
 use crate::error::{ChatError, Result};
+
 
 /// Message simple pour test
 #[derive(Debug, Clone, Serialize, Deserialize)]

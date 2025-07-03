@@ -1,7 +1,7 @@
 /// Module Benchmarks pour mesures de performance précises
 
 use std::time::{Duration, Instant};
-use tracing::{info, debug};
+use tracing::{info};
 use serde::{Serialize, Deserialize};
 
 /// Runner de benchmarks

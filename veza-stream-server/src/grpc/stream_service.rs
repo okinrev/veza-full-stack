@@ -2,12 +2,10 @@
 
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{info, debug, error};
-use uuid::Uuid;
-use serde::{Serialize, Deserialize};
+use tracing::{info};
 
 use crate::error::AppError;
-use crate::core::{StreamManager, StreamEvent, StreamMetadata, StreamSource, StreamOutput};
+use crate::core::{StreamManager, StreamEvent};
 
 /// Implémentation du service Stream gRPC
 #[derive(Debug)]

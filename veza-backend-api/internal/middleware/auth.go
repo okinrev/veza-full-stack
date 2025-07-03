@@ -44,7 +44,7 @@ func JWTAuthMiddleware(jwtSecret string) gin.HandlerFunc {
 		}
 
 		// Utilisation des fonctions du package common
-		common.SetUserIDInContext(c, claims.UserID)
+		common.SetUserIDInContext(c, int64(claims.UserID))
 		common.SetUsernameInContext(c, claims.Username)
 		common.SetUserRoleInContext(c, claims.Role)
 		c.Next()
@@ -58,7 +58,7 @@ func OptionalJWTAuthMiddleware(jwtSecret string) gin.HandlerFunc {
 		if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
 			tokenString := authHeader[7:]
 			if claims, err := utils.ValidateJWT(tokenString, jwtSecret); err == nil {
-				common.SetUserIDInContext(c, claims.UserID)
+				common.SetUserIDInContext(c, int64(claims.UserID))
 				common.SetUsernameInContext(c, claims.Username)
 				common.SetUserRoleInContext(c, claims.Role)
 			}

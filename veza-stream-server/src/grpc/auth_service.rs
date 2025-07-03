@@ -1,7 +1,6 @@
 /// Service gRPC pour l'authentification
 
-use std::sync::Arc;
-use tracing::{info, debug, error};
+use tracing::{info};
 use serde::{Serialize, Deserialize};
 
 use crate::error::AppError;
@@ -17,7 +16,7 @@ impl AuthServiceImpl {
         Self {}
     }
 
-    pub async fn validate_token(&self, token: String) -> Result<AuthResult, AppError> {
+    pub async fn validate_token(&self, _token: &str) -> Result<AuthResult, AppError> {
         info!("🔐 Validation token JWT");
         
         // Simulation validation

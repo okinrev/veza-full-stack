@@ -2,7 +2,6 @@ package notifications
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -18,37 +17,37 @@ type NotificationService struct {
 	pushService      PushSender
 	webhookService   WebhookSender
 	storage          NotificationStorage
-	
+
 	// Configuration
 	config *NotificationConfig
-	
+
 	// Canaux de traitement
 	notificationQueue chan *Notification
-	retryQueue       chan *Notification
+	retryQueue        chan *Notification
 }
 
 // NotificationConfig configuration du service de notifications
 type NotificationConfig struct {
-	EnableWebSocket bool                   `json:"enable_websocket"`
-	EnableEmail     bool                   `json:"enable_email"`
-	EnableSMS       bool                   `json:"enable_sms"`
-	EnablePush      bool                   `json:"enable_push"`
-	EnableWebhook   bool                   `json:"enable_webhook"`
-	
+	EnableWebSocket bool `json:"enable_websocket"`
+	EnableEmail     bool `json:"enable_email"`
+	EnableSMS       bool `json:"enable_sms"`
+	EnablePush      bool `json:"enable_push"`
+	EnableWebhook   bool `json:"enable_webhook"`
+
 	// Configuration des tentatives
-	MaxRetries      int           `json:"max_retries"`
-	RetryDelay      time.Duration `json:"retry_delay"`
-	
+	MaxRetries int           `json:"max_retries"`
+	RetryDelay time.Duration `json:"retry_delay"`
+
 	// Templates par défaut
 	DefaultTemplates map[NotificationType]*NotificationTemplate `json:"default_templates"`
 }
 
 // NotificationTemplate template de notification
 type NotificationTemplate struct {
-	Subject      string                 `json:"subject"`
-	HTMLBody     string                 `json:"html_body"`
-	TextBody     string                 `json:"text_body"`
-	Variables    map[string]interface{} `json:"variables"`
+	Subject      string                        `json:"subject"`
+	HTMLBody     string                        `json:"html_body"`
+	TextBody     string                        `json:"text_body"`
+	Variables    map[string]interface{}        `json:"variables"`
 	Localization map[string]*LocalizedTemplate `json:"localization"`
 }
 
@@ -87,42 +86,42 @@ type NotificationStorage interface {
 
 // NotificationRequest requête de création de notification
 type NotificationRequest struct {
-	Type        NotificationType       `json:"type" binding:"required"`
-	UserID      string                 `json:"user_id" binding:"required"`
-	Title       string                 `json:"title" binding:"required"`
-	Message     string                 `json:"message" binding:"required"`
-	Data        map[string]interface{} `json:"data,omitempty"`
-	Priority    Priority               `json:"priority"`
-	Channels    []Channel              `json:"channels"`
-	ExpiresIn   *time.Duration         `json:"expires_in,omitempty"`
-	Tags        []string               `json:"tags,omitempty"`
-	Metadata    map[string]string      `json:"metadata,omitempty"`
+	Type      NotificationType       `json:"type" binding:"required"`
+	UserID    string                 `json:"user_id" binding:"required"`
+	Title     string                 `json:"title" binding:"required"`
+	Message   string                 `json:"message" binding:"required"`
+	Data      map[string]interface{} `json:"data,omitempty"`
+	Priority  Priority               `json:"priority"`
+	Channels  []Channel              `json:"channels"`
+	ExpiresIn *time.Duration         `json:"expires_in,omitempty"`
+	Tags      []string               `json:"tags,omitempty"`
+	Metadata  map[string]string      `json:"metadata,omitempty"`
 }
 
 // NotificationStats statistiques des notifications
 type NotificationStats struct {
-	TotalSent      int64                     `json:"total_sent"`
-	TotalDelivered int64                     `json:"total_delivered"`
-	TotalRead      int64                     `json:"total_read"`
-	DeliveryRate   float64                   `json:"delivery_rate"`
-	ReadRate       float64                   `json:"read_rate"`
-	ChannelStats   map[Channel]*ChannelStats `json:"channel_stats"`
+	TotalSent      int64                           `json:"total_sent"`
+	TotalDelivered int64                           `json:"total_delivered"`
+	TotalRead      int64                           `json:"total_read"`
+	DeliveryRate   float64                         `json:"delivery_rate"`
+	ReadRate       float64                         `json:"read_rate"`
+	ChannelStats   map[Channel]*ChannelStats       `json:"channel_stats"`
 	TypeStats      map[NotificationType]*TypeStats `json:"type_stats"`
 }
 
 // ChannelStats statistiques par canal
 type ChannelStats struct {
-	Sent               int64         `json:"sent"`
-	Delivered          int64         `json:"delivered"`
-	Failed             int64         `json:"failed"`
+	Sent                int64         `json:"sent"`
+	Delivered           int64         `json:"delivered"`
+	Failed              int64         `json:"failed"`
 	AverageDeliveryTime time.Duration `json:"average_delivery_time"`
 }
 
 // TypeStats statistiques par type
 type TypeStats struct {
-	Sent             int64         `json:"sent"`
-	Read             int64         `json:"read"`
-	AverageReadTime  time.Duration `json:"average_read_time"`
+	Sent            int64         `json:"sent"`
+	Read            int64         `json:"read"`
+	AverageReadTime time.Duration `json:"average_read_time"`
 }
 
 // NewNotificationService crée une nouvelle instance du service
@@ -136,16 +135,16 @@ func NewNotificationService(
 	storage NotificationStorage,
 	config *NotificationConfig,
 ) *NotificationService {
-	
+
 	if config == nil {
 		config = &NotificationConfig{
-			EnableWebSocket: true,
-			EnableEmail:     true,
-			EnableSMS:       false,
-			EnablePush:      true,
-			EnableWebhook:   false,
-			MaxRetries:      3,
-			RetryDelay:      5 * time.Second,
+			EnableWebSocket:  true,
+			EnableEmail:      true,
+			EnableSMS:        false,
+			EnablePush:       true,
+			EnableWebhook:    false,
+			MaxRetries:       3,
+			RetryDelay:       5 * time.Second,
 			DefaultTemplates: make(map[NotificationType]*NotificationTemplate),
 		}
 	}
@@ -157,25 +156,25 @@ func NewNotificationService(
 		smsService:        smsService,
 		pushService:       pushService,
 		webhookService:    webhookService,
-		storage:          storage,
-		config:           config,
+		storage:           storage,
+		config:            config,
 		notificationQueue: make(chan *Notification, 10000),
-		retryQueue:       make(chan *Notification, 1000),
+		retryQueue:        make(chan *Notification, 1000),
 	}
 }
 
 // Start démarre le service de notifications
 func (ns *NotificationService) Start(ctx context.Context) {
 	ns.logger.Info("🚀 Starting notification service")
-	
+
 	// Démarrer les workers de traitement
 	for i := 0; i < 5; i++ {
 		go ns.notificationWorker(ctx, i)
 	}
-	
+
 	// Worker de retry
 	go ns.retryWorker(ctx)
-	
+
 	// Worker de nettoyage
 	go ns.cleanupWorker(ctx)
 }
@@ -239,11 +238,11 @@ func (ns *NotificationService) SendNotification(ctx context.Context, req *Notifi
 // SendBulkNotification envoie des notifications en masse
 func (ns *NotificationService) SendBulkNotification(ctx context.Context, userIDs []string, req *NotificationRequest) ([]*Notification, error) {
 	notifications := make([]*Notification, 0, len(userIDs))
-	
+
 	for _, userID := range userIDs {
 		userReq := *req
 		userReq.UserID = userID
-		
+
 		notification, err := ns.SendNotification(ctx, &userReq)
 		if err != nil {
 			ns.logger.Error("Failed to send bulk notification",
@@ -251,10 +250,10 @@ func (ns *NotificationService) SendBulkNotification(ctx context.Context, userIDs
 				zap.Error(err))
 			continue
 		}
-		
+
 		notifications = append(notifications, notification)
 	}
-	
+
 	return notifications, nil
 }
 
@@ -263,12 +262,12 @@ func (ns *NotificationService) GetUserNotifications(ctx context.Context, userID 
 	if ns.storage == nil {
 		return []*Notification{}, nil
 	}
-	
+
 	notifications, err := ns.storage.GetByUser(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Filtrer les non lues si demandé
 	if unreadOnly {
 		filtered := make([]*Notification, 0)
@@ -279,7 +278,7 @@ func (ns *NotificationService) GetUserNotifications(ctx context.Context, userID 
 		}
 		return filtered, nil
 	}
-	
+
 	return notifications, nil
 }
 
@@ -288,7 +287,7 @@ func (ns *NotificationService) MarkAsRead(ctx context.Context, notificationID, u
 	if ns.storage == nil {
 		return fmt.Errorf("storage not configured")
 	}
-	
+
 	return ns.storage.MarkAsRead(ctx, notificationID, userID)
 }
 
@@ -297,7 +296,7 @@ func (ns *NotificationService) GetUnreadCount(ctx context.Context, userID string
 	if ns.storage == nil {
 		return 0, nil
 	}
-	
+
 	return ns.storage.GetUnreadCount(ctx, userID)
 }
 
@@ -308,7 +307,7 @@ func (ns *NotificationService) GetUnreadCount(ctx context.Context, userID string
 // notificationWorker traite les notifications de la queue
 func (ns *NotificationService) notificationWorker(ctx context.Context, workerID int) {
 	ns.logger.Info("Starting notification worker", zap.Int("worker_id", workerID))
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -322,14 +321,14 @@ func (ns *NotificationService) notificationWorker(ctx context.Context, workerID 
 // processNotification traite une notification
 func (ns *NotificationService) processNotification(ctx context.Context, notification *Notification) {
 	startTime := time.Now()
-	
+
 	// Vérifier l'expiration
 	if notification.ExpiresAt != nil && time.Now().After(*notification.ExpiresAt) {
 		ns.logger.Debug("Notification expired, skipping",
 			zap.String("id", notification.ID))
 		return
 	}
-	
+
 	// Traiter chaque canal
 	for _, channel := range notification.Channels {
 		if err := ns.deliverToChannel(ctx, notification, channel); err != nil {
@@ -337,7 +336,7 @@ func (ns *NotificationService) processNotification(ctx context.Context, notifica
 				zap.String("id", notification.ID),
 				zap.String("channel", string(channel)),
 				zap.Error(err))
-			
+
 			// Programmer un retry pour les échecs
 			ns.scheduleRetry(notification, channel, err)
 		} else {
@@ -347,7 +346,7 @@ func (ns *NotificationService) processNotification(ctx context.Context, notifica
 				zap.Duration("duration", time.Since(startTime)))
 		}
 	}
-	
+
 	// Marquer comme délivrée
 	now := time.Now()
 	notification.DeliveredAt = &now
@@ -379,7 +378,7 @@ func (ns *NotificationService) deliverToChannel(ctx context.Context, notificatio
 	default:
 		return fmt.Errorf("unknown channel: %s", channel)
 	}
-	
+
 	return fmt.Errorf("channel %s not enabled or not configured", channel)
 }
 
@@ -409,7 +408,7 @@ func (ns *NotificationService) retryWorker(ctx context.Context) {
 func (ns *NotificationService) cleanupWorker(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():

@@ -4,11 +4,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use std::collections::HashMap;
-use std::net::IpAddr;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
+use std::time::Instant;
 use tracing::{warn, debug};
 use crate::AppState;
 
@@ -63,7 +59,7 @@ async fn check_rate_limit(state: &AppState, client_ip: &str) -> bool {
     // Dans une vraie application, on utiliserait un store externe comme Redis
     
     let max_requests_per_minute = state.config.security.rate_limit_requests_per_minute;
-    let now = Instant::now();
+    let _now = Instant::now();
     
     // Pour cette implémentation basique, on permet toutes les requêtes
     // En production, il faudrait implémenter un vrai système de rate limiting
@@ -76,7 +72,7 @@ async fn check_rate_limit(state: &AppState, client_ip: &str) -> bool {
     true
 }
 
-async fn record_request(state: &AppState, client_ip: &str) {
+async fn record_request(_state: &AppState, client_ip: &str) {
     // Enregistrer la requête pour les statistiques
     debug!(
         client_ip = %client_ip,

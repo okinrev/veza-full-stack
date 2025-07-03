@@ -5,9 +5,8 @@
 
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, Instant};
 use parking_lot::{RwLock, Mutex};
-use serde::{Serialize, Deserialize};
 use crate::error::AppError;
 use crate::audio::effects::{EffectsChain, AudioEffect};
 
@@ -35,7 +34,7 @@ impl<T: Clone + Default> RingBuffer<T> {
     pub fn write(&mut self, data: &[T]) -> usize {
         let mut written = 0;
         
-        for &item in data.iter() {
+        for item in data.iter() {
             if self.is_full() && !self.filled {
                 break;
             }
@@ -167,9 +166,9 @@ pub struct AdaptiveResampler {
     /// Ratio cible
     target_ratio: f64,
     /// Coefficients de filtre anti-aliasing
-    filter_coeffs: Vec<f32>,
+    _filter_coeffs: Vec<f32>,
     /// Historique pour interpolation
-    history: VecDeque<f32>,
+    _history: VecDeque<f32>,
     /// Configuration
     config: ResamplerConfig,
 }
@@ -195,15 +194,15 @@ pub enum FilterQuality {
 #[derive(Debug)]
 pub struct LatencyManager {
     /// Buffer adaptatif
-    adaptive_buffer: RingBuffer<f32>,
+    _adaptive_buffer: RingBuffer<f32>,
     /// Latence cible
-    target_latency_ms: f32,
+    _target_latency_ms: f32,
     /// Latence mesurée
-    measured_latency_ms: f32,
+    _measured_latency_ms: f32,
     /// Historique des latences
-    latency_history: VecDeque<f32>,
+    _latency_history: VecDeque<f32>,
     /// Contrôleur PID pour ajustement
-    pid_controller: PIDController,
+    _pid_controller: PIDController,
 }
 
 /// Contrôleur PID pour latence
@@ -381,8 +380,8 @@ impl AdaptiveResampler {
         Self {
             ratio: 1.0,
             target_ratio: 1.0,
-            filter_coeffs: Self::generate_filter_coeffs(&config),
-            history: VecDeque::with_capacity(64),
+            _filter_coeffs: Self::generate_filter_coeffs(&config),
+            _history: VecDeque::with_capacity(64),
             config,
         }
     }

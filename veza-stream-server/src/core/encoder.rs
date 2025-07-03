@@ -12,11 +12,10 @@ use std::time::Duration;
 use std::fmt;
 
 use parking_lot::RwLock;
-use rayon::prelude::*;
-use tokio::sync::mpsc;
+
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-use tracing::{info, warn, error, debug};
+use tracing::{info, debug};
 
 use crate::core::AudioFormat;
 use crate::error::AppError;
@@ -26,13 +25,13 @@ use crate::core::{StreamSource, StreamOutput};
 #[derive(Debug)]
 pub struct EncoderPool {
     /// Encodeurs Opus disponibles
-    opus_encoders: Arc<RwLock<Vec<Box<dyn OpusEncoder + Send + Sync>>>>,
+    _opus_encoders: Arc<RwLock<Vec<Box<dyn OpusEncoder + Send + Sync>>>>,
     /// Encodeurs AAC disponibles  
-    aac_encoders: Arc<RwLock<Vec<Box<dyn AacEncoder + Send + Sync>>>>,
+    _aac_encoders: Arc<RwLock<Vec<Box<dyn AacEncoder + Send + Sync>>>>,
     /// Encodeurs MP3 disponibles
-    mp3_encoders: Arc<RwLock<Vec<Box<dyn Mp3Encoder + Send + Sync>>>>,
+    _mp3_encoders: Arc<RwLock<Vec<Box<dyn Mp3Encoder + Send + Sync>>>>,
     /// Encodeurs FLAC disponibles
-    flac_encoders: Arc<RwLock<Vec<Box<dyn FlacEncoder + Send + Sync>>>>,
+    _flac_encoders: Arc<RwLock<Vec<Box<dyn FlacEncoder + Send + Sync>>>>,
     /// Configuration du pool
     config: EncoderPoolConfig,
     /// Métriques d'utilisation
@@ -254,10 +253,10 @@ impl EncoderPool {
         // TODO: Implémentation réelle des encodeurs
         
         Ok(Self {
-            opus_encoders,
-            aac_encoders,
-            mp3_encoders,
-            flac_encoders,
+            _opus_encoders: opus_encoders,
+            _aac_encoders: aac_encoders,
+            _mp3_encoders: mp3_encoders,
+            _flac_encoders: flac_encoders,
             config,
             metrics: Arc::new(EncoderMetrics::default()),
         })
@@ -315,7 +314,7 @@ impl EncoderPool {
     }
     
     /// Détermine le codec optimal selon le format et bitrate
-    fn determine_codec(&self, format: &AudioFormat, bitrate: u32) -> Result<AudioCodec, AppError> {
+    fn determine_codec(&self, _format: &AudioFormat, bitrate: u32) -> Result<AudioCodec, AppError> {
         match bitrate {
             0..=64 => Ok(AudioCodec::Opus {
                 complexity: 5,

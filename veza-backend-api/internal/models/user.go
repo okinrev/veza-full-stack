@@ -9,7 +9,7 @@ import (
 
 // User represents a user in the system
 type User struct {
-	ID           int            `db:"id" json:"id"`
+	ID           int64          `db:"id" json:"id"`
 	Username     string         `db:"username" json:"username"`
 	Email        string         `db:"email" json:"email"`
 	PasswordHash string         `db:"password_hash" json:"-"` // Never serialize password
@@ -27,7 +27,7 @@ type User struct {
 
 // UserResponse represents user data without sensitive information
 type UserResponse struct {
-	ID          int            `json:"id"`
+	ID          int64          `json:"id"`
 	Username    string         `json:"username"`
 	Email       string         `json:"email"`
 	FirstName   sql.NullString `json:"first_name,omitempty"`
@@ -66,8 +66,8 @@ func (u *User) ToResponse() *UserResponse {
 
 // RefreshToken represents a JWT refresh token
 type RefreshToken struct {
-	ID        int       `db:"id" json:"id"`
-	UserID    int       `db:"user_id" json:"user_id"`
+	ID        int64     `db:"id" json:"id"`
+	UserID    int64     `db:"user_id" json:"user_id"`
 	Token     string    `db:"token" json:"token"`
 	ExpiresAt time.Time `db:"expires_at" json:"expires_at"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`

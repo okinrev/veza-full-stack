@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use crate::hub::{ChatHub, channels};
-use serde_json::Value;
+
 
 /// Fonction de compatibilité pour envoyer un message dans un salon
 pub async fn send_room_message(

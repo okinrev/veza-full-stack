@@ -3,13 +3,13 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{info, warn, error, debug};
+use tracing::{info, debug, warn};
 use uuid::Uuid;
 use rand::Rng;
 
 use crate::error::AppError;
 use crate::core::StreamManager;
-use super::{ChaosConfig, TestEvent, TestEventType, EventSeverity};
+use super::{ChaosConfig};
 
 /// Chaos Tester pour validation de la résilience
 #[derive(Debug)]
@@ -101,19 +101,14 @@ impl ChaosTester {
         let start_time = Instant::now();
         let end_time = start_time + test_duration;
         
+        let _stream_manager = stream_manager.clone();
+        
         // Lancer les générateurs de chaos en parallèle
-        let tasks = vec![
+        let (_, _, _, _) = tokio::join!(
             self.network_chaos_generator(),
             self.service_chaos_generator(),
             self.resource_chaos_generator(),
             self.monitoring_chaos_events(),
-        ];
-        
-        let (_, _, _, _) = tokio::join!(
-            tasks[0],
-            tasks[1], 
-            tasks[2],
-            tasks[3]
         );
         
         // Attendre la fin du test
@@ -222,8 +217,9 @@ impl ChaosTester {
         
         warn!("📡 Injection panne réseau: latence +{}ms, perte {}%", latency, packet_loss * 100.0);
         
+        let failure_id = Uuid::new_v4();
         let failure = ActiveFailure {
-            id: Uuid::new_v4(),
+            id: failure_id,
             failure_type: FailureType::NetworkFailure {
                 latency_ms: latency,
                 packet_loss,
@@ -240,7 +236,6 @@ impl ChaosTester {
         
         tokio::spawn({
             let active_failures = self.active_failures.clone();
-            let failure_id = failure.id;
             
             async move {
                 tokio::time::sleep(duration).await;
@@ -281,8 +276,9 @@ impl ChaosTester {
         
         warn!("💥 Injection crash service: {}", service);
         
+        let failure_id = Uuid::new_v4();
         let failure = ActiveFailure {
-            id: Uuid::new_v4(),
+            id: failure_id,
             failure_type: FailureType::ServiceUnavailable {
                 service_name: service.to_string(),
             },
@@ -298,7 +294,6 @@ impl ChaosTester {
         
         tokio::spawn({
             let active_failures = self.active_failures.clone();
-            let failure_id = failure.id;
             
             async move {
                 tokio::time::sleep(restart_time).await;

@@ -2,13 +2,11 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 use std::path::{Path, PathBuf};
-use tokio::sync::{RwLock, broadcast, mpsc};
-use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncWriteExt, BufWriter};
+use tokio::sync::{RwLock, broadcast};
 use serde::{Deserialize, Serialize};
-use tracing::{info, debug, warn, error, span, Level};
+use tracing::{info, debug, warn, span, Level};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -397,7 +395,7 @@ impl LiveRecordingManager {
     async fn schedule_transcoding_jobs(&self, recording_id: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let recordings = self.recordings.read().await;
         
-        if let Some(recording) = recordings.get(recording_id) {
+        if let Some(_recording) = recordings.get(recording_id) {
             let mut queue = self.transcoding_queue.write().await;
             
             // Créer des tâches pour chaque format de sortie

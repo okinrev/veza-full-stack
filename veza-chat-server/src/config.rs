@@ -52,7 +52,7 @@ impl ServerConfig {
         let args = CliArgs::parse();
         
         // Configuration de base depuis l'environnement
-        let mut config = config::Config::builder()
+        let config = config::Config::builder()
             // Valeurs par défaut
             .add_source(config::Config::try_from(&Self::default())?)
             // Fichier de configuration si spécifié

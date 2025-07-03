@@ -835,6 +835,8 @@ type OAuthUserInfo struct {
 	LastName    string `json:"last_name"`
 	DisplayName string `json:"display_name"`
 	Avatar      string `json:"avatar"`
+	Provider    string `json:"provider"`
+	ProviderID  string `json:"provider_id"`
 }
 
 // EmailService interface pour l'envoi d'emails

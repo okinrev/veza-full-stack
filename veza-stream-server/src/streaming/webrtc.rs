@@ -3,8 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 use tokio::sync::{RwLock, broadcast, mpsc};
 use serde::{Deserialize, Serialize};
-use tracing::{info, debug, warn, error, span, Level};
-use uuid::Uuid;
+use tracing::{info, debug, warn, span, Level};
 
 /// Configuration WebRTC pour streaming audio
 #[derive(Debug, Clone, Serialize, Deserialize)]

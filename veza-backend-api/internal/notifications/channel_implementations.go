@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/smtp"
-	"strings"
 	"text/template"
 	"time"
 
@@ -20,14 +19,14 @@ import (
 
 // EmailServiceImpl implémentation du service email
 type EmailServiceImpl struct {
-	logger     *zap.Logger
-	smtpHost   string
-	smtpPort   string
-	smtpUser   string
-	smtpPass   string
-	fromEmail  string
-	fromName   string
-	templates  map[NotificationType]*EmailTemplate
+	logger    *zap.Logger
+	smtpHost  string
+	smtpPort  string
+	smtpUser  string
+	smtpPass  string
+	fromEmail string
+	fromName  string
+	templates map[NotificationType]*EmailTemplate
 }
 
 // EmailTemplate template d'email
@@ -55,7 +54,7 @@ func NewEmailService(logger *zap.Logger, smtpHost, smtpPort, smtpUser, smtpPass,
 func (e *EmailServiceImpl) SendEmail(ctx context.Context, notification *Notification) error {
 	// Obtenir le template
 	emailTemplate := e.getTemplate(notification.Type)
-	
+
 	// Rendre le template avec les données
 	subject, htmlBody, textBody, err := e.renderTemplate(emailTemplate, notification)
 	if err != nil {
@@ -68,10 +67,10 @@ func (e *EmailServiceImpl) SendEmail(ctx context.Context, notification *Notifica
 	// Envoyer via SMTP
 	auth := smtp.PlainAuth("", e.smtpUser, e.smtpPass, e.smtpHost)
 	addr := fmt.Sprintf("%s:%s", e.smtpHost, e.smtpPort)
-	
+
 	// TODO: Obtenir l'email de l'utilisateur depuis la base de données
 	userEmail := fmt.Sprintf("user_%s@example.com", notification.UserID) // Temporaire
-	
+
 	err = smtp.SendMail(addr, auth, e.fromEmail, []string{userEmail}, []byte(message))
 	if err != nil {
 		return fmt.Errorf("failed to send email: %w", err)
@@ -90,7 +89,7 @@ func (e *EmailServiceImpl) getTemplate(notificationType NotificationType) *Email
 	if template, exists := e.templates[notificationType]; exists {
 		return template
 	}
-	
+
 	// Template par défaut
 	return &EmailTemplate{
 		Subject:  "{{.Title}}",
@@ -147,7 +146,7 @@ func (e *EmailServiceImpl) renderTemplate(emailTemplate *EmailTemplate, notifica
 // composeEmail compose le message email complet
 func (e *EmailServiceImpl) composeEmail(userID, subject, htmlBody, textBody string) string {
 	boundary := "veza-notification-boundary"
-	
+
 	message := fmt.Sprintf(`From: %s <%s>
 To: %s
 Subject: %s
@@ -176,10 +175,10 @@ Content-Type: text/html; charset=UTF-8
 
 // SMSServiceImpl implémentation du service SMS
 type SMSServiceImpl struct {
-	logger   *zap.Logger
-	apiKey   string
-	apiURL   string
-	sender   string
+	logger *zap.Logger
+	apiKey string
+	apiURL string
+	sender string
 }
 
 // NewSMSService crée un nouveau service SMS
@@ -196,31 +195,31 @@ func NewSMSService(logger *zap.Logger, apiKey, apiURL, sender string) *SMSServic
 func (s *SMSServiceImpl) SendSMS(ctx context.Context, notification *Notification) error {
 	// Composer le message SMS (limité à 160 caractères)
 	message := s.formatSMSMessage(notification)
-	
+
 	// TODO: Obtenir le numéro de téléphone de l'utilisateur
 	phoneNumber := fmt.Sprintf("+33600000000") // Temporaire
-	
+
 	// Préparer la requête API
 	payload := map[string]interface{}{
 		"to":      phoneNumber,
 		"from":    s.sender,
 		"message": message,
 	}
-	
+
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal SMS payload: %w", err)
 	}
-	
+
 	// Créer la requête HTTP
 	req, err := http.NewRequestWithContext(ctx, "POST", s.apiURL, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return fmt.Errorf("failed to create SMS request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
-	
+
 	// Envoyer la requête
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
@@ -228,28 +227,28 @@ func (s *SMSServiceImpl) SendSMS(ctx context.Context, notification *Notification
 		return fmt.Errorf("failed to send SMS request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("SMS API returned error: %d", resp.StatusCode)
 	}
-	
+
 	s.logger.Info("📱 SMS sent successfully",
 		zap.String("user_id", notification.UserID),
 		zap.String("notification_id", notification.ID),
 		zap.String("phone", phoneNumber))
-	
+
 	return nil
 }
 
 // formatSMSMessage formate le message pour SMS
 func (s *SMSServiceImpl) formatSMSMessage(notification *Notification) string {
 	message := fmt.Sprintf("%s: %s", notification.Title, notification.Message)
-	
+
 	// Limiter à 160 caractères
 	if len(message) > 160 {
 		message = message[:157] + "..."
 	}
-	
+
 	return message
 }
 
@@ -277,7 +276,7 @@ func NewPushService(logger *zap.Logger, fcmAPIKey, apnsKey string) *PushServiceI
 func (p *PushServiceImpl) SendPushNotification(ctx context.Context, notification *Notification) error {
 	// TODO: Obtenir les tokens de device de l'utilisateur depuis la DB
 	deviceTokens := []string{"example_device_token"} // Temporaire
-	
+
 	for _, token := range deviceTokens {
 		if err := p.sendToDevice(ctx, notification, token); err != nil {
 			p.logger.Error("Failed to send push to device",
@@ -285,12 +284,12 @@ func (p *PushServiceImpl) SendPushNotification(ctx context.Context, notification
 				zap.Error(err))
 		}
 	}
-	
+
 	p.logger.Info("🔔 Push notifications sent",
 		zap.String("user_id", notification.UserID),
 		zap.String("notification_id", notification.ID),
 		zap.Int("devices", len(deviceTokens)))
-	
+
 	return nil
 }
 
@@ -309,7 +308,7 @@ func (p *PushServiceImpl) sendToDevice(ctx context.Context, notification *Notifi
 			"priority":          string(notification.Priority),
 		},
 	}
-	
+
 	if notification.Data != nil {
 		if data, ok := payload["data"].(map[string]interface{}); ok {
 			for k, v := range notification.Data {
@@ -317,32 +316,32 @@ func (p *PushServiceImpl) sendToDevice(ctx context.Context, notification *Notifi
 			}
 		}
 	}
-	
+
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal push payload: %w", err)
 	}
-	
+
 	// Envoyer via FCM
 	req, err := http.NewRequestWithContext(ctx, "POST", "https://fcm.googleapis.com/fcm/send", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return fmt.Errorf("failed to create push request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "key="+p.fcmAPIKey)
-	
+
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send push request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("FCM API returned error: %d", resp.StatusCode)
 	}
-	
+
 	return nil
 }
 
@@ -366,7 +365,7 @@ func NewWebhookService(logger *zap.Logger) *WebhookServiceImpl {
 func (w *WebhookServiceImpl) SendWebhook(ctx context.Context, notification *Notification) error {
 	// TODO: Obtenir les URLs de webhook de l'utilisateur depuis la DB
 	webhookURLs := []string{"https://example.com/webhook"} // Temporaire
-	
+
 	for _, url := range webhookURLs {
 		if err := w.sendToWebhook(ctx, notification, url); err != nil {
 			w.logger.Error("Failed to send webhook",
@@ -374,12 +373,12 @@ func (w *WebhookServiceImpl) SendWebhook(ctx context.Context, notification *Noti
 				zap.Error(err))
 		}
 	}
-	
+
 	w.logger.Info("🔗 Webhooks sent",
 		zap.String("user_id", notification.UserID),
 		zap.String("notification_id", notification.ID),
 		zap.Int("webhooks", len(webhookURLs)))
-	
+
 	return nil
 }
 
@@ -389,25 +388,25 @@ func (w *WebhookServiceImpl) sendToWebhook(ctx context.Context, notification *No
 	if err != nil {
 		return fmt.Errorf("failed to marshal webhook payload: %w", err)
 	}
-	
+
 	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return fmt.Errorf("failed to create webhook request: %w", err)
 	}
-	
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Veza-Notifications/1.0")
-	
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send webhook request: %w", err)
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("webhook returned error: %d", resp.StatusCode)
 	}
-	
+
 	return nil
 }

@@ -3,8 +3,9 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::{broadcast, RwLock};
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info, warn};
-use crate::config::Config;
+use tracing::{debug, error, info};
+use crate::Config;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Notification {
@@ -556,7 +557,7 @@ impl NotificationService {
         Ok(notification)
     }
 
-    async fn check_frequency_limits(&self, notification: &Notification) -> bool {
+    async fn check_frequency_limits(&self, _notification: &Notification) -> bool {
         // Simuler la vérification des limites de fréquence
         // Dans une implémentation réelle, on vérifierait la base de données
         true

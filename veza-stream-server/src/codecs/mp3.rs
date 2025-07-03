@@ -14,10 +14,10 @@ use std::time::{Duration, Instant};
 use serde::{Serialize, Deserialize};
 use tokio::sync::RwLock;
 use parking_lot::Mutex;
-use tracing::{debug, info, warn, error};
+use tracing::debug;
 
 use crate::error::AppError as AppError;
-use crate::codecs::{AudioEncoder, AudioDecoder, CodecConfig, AudioFrame, EncodingResult, DecodingResult};
+use crate::codecs::{AudioEncoder, AudioDecoder};
 
 /// Implémentation de l'encoder MP3 avec LAME
 #[derive(Debug)]
@@ -29,9 +29,9 @@ pub struct Mp3EncoderImpl {
     /// Statistiques de performance
     stats: Arc<RwLock<Mp3EncoderStats>>,
     /// Buffer d'entrée pour optimisation
-    input_buffer: Arc<Mutex<Vec<f32>>>,
+    _input_buffer: Arc<Mutex<Vec<f32>>>,
     /// Quality preset utilisé
-    quality_preset: Mp3QualityPreset,
+    _quality_preset: Mp3QualityPreset,
 }
 
 /// Implémentation du decoder MP3
@@ -44,9 +44,9 @@ pub struct Mp3DecoderImpl {
     /// Statistiques de performance
     stats: Arc<RwLock<Mp3DecoderStats>>,
     /// Buffer de sortie
-    output_buffer: Arc<Mutex<Vec<f32>>>,
+    _output_buffer: Arc<Mutex<Vec<f32>>>,
     /// Cache des frames pour seeking
-    frame_cache: Arc<RwLock<HashMap<u64, Mp3Frame>>>,
+    _frame_cache: Arc<RwLock<HashMap<u64, Mp3Frame>>>,
 }
 
 /// Configuration de l'encoder MP3
@@ -323,7 +323,7 @@ impl Mp3EncoderImpl {
     /// Crée un nouvel encoder MP3
     pub fn new(config: Mp3EncoderConfig) -> Self {
         Self {
-            quality_preset: config.quality_preset.clone(),
+            _quality_preset: config.quality_preset.clone(),
             config,
             encoder_state: Arc::new(Mutex::new(Mp3EncoderState {
                 initialized: false,
@@ -334,7 +334,7 @@ impl Mp3EncoderImpl {
                 current_metadata: None,
             })),
             stats: Arc::new(RwLock::new(Mp3EncoderStats::default())),
-            input_buffer: Arc::new(Mutex::new(Vec::new())),
+            _input_buffer: Arc::new(Mutex::new(Vec::new())),
         }
     }
     
@@ -352,8 +352,9 @@ impl Mp3EncoderImpl {
     }
     
     /// Optimise la configuration selon le preset
+    #[allow(dead_code)]
     fn optimize_config_for_preset(&mut self) {
-        match self.quality_preset {
+        match self._quality_preset {
             Mp3QualityPreset::Insane => {
                 self.config.encoding_mode = Mp3EncodingMode::CBR;
                 self.config.bitrate = 320;
@@ -390,6 +391,7 @@ impl Mp3EncoderImpl {
     }
     
     /// Initialise l'encoder LAME (simulation)
+    #[allow(dead_code)]
     async fn initialize_lame_encoder(&self) -> Result<(), AppError> {
         let mut state = self.encoder_state.lock();
         
@@ -398,8 +400,8 @@ impl Mp3EncoderImpl {
         }
         
         // Simulation d'initialisation LAME
-        info!("Initialisation encoder LAME MP3 - Preset: {:?}, Mode: {:?}, Bitrate: {}",
-              self.quality_preset, self.config.encoding_mode, self.config.bitrate);
+        debug!("Initialisation encoder LAME MP3 - Preset: {:?}, Mode: {:?}, Bitrate: {}",
+              self._quality_preset, self.config.encoding_mode, self.config.bitrate);
         
         // Simuler allocation des buffers LAME
         state.internal_buffers = vec![0u8; 4096];
@@ -410,6 +412,7 @@ impl Mp3EncoderImpl {
     }
     
     /// Encode un chunk de données avec LAME
+    #[allow(dead_code)]
     async fn encode_with_lame(&self, samples: &[f32]) -> Result<Vec<u8>, AppError> {
         let start_time = Instant::now();
         
@@ -471,6 +474,7 @@ impl Mp3EncoderImpl {
     }
     
     /// Génère un tag ID3v1 (simulation)
+    #[allow(dead_code)]
     fn generate_id3v1_tag(&self, metadata: &Mp3Metadata) -> Vec<u8> {
         let mut tag = vec![0u8; 128];
         
@@ -516,7 +520,7 @@ impl Mp3EncoderImpl {
     }
     
     /// Simulation d'encodage MP3 pour une frame audio
-    fn simulate_mp3_encoding(&self, samples: &[f32], _sample_rate: u32, _channels: u8) -> Vec<u8> {
+    fn simulate_mp3_encoding(&self, samples: &[f32], _channels: u8) -> Vec<u8> {
         // Simulation d'un header MP3 + données encodées
         let mut frame_data = Vec::new();
         
@@ -530,7 +534,7 @@ impl Mp3EncoderImpl {
         // Simulation très basique d'encodage
         for (i, sample) in samples.iter().enumerate() {
             if i < compressed_size {
-                audio_data[i] = ((sample * 127.0) as i8 + 128) as u8;
+                audio_data[i] = ((sample * 127.0) as i32 + 128) as u8;
             }
         }
         
@@ -553,8 +557,8 @@ impl Mp3DecoderImpl {
                 current_frame: None,
             })),
             stats: Arc::new(RwLock::new(Mp3DecoderStats::default())),
-            output_buffer: Arc::new(Mutex::new(Vec::new())),
-            frame_cache: Arc::new(RwLock::new(HashMap::new())),
+            _output_buffer: Arc::new(Mutex::new(Vec::new())),
+            _frame_cache: Arc::new(RwLock::new(HashMap::new())),
         }
     }
     
@@ -570,9 +574,10 @@ impl Mp3DecoderImpl {
     }
     
     /// Analyse le header MP3 et extrait les informations
+    #[allow(dead_code)]
     async fn analyze_mp3_header(&self, data: &[u8]) -> Result<Mp3StreamInfo, AppError> {
         if data.len() < 4 {
-            return Err(AppError::DecodingError("Insufficient data for MP3 header".to_string()));
+            return Err(AppError::DecodingError { message: "Insufficient data for MP3 header".to_string() });
         }
         
         // Simulation d'analyse de header MP3
@@ -600,14 +605,15 @@ impl Mp3DecoderImpl {
     }
     
     /// Parse un header de frame MP3
+    #[allow(dead_code)]
     fn parse_frame_header(&self, header_bytes: &[u8]) -> Result<Mp3FrameHeader, AppError> {
         if header_bytes.len() < 4 {
-            return Err(AppError::DecodingError("Invalid MP3 frame header".to_string()));
+            return Err(AppError::DecodingError { message: "Invalid MP3 frame header".to_string() });
         }
         
         // Vérifier le sync word (11 bits à 1)
         if (header_bytes[0] != 0xFF) || ((header_bytes[1] & 0xE0) != 0xE0) {
-            return Err(AppError::DecodingError("Invalid MP3 sync word".to_string()));
+            return Err(AppError::DecodingError { message: "Invalid MP3 sync word".to_string() });
         }
         
         // Extraire les informations (simulation)
@@ -615,7 +621,7 @@ impl Mp3DecoderImpl {
             0 => MpegVersion::Mpeg25,
             2 => MpegVersion::Mpeg2,
             3 => MpegVersion::Mpeg1,
-            _ => return Err(AppError::DecodingError("Invalid MPEG version".to_string())),
+            _ => return Err(AppError::DecodingError { message: "Invalid MPEG version".to_string() }),
         };
         
         let layer = 4 - ((header_bytes[1] >> 1) & 0x03);
@@ -645,6 +651,7 @@ impl Mp3DecoderImpl {
     }
     
     /// Convertit l'index de bitrate en valeur
+    #[allow(dead_code)]
     fn bitrate_from_index(&self, index: u8, version: MpegVersion) -> u32 {
         // Table de bitrates MP3 (simulation simplifiée)
         match version {
@@ -670,6 +677,7 @@ impl Mp3DecoderImpl {
     }
     
     /// Convertit l'index de sample rate en valeur
+    #[allow(dead_code)]
     fn samplerate_from_index(&self, index: u8, version: MpegVersion) -> u32 {
         match version {
             MpegVersion::Mpeg1 => match index {
@@ -694,6 +702,7 @@ impl Mp3DecoderImpl {
     }
     
     /// Décode une frame MP3
+    #[allow(dead_code)]
     async fn decode_mp3_frame(&self, frame_data: &[u8]) -> Result<Mp3Frame, AppError> {
         let start_time = Instant::now();
         
@@ -702,7 +711,6 @@ impl Mp3DecoderImpl {
         
         // Calculer la taille de la frame
         let bitrate = self.bitrate_from_index(header.bitrate_index, header.mpeg_version.clone());
-        let sample_rate = self.samplerate_from_index(header.samplerate_index, header.mpeg_version.clone());
         let samples_per_frame = 1152; // MP3 Layer III
         
         // Simulation de décodage
@@ -737,7 +745,7 @@ impl Mp3DecoderImpl {
     /// Seek vers une position spécifique
     pub async fn seek_to_position(&self, position: Duration) -> Result<(), AppError> {
         if !self.config.enable_seeking {
-            return Err(AppError::DecodingError("Seeking not enabled".to_string()));
+            return Err(AppError::DecodingError { message: "Seeking not enabled".to_string() });
         }
         
         let mut state = self.decoder_state.lock();
@@ -755,13 +763,13 @@ impl Mp3DecoderImpl {
 }
 
 impl AudioEncoder for Mp3EncoderImpl {
-    fn encode(&mut self, samples: &[f32], sample_rate: u32, channels: u8) -> Result<Vec<u8>, AppError> {
+    fn encode(&mut self, samples: &[f32], _sample_rate: u32, channels: u8) -> Result<Vec<u8>, AppError> {
         // Encoder les échantillons avec LAME (simulation)
         let mut encoded_data = Vec::new();
         
         // Simulation d'encodage MP3
         for chunk in samples.chunks(1152) { // Frame MP3 typique
-            let frame_data = self.simulate_mp3_encoding(chunk, sample_rate, channels);
+            let frame_data = self.simulate_mp3_encoding(chunk, channels);
             encoded_data.extend_from_slice(&frame_data);
         }
         
@@ -821,7 +829,7 @@ impl AudioEncoder for Mp3EncoderImpl {
 impl AudioDecoder for Mp3DecoderImpl {
     fn decode(&mut self, data: &[u8]) -> Result<crate::codecs::DecodedAudio, AppError> {
         if data.len() < 4 {
-            return Err(AppError::DecodingError("Insufficient MP3 frame data".to_string()));
+            return Err(AppError::DecodingError { message: "Insufficient MP3 frame data".to_string() });
         }
         
         // Simulation de décodage MP3

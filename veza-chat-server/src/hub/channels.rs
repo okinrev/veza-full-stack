@@ -19,11 +19,7 @@ use crate::error::{ChatError, Result};
 use serde_json::{json, Value};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use sqlx::PgPool;
-use std::collections::HashMap;
-use crate::simple_message_store::SimpleMessageStore;
-use crate::client::Client;
-use crate::messages::{MessageContent, MessageType};
+
 
 // ================================================================
 // STRUCTURES DE DONNÉES

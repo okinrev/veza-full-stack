@@ -1,6 +1,6 @@
 /// Module Distributed Tracing pour production
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::{SystemTime};
 use std::collections::HashMap;
 use tokio::sync::RwLock;
 use tracing::{info, debug};

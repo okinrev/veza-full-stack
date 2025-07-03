@@ -4,9 +4,8 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, info, warn};
-use crate::config::Config;
-use crate::audio::processing::{AudioMetadata, AudioQuality};
+use crate::Config;
+use tracing::{debug, info, error};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompressionProfile {
@@ -363,7 +362,7 @@ impl CompressionEngine {
     }
 
     async fn execute_compression(&self, job: &mut CompressionJob) -> Result<(), CompressionError> {
-        let start_time = SystemTime::now();
+        let _start_time = SystemTime::now();
 
         // Simuler la progression de la compression
         for progress in (0..=100).step_by(10) {

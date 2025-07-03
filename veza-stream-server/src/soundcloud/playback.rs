@@ -16,10 +16,10 @@ use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 use tokio::sync::{mpsc, RwLock, broadcast};
 use parking_lot::Mutex;
-use tracing::{info, debug, warn, error};
+use tracing::info;
 
 use crate::error::AppError;
-use crate::core::{StreamManager, StreamEvent};
+use crate::core::StreamManager;
 
 /// Gestionnaire principal du playback
 #[derive(Debug)]
@@ -396,7 +396,7 @@ impl PlaybackManager {
             // Vérifier la limite de players concurrents
             if players.len() >= self.config.max_concurrent_players {
                 return Err(AppError::TooManyActivePlayers { 
-                    max: self.config.max_concurrent_players 
+                    limit: self.config.max_concurrent_players as u32
                 });
             }
             
@@ -478,7 +478,7 @@ impl SoundCloudPlayer {
         global_event_sender: broadcast::Sender<PlaybackEvent>,
     ) -> Result<Self, AppError> {
         let session_id = Uuid::new_v4();
-        let (event_sender, mut event_receiver) = mpsc::unbounded_channel();
+        let (event_sender, event_receiver) = mpsc::unbounded_channel();
         
         // État initial du playback
         let playback_state = Arc::new(RwLock::new(PlaybackState {
@@ -532,8 +532,9 @@ impl SoundCloudPlayer {
         let session_analytics = Arc::new(RwLock::new(SessionAnalytics::default()));
         
         // Gestion des événements asynchrones
-        let global_sender = global_event_sender.clone();
-        let local_receiver = event_receiver;
+        let _global_sender = global_event_sender.clone();
+        // UnboundedReceiver ne peut pas être cloné, on utilise directement
+        let _local_receiver = event_receiver;
         
         tokio::spawn(async move {
             // Local event handling logic here would go
@@ -611,7 +612,7 @@ impl SoundCloudPlayer {
     
     /// Gère la transition de crossfade
     async fn handle_crossfade_transition(&self) -> Result<(), AppError> {
-        let mut controller = self.crossfade_controller.lock().await;
+        let mut controller = self.crossfade_controller.lock();
         
         if controller.enabled {
             controller.current_fade = Some(FadeState {
@@ -645,8 +646,7 @@ impl SoundCloudPlayer {
             Ok(())
         } else {
             Err(AppError::InvalidPlaybackState { 
-                current: format!("{:?}", state.status),
-                expected: "Playing".to_string() 
+                state: format!("Cannot pause from {:?} state (expected Playing)", state.status)
             })
         }
     }
@@ -670,8 +670,7 @@ impl SoundCloudPlayer {
             Ok(())
         } else {
             Err(AppError::InvalidPlaybackState { 
-                current: format!("{:?}", state.status),
-                expected: "Paused".to_string() 
+                state: format!("Cannot resume from {:?} state (expected Paused)", state.status)
             })
         }
     }

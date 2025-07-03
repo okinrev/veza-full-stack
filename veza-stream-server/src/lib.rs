@@ -28,8 +28,6 @@ pub use utils::*;
 // Types principaux
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
-use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use std::sync::Mutex;
 use std::collections::HashSet;
 use once_cell::sync::Lazy;
@@ -41,7 +39,7 @@ use crate::{
     health::HealthMonitor,
     notifications::NotificationService,
     streaming::{AdaptiveStreamingManager, WebSocketManager},
-    utils::Metrics,
+    // utils::Metrics,
 };
 
 // Lazy static pour les signatures utilisées
@@ -82,7 +80,6 @@ pub struct StreamResponse {
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
-    use tokio::fs;
     use std::io::Write;
 
     #[tokio::test]

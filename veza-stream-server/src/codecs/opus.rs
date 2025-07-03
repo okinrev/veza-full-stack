@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use parking_lot::Mutex;
 use serde::{Serialize, Deserialize};
-use tracing::{debug, warn, error};
+use tracing::debug;
 
 use crate::error::AppError;
 use super::{
@@ -142,10 +142,10 @@ struct OpusDecoderState {
 /// Adaptation de bande passante intelligente
 #[derive(Debug)]
 struct BandwidthAdaptation {
-    current_bandwidth: u32,
-    target_bandwidth: u32,
-    adaptation_rate: f32,
-    quality_history: Vec<f32>,
+    current_bitrate: u32,
+    target_bitrate: u32,
+    _adaptation_rate: f32,
+    _quality_history: Vec<f32>,
 }
 
 /// État de dissimulation de perte de paquets
@@ -237,10 +237,10 @@ impl OpusEncoderImpl {
             total_bytes: 0,
             last_bitrate: opus_config.bitrate,
             bandwidth_adaptation: BandwidthAdaptation {
-                current_bandwidth: opus_config.bitrate,
-                target_bandwidth: opus_config.bitrate,
-                adaptation_rate: 0.1,
-                quality_history: Vec::new(),
+                current_bitrate: opus_config.bitrate,
+                target_bitrate: opus_config.bitrate,
+                _adaptation_rate: 0.1,
+                _quality_history: Vec::new(),
             },
         };
         
@@ -282,27 +282,22 @@ impl OpusEncoderImpl {
         let valid_rates = [8000, 12000, 16000, 24000, 48000];
         if !valid_rates.contains(&self.config.sample_rate) {
             return Err(AppError::InvalidSampleRate {
-                codec: "opus".to_string(),
-                sample_rate: self.config.sample_rate,
-                supported: valid_rates.to_vec(),
+                rate: self.config.sample_rate,
             });
         }
         
         // Opus supporte 1 ou 2 channels
         if self.config.channels == 0 || self.config.channels > 2 {
             return Err(AppError::InvalidChannelCount {
-                codec: "opus".to_string(),
                 channels: self.config.channels,
-                supported: vec![1, 2],
             });
         }
         
         // Bitrate valide : 6kbps à 512kbps
         if self.config.bitrate < 6_000 || self.config.bitrate > 512_000 {
             return Err(AppError::InvalidBitrate {
-                codec: "opus".to_string(),
                 bitrate: self.config.bitrate,
-                range: (6_000, 512_000),
+                codec: "opus".to_string(),
             });
         }
         
@@ -310,6 +305,7 @@ impl OpusEncoderImpl {
     }
     
     /// Adapte automatiquement le bitrate selon les conditions
+    #[allow(dead_code)]
     fn adapt_bitrate(&mut self, available_bandwidth: u32, packet_loss: f32) -> Result<(), AppError> {
         let mut state = self.encoder_state.lock();
         
@@ -324,17 +320,17 @@ impl OpusEncoderImpl {
         // Limites du codec
         target_bitrate = target_bitrate.clamp(6_000, 512_000);
         
-        if target_bitrate != state.bandwidth_adaptation.current_bandwidth {
-            state.bandwidth_adaptation.target_bandwidth = target_bitrate;
+        if target_bitrate != state.bandwidth_adaptation.current_bitrate {
+            state.bandwidth_adaptation.target_bitrate = target_bitrate;
             
             // Adaptation progressive
-            let diff = target_bitrate as f32 - state.bandwidth_adaptation.current_bandwidth as f32;
-            let adjustment = diff * state.bandwidth_adaptation.adaptation_rate;
-            state.bandwidth_adaptation.current_bandwidth = 
-                (state.bandwidth_adaptation.current_bandwidth as f32 + adjustment) as u32;
+            let diff = target_bitrate as f32 - state.bandwidth_adaptation.current_bitrate as f32;
+            let adjustment = diff * state.bandwidth_adaptation._adaptation_rate;
+            state.bandwidth_adaptation.current_bitrate = 
+                (state.bandwidth_adaptation.current_bitrate as f32 + adjustment) as u32;
             
             debug!("Adaptation bitrate Opus: {} -> {} bps", 
-                   state.last_bitrate, state.bandwidth_adaptation.current_bandwidth);
+                   state.last_bitrate, state.bandwidth_adaptation.current_bitrate);
         }
         
         Ok(())
@@ -432,7 +428,7 @@ impl AudioEncoder for OpusEncoderImpl {
         if sample_rate != self.config.sample_rate || channels != self.config.channels {
             return Err(AppError::ParameterMismatch {
                 expected: format!("{}Hz, {} ch", self.config.sample_rate, self.config.channels),
-                received: format!("{}Hz, {} ch", sample_rate, channels),
+                got: format!("{}Hz, {} ch", sample_rate, channels),
             });
         }
         
@@ -484,9 +480,8 @@ impl AudioEncoder for OpusEncoderImpl {
     fn set_bitrate(&mut self, bitrate: u32) -> Result<(), AppError> {
         if bitrate < 6_000 || bitrate > 512_000 {
             return Err(AppError::InvalidBitrate {
-                codec: "opus".to_string(),
                 bitrate,
-                range: (6_000, 512_000),
+                codec: "opus".to_string(),
             });
         }
         
@@ -495,8 +490,8 @@ impl AudioEncoder for OpusEncoderImpl {
         {
             let mut state = self.encoder_state.lock();
             state.last_bitrate = bitrate;
-            state.bandwidth_adaptation.current_bandwidth = bitrate;
-            state.bandwidth_adaptation.target_bandwidth = bitrate;
+            state.bandwidth_adaptation.current_bitrate = bitrate;
+            state.bandwidth_adaptation.target_bitrate = bitrate;
         }
         
         debug!("Bitrate Opus mis à jour: {} bps", bitrate);

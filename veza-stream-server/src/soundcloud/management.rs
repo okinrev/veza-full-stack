@@ -540,7 +540,7 @@ impl ContentManager {
     }
     
     /// Vérifie si une règle s'applique
-    async fn rule_matches(&self, rule: &PolicyRule, flag: &ModerationFlag) -> Result<bool, AppError> {
+    async fn rule_matches(&self, rule: &PolicyRule, _flag: &ModerationFlag) -> Result<bool, AppError> {
         for condition in &rule.conditions {
             match condition {
                 PolicyCondition::UserFlagCount { threshold } => {

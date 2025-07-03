@@ -1,14 +1,12 @@
 package notifications
 
 import (
-	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
-	
+
 	"github.com/okinrev/veza-web-app/internal/response"
 )
 
@@ -49,7 +47,7 @@ func (h *Handler) SendNotification(c *gin.Context) {
 	}
 
 	role, _ := c.Get("role")
-	
+
 	// Seuls les admins peuvent envoyer des notifications à d'autres utilisateurs
 	if req.UserID != userID && role != "admin" {
 		response.Forbidden(c, "Cannot send notifications to other users")
@@ -76,7 +74,7 @@ func (h *Handler) SendBulkNotification(c *gin.Context) {
 	}
 
 	var req struct {
-		UserIDs []string              `json:"user_ids" binding:"required"`
+		UserIDs []string `json:"user_ids" binding:"required"`
 		NotificationRequest
 	}
 
@@ -285,13 +283,13 @@ func (h *Handler) GetChannels(c *gin.Context) {
 
 // UserPreferences préférences de notification d'un utilisateur
 type UserPreferences struct {
-	UserID          string                              `json:"user_id"`
-	EnabledChannels map[Channel]bool                    `json:"enabled_channels"`
-	TypePreferences map[NotificationType][]Channel      `json:"type_preferences"`
-	QuietHours      *QuietHours                         `json:"quiet_hours,omitempty"`
-	EmailDigest     bool                                `json:"email_digest"`
-	Language        string                              `json:"language"`
-	Timezone        string                              `json:"timezone"`
+	UserID          string                         `json:"user_id"`
+	EnabledChannels map[Channel]bool               `json:"enabled_channels"`
+	TypePreferences map[NotificationType][]Channel `json:"type_preferences"`
+	QuietHours      *QuietHours                    `json:"quiet_hours,omitempty"`
+	EmailDigest     bool                           `json:"email_digest"`
+	Language        string                         `json:"language"`
+	Timezone        string                         `json:"timezone"`
 }
 
 // QuietHours heures de silence
@@ -324,8 +322,8 @@ func (h *Handler) GetUserPreferences(c *gin.Context) {
 			ChannelWebhook:   false,
 		},
 		TypePreferences: map[NotificationType][]Channel{
-			NotificationNewMessage:  {ChannelWebSocket, ChannelPush},
-			NotificationNewFollower: {ChannelWebSocket, ChannelEmail},
+			NotificationNewMessage:    {ChannelWebSocket, ChannelPush},
+			NotificationNewFollower:   {ChannelWebSocket, ChannelEmail},
 			NotificationSecurityAlert: {ChannelWebSocket, ChannelEmail, ChannelSMS},
 		},
 		EmailDigest: true,

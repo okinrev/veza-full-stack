@@ -1,11 +1,10 @@
 use axum::{
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
-        State, Path, Query,
+        ws::{WebSocket, WebSocketUpgrade},
+        State, Query,
     },
     response::Response,
 };
-use futures_util::{sink::SinkExt, stream::StreamExt};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -13,7 +12,7 @@ use std::{
     time::{SystemTime, Duration},
 };
 use tokio::sync::{RwLock, broadcast};
-use tracing::{info, debug, warn, error};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -233,9 +232,9 @@ impl WebSocketManager {
         })
     }
 
-    async fn handle_socket(&self, socket: WebSocket, user_id: Option<String>, ip_address: String) {
+    async fn handle_socket(&self, _socket: WebSocket, user_id: Option<String>, ip_address: String) {
         let connection_id = Uuid::new_v4();
-        let (sender, receiver) = broadcast::channel(100);
+        let (sender, _receiver) = broadcast::channel(100);
         
         let connection = WebSocketConnection {
             id: connection_id,
@@ -265,7 +264,7 @@ impl WebSocketManager {
             level: MessageLevel::Info,
         };
         
-        if let Ok(json) = serde_json::to_string(&welcome_event) {
+        if let Ok(_json) = serde_json::to_string(&welcome_event) {
             if let Err(e) = sender.send(welcome_event) {
                 warn!("Erreur envoi message bienvenue: {}", e);
             }

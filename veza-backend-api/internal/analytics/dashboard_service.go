@@ -3,7 +3,6 @@ package analytics
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -13,18 +12,18 @@ import (
 
 // DashboardService service de dashboard temps réel
 type DashboardService struct {
-	db                     *sql.DB
-	logger                 *zap.Logger
-	cache                  EngagementCache
-	userEngagementService  *UserEngagementService
-	chatAnalyticsService   *ChatAnalyticsService
-	streamAnalyticsService *StreamAnalyticsService
+	db                      *sql.DB
+	logger                  *zap.Logger
+	cache                   EngagementCache
+	userEngagementService   *UserEngagementService
+	chatAnalyticsService    *ChatAnalyticsService
+	streamAnalyticsService  *StreamAnalyticsService
 	revenueAnalyticsService *RevenueAnalyticsService
-	
+
 	// WebSocket pour updates temps réel
 	subscribers map[string]chan *DashboardUpdate
 	mutex       sync.RWMutex
-	
+
 	// Métriques en cache
 	cachedMetrics *DashboardMetrics
 	lastUpdate    time.Time
@@ -32,129 +31,129 @@ type DashboardService struct {
 
 // DashboardMetrics métriques complètes du dashboard
 type DashboardMetrics struct {
-	Overview          OverviewMetrics           `json:"overview"`
-	UserEngagement    *UserEngagementMetrics    `json:"user_engagement"`
-	ChatMetrics       *ChatMetrics              `json:"chat_metrics"`
-	StreamMetrics     *StreamMetrics            `json:"stream_metrics"`
-	RevenueMetrics    *RevenueMetrics           `json:"revenue_metrics"`
-	RealtimeMetrics   RealtimeMetrics           `json:"realtime_metrics"`
-	SystemHealth      SystemHealthMetrics       `json:"system_health"`
-	AlertsAndNotifications []DashboardAlert     `json:"alerts_notifications"`
-	LastUpdated       time.Time                 `json:"last_updated"`
+	Overview               OverviewMetrics        `json:"overview"`
+	UserEngagement         *UserEngagementMetrics `json:"user_engagement"`
+	ChatMetrics            *ChatMetrics           `json:"chat_metrics"`
+	StreamMetrics          *StreamMetrics         `json:"stream_metrics"`
+	RevenueMetrics         *RevenueMetrics        `json:"revenue_metrics"`
+	RealtimeMetrics        RealtimeMetrics        `json:"realtime_metrics"`
+	SystemHealth           SystemHealthMetrics    `json:"system_health"`
+	AlertsAndNotifications []DashboardAlert       `json:"alerts_notifications"`
+	LastUpdated            time.Time              `json:"last_updated"`
 }
 
 // OverviewMetrics métriques de vue d'ensemble
 type OverviewMetrics struct {
-	TotalUsers        int64   `json:"total_users"`
-	ActiveUsers24h    int64   `json:"active_users_24h"`
-	TotalRevenue      float64 `json:"total_revenue"`
-	Revenue24h        float64 `json:"revenue_24h"`
-	TotalStreams      int64   `json:"total_streams"`
-	Streams24h        int64   `json:"streams_24h"`
-	TotalMessages     int64   `json:"total_messages"`
-	Messages24h       int64   `json:"messages_24h"`
-	ConversionRate    float64 `json:"conversion_rate"`
-	ChurnRate         float64 `json:"churn_rate"`
-	NPS               float64 `json:"nps"`                // Net Promoter Score
-	ServerUptime      float64 `json:"server_uptime"`
+	TotalUsers     int64   `json:"total_users"`
+	ActiveUsers24h int64   `json:"active_users_24h"`
+	TotalRevenue   float64 `json:"total_revenue"`
+	Revenue24h     float64 `json:"revenue_24h"`
+	TotalStreams   int64   `json:"total_streams"`
+	Streams24h     int64   `json:"streams_24h"`
+	TotalMessages  int64   `json:"total_messages"`
+	Messages24h    int64   `json:"messages_24h"`
+	ConversionRate float64 `json:"conversion_rate"`
+	ChurnRate      float64 `json:"churn_rate"`
+	NPS            float64 `json:"nps"` // Net Promoter Score
+	ServerUptime   float64 `json:"server_uptime"`
 }
 
 // RealtimeMetrics métriques temps réel
 type RealtimeMetrics struct {
-	CurrentUsers      int64                 `json:"current_users"`
-	ActiveStreams     int64                 `json:"active_streams"`
-	MessageRate       float64               `json:"message_rate_per_minute"`
-	StreamRate        float64               `json:"stream_rate_per_minute"`
-	ErrorRate         float64               `json:"error_rate_percent"`
-	ResponseTime      float64               `json:"avg_response_time_ms"`
-	BandwidthUsage    float64               `json:"bandwidth_usage_mbps"`
-	CPUUsage          float64               `json:"cpu_usage_percent"`
-	MemoryUsage       float64               `json:"memory_usage_percent"`
-	DatabaseQueries   int64                 `json:"database_queries_per_second"`
-	CacheHitRate      float64               `json:"cache_hit_rate_percent"`
-	ActiveConnections int64                 `json:"active_connections"`
-	QueueLength       int64                 `json:"queue_length"`
-	GeoDistribution   map[string]int64      `json:"geo_distribution"`
+	CurrentUsers      int64            `json:"current_users"`
+	ActiveStreams     int64            `json:"active_streams"`
+	MessageRate       float64          `json:"message_rate_per_minute"`
+	StreamRate        float64          `json:"stream_rate_per_minute"`
+	ErrorRate         float64          `json:"error_rate_percent"`
+	ResponseTime      float64          `json:"avg_response_time_ms"`
+	BandwidthUsage    float64          `json:"bandwidth_usage_mbps"`
+	CPUUsage          float64          `json:"cpu_usage_percent"`
+	MemoryUsage       float64          `json:"memory_usage_percent"`
+	DatabaseQueries   int64            `json:"database_queries_per_second"`
+	CacheHitRate      float64          `json:"cache_hit_rate_percent"`
+	ActiveConnections int64            `json:"active_connections"`
+	QueueLength       int64            `json:"queue_length"`
+	GeoDistribution   map[string]int64 `json:"geo_distribution"`
 }
 
 // SystemHealthMetrics métriques de santé du système
 type SystemHealthMetrics struct {
-	OverallHealth     string                 `json:"overall_health"`      // healthy, warning, critical
-	Services          map[string]ServiceHealth `json:"services"`
-	Infrastructure    InfrastructureHealth   `json:"infrastructure"`
-	Alerts            []SystemAlert          `json:"alerts"`
-	LastIncident      *time.Time             `json:"last_incident,omitempty"`
-	UptimePercentage  float64                `json:"uptime_percentage"`
+	OverallHealth    string                   `json:"overall_health"` // healthy, warning, critical
+	Services         map[string]ServiceHealth `json:"services"`
+	Infrastructure   InfrastructureHealth     `json:"infrastructure"`
+	Alerts           []SystemAlert            `json:"alerts"`
+	LastIncident     *time.Time               `json:"last_incident,omitempty"`
+	UptimePercentage float64                  `json:"uptime_percentage"`
 }
 
 // ServiceHealth santé d'un service
 type ServiceHealth struct {
-	Status        string    `json:"status"`         // healthy, warning, critical, down
-	ResponseTime  float64   `json:"response_time_ms"`
-	ErrorRate     float64   `json:"error_rate_percent"`
-	LastCheck     time.Time `json:"last_check"`
-	Dependencies  []string  `json:"dependencies"`
+	Status       string    `json:"status"` // healthy, warning, critical, down
+	ResponseTime float64   `json:"response_time_ms"`
+	ErrorRate    float64   `json:"error_rate_percent"`
+	LastCheck    time.Time `json:"last_check"`
+	Dependencies []string  `json:"dependencies"`
 }
 
 // InfrastructureHealth santé de l'infrastructure
 type InfrastructureHealth struct {
-	Database      ServiceHealth `json:"database"`
-	Redis         ServiceHealth `json:"redis"`
-	FileStorage   ServiceHealth `json:"file_storage"`
-	CDN           ServiceHealth `json:"cdn"`
-	LoadBalancer  ServiceHealth `json:"load_balancer"`
-	Monitoring    ServiceHealth `json:"monitoring"`
+	Database     ServiceHealth `json:"database"`
+	Redis        ServiceHealth `json:"redis"`
+	FileStorage  ServiceHealth `json:"file_storage"`
+	CDN          ServiceHealth `json:"cdn"`
+	LoadBalancer ServiceHealth `json:"load_balancer"`
+	Monitoring   ServiceHealth `json:"monitoring"`
 }
 
 // SystemAlert alerte système
 type SystemAlert struct {
-	ID          string    `json:"id"`
-	Severity    string    `json:"severity"`    // info, warning, critical
-	Service     string    `json:"service"`
-	Message     string    `json:"message"`
-	Timestamp   time.Time `json:"timestamp"`
-	Resolved    bool      `json:"resolved"`
-	ResolvedAt  *time.Time `json:"resolved_at,omitempty"`
+	ID         string     `json:"id"`
+	Severity   string     `json:"severity"` // info, warning, critical
+	Service    string     `json:"service"`
+	Message    string     `json:"message"`
+	Timestamp  time.Time  `json:"timestamp"`
+	Resolved   bool       `json:"resolved"`
+	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
 }
 
 // DashboardAlert alerte dashboard
 type DashboardAlert struct {
-	ID          string    `json:"id"`
-	Type        string    `json:"type"`        // metric_threshold, anomaly, system
-	Severity    string    `json:"severity"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Metric      string    `json:"metric"`
-	Threshold   float64   `json:"threshold"`
-	CurrentValue float64  `json:"current_value"`
-	Timestamp   time.Time `json:"timestamp"`
-	Acknowledged bool     `json:"acknowledged"`
+	ID           string    `json:"id"`
+	Type         string    `json:"type"` // metric_threshold, anomaly, system
+	Severity     string    `json:"severity"`
+	Title        string    `json:"title"`
+	Description  string    `json:"description"`
+	Metric       string    `json:"metric"`
+	Threshold    float64   `json:"threshold"`
+	CurrentValue float64   `json:"current_value"`
+	Timestamp    time.Time `json:"timestamp"`
+	Acknowledged bool      `json:"acknowledged"`
 }
 
 // DashboardUpdate update temps réel du dashboard
 type DashboardUpdate struct {
-	Type      string      `json:"type"`      // full_refresh, metric_update, alert
+	Type      string      `json:"type"` // full_refresh, metric_update, alert
 	Data      interface{} `json:"data"`
 	Timestamp time.Time   `json:"timestamp"`
 }
 
 // DashboardConfig configuration du dashboard
 type DashboardConfig struct {
-	RefreshInterval time.Duration `json:"refresh_interval"`
+	RefreshInterval time.Duration   `json:"refresh_interval"`
 	AlertThresholds AlertThresholds `json:"alert_thresholds"`
-	EnableRealtime  bool          `json:"enable_realtime"`
+	EnableRealtime  bool            `json:"enable_realtime"`
 }
 
 // AlertThresholds seuils d'alerte
 type AlertThresholds struct {
-	HighErrorRate        float64 `json:"high_error_rate"`         // %
-	HighResponseTime     float64 `json:"high_response_time"`      // ms
-	LowConversionRate    float64 `json:"low_conversion_rate"`     // %
-	HighChurnRate        float64 `json:"high_churn_rate"`         // %
-	LowCacheHitRate      float64 `json:"low_cache_hit_rate"`      // %
-	HighCPUUsage         float64 `json:"high_cpu_usage"`          // %
-	HighMemoryUsage      float64 `json:"high_memory_usage"`       // %
-	LowDiskSpace         float64 `json:"low_disk_space"`          // %
+	HighErrorRate     float64 `json:"high_error_rate"`     // %
+	HighResponseTime  float64 `json:"high_response_time"`  // ms
+	LowConversionRate float64 `json:"low_conversion_rate"` // %
+	HighChurnRate     float64 `json:"high_churn_rate"`     // %
+	LowCacheHitRate   float64 `json:"low_cache_hit_rate"`  // %
+	HighCPUUsage      float64 `json:"high_cpu_usage"`      // %
+	HighMemoryUsage   float64 `json:"high_memory_usage"`   // %
+	LowDiskSpace      float64 `json:"low_disk_space"`      // %
 }
 
 // NewDashboardService crée un nouveau service de dashboard
@@ -539,12 +538,12 @@ func (s *DashboardService) getRealtimeMetrics(ctx context.Context) (RealtimeMetr
 		ActiveConnections: 1250,
 		QueueLength:       12,
 		GeoDistribution: map[string]int64{
-			"France": 85,
-			"Belgium": 42,
+			"France":      85,
+			"Belgium":     42,
 			"Switzerland": 38,
-			"Canada": 35,
-			"Germany": 28,
-			"UK": 17,
+			"Canada":      35,
+			"Germany":     28,
+			"UK":          17,
 		},
 	}, nil
 }

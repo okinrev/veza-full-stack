@@ -9,18 +9,16 @@ pub mod events_service;
 pub mod client;
 pub mod server;
 
-pub use stream_service::*;
-pub use auth_service::*;
-pub use events_service::*;
-pub use client::*;
-pub use server::*;
+// pub use stream_service::*;
+// pub use events_service::*;
+// pub use client::*;
+// pub use server::*;
+// use tonic::{transport::{Server, Channel}, Request, Response, Status};
 
 use std::sync::Arc;
 use std::collections::HashMap;
-use tonic::{transport::{Server, Channel}, Request, Response, Status};
 use tokio::sync::{mpsc, RwLock};
 use tracing::{info, warn, error, debug};
-use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 
 use crate::error::AppError;
@@ -279,30 +277,42 @@ impl GoBackendClient {
     /// Convertit un événement stream en message gRPC
     fn convert_event_to_grpc(&self, event: StreamEvent) -> GrpcEvent {
         match event {
-            StreamEvent::StreamStarted { stream_id, metadata } => {
+            StreamEvent::StreamStarted { stream_id, creator_id } => {
                 GrpcEvent::StreamStarted {
                     stream_id: stream_id.to_string(),
-                    title: metadata.title,
-                    description: metadata.description.unwrap_or_default(),
-                    tags: metadata.tags,
+                    title: format!("Stream by user {}", creator_id),
+                    description: String::new(),
+                    tags: vec![],
                 }
             }
-            StreamEvent::StreamEnded { stream_id, duration, .. } => {
+            StreamEvent::StreamEnded { stream_id, duration } => {
                 GrpcEvent::StreamEnded {
                     stream_id: stream_id.to_string(),
                     duration_ms: duration.as_millis() as u64,
                 }
             }
-            StreamEvent::ListenerJoined { stream_id, listener_id, .. } => {
+            StreamEvent::ListenerJoined { stream_id, listener_id } => {
                 GrpcEvent::ListenerJoined {
                     stream_id: stream_id.to_string(),
                     listener_id: listener_id.to_string(),
                 }
             }
-            StreamEvent::ListenerLeft { stream_id, listener_id, .. } => {
+            StreamEvent::ListenerLeft { stream_id, listener_id } => {
                 GrpcEvent::ListenerLeft {
                     stream_id: stream_id.to_string(),
                     listener_id: listener_id.to_string(),
+                }
+            }
+            // Pour les autres événements, on les ignore pour le moment
+            StreamEvent::QualityChanged { .. } |
+            StreamEvent::ErrorOccurred { .. } |
+            StreamEvent::AnalyticsUpdate { .. } => {
+                // On pourrait ajouter d'autres types de GrpcEvent plus tard
+                GrpcEvent::StreamStarted {
+                    stream_id: "unknown".to_string(),
+                    title: "Event not converted".to_string(),
+                    description: String::new(),
+                    tags: vec![],
                 }
             }
         }
@@ -344,7 +354,7 @@ pub use generated_events_service::*;
 
 // Modules temporaires pour services générés (seront remplacés par proto)
 mod generated_stream_service {
-    use tonic::{async_trait, Request, Response, Status};
+    // use tonic::{async_trait, Request, Response, Status};
     
     pub struct StreamServiceServer<T> {
         inner: T,
@@ -362,15 +372,15 @@ mod generated_stream_service {
 }
 
 mod generated_auth_service {
-    pub struct AuthServiceServer<T> {
-        inner: T,
-    }
+    // pub struct AuthServiceServer<T> {
+    //     inner: T,
+    // }
     
-    impl<T> AuthServiceServer<T> {
-        pub fn new(inner: T) -> Self {
-            Self { inner }
-        }
-    }
+    // impl<T> AuthServiceServer<T> {
+    //     pub fn new(inner: T) -> Self {
+    //         Self { inner }
+    //     }
+    // }
     
     pub struct AuthServiceImpl {
         // Sera implémenté avec les vrais services gRPC
@@ -378,15 +388,15 @@ mod generated_auth_service {
 }
 
 mod generated_events_service {
-    pub struct EventsServiceServer<T> {
-        inner: T,
-    }
+    // pub struct EventsServiceServer<T> {
+    //     inner: T,
+    // }
     
-    impl<T> EventsServiceServer<T> {
-        pub fn new(inner: T) -> Self {
-            Self { inner }
-        }
-    }
+    // impl<T> EventsServiceServer<T> {
+    //     pub fn new(inner: T) -> Self {
+    //         Self { inner }
+    //     }
+    // }
     
     pub struct EventsServiceImpl {
         // Sera implémenté avec les vrais services gRPC

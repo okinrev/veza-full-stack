@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use axum::{
     extract::{Request, State},
-    http::{HeaderMap, HeaderValue, StatusCode},
+    http::{HeaderMap, StatusCode},
     middleware::Next,
     response::Response,
     Json,
@@ -11,20 +11,21 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use tracing::{debug, error, warn};
-use crate::config::Config;
+use crate::Config;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,        // Subject (user ID)
-    pub username: String,   // Username
+    pub sub: i64,               // Subject (user ID) - ALIGNED WITH i64
+    pub username: String,       // Username
     pub email: Option<String>,
     pub roles: Vec<Role>,
     pub permissions: Vec<Permission>,
-    pub exp: u64,          // Expiration time
-    pub iat: u64,          // Issued at
-    pub iss: String,       // Issuer
-    pub aud: String,       // Audience
-    pub session_id: String, // Session ID pour la révocation
+    pub exp: u64,              // Expiration time
+    pub iat: u64,              // Issued at
+    pub iss: String,           // Issuer
+    pub aud: String,           // Audience
+    pub session_id: String,    // Session ID pour la révocation
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -84,7 +85,7 @@ pub struct LoginResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserInfo {
-    pub id: String,
+    pub id: i64,                        // ALIGNED WITH i64
     pub username: String,
     pub email: Option<String>,
     pub roles: Vec<Role>,
@@ -148,7 +149,7 @@ impl AuthManager {
         // Simuler une authentification (à remplacer par votre logique réelle)
         if username == "admin" && password == "admin123" {
             Ok(UserInfo {
-                id: "admin_001".to_string(),
+                id: 1001,  // ALIGNED WITH i64
                 username: username.to_string(),
                 email: Some("admin@example.com".to_string()),
                 roles: vec![Role::Admin],
@@ -167,7 +168,7 @@ impl AuthManager {
             })
         } else if username == "user" && password == "user123" {
             Ok(UserInfo {
-                id: "user_001".to_string(),
+                id: 1002,  // ALIGNED WITH i64
                 username: username.to_string(),
                 email: Some("user@example.com".to_string()),
                 roles: vec![Role::User],
@@ -199,7 +200,7 @@ impl AuthManager {
         };
 
         let claims = Claims {
-            sub: user_info.id.clone(),
+            sub: user_info.id,  // ALIGNED WITH i64
             username: user_info.username.clone(),
             email: user_info.email.clone(),
             roles: user_info.roles.clone(),
@@ -440,15 +441,19 @@ pub async fn refresh_handler(
 ) -> Result<Json<LoginResponse>, (StatusCode, String)> {
     match auth_manager.refresh_token(&request.refresh_token).await {
         Ok((access_token, refresh_token)) => {
-            // Simuler la récupération des infos utilisateur
+            // Valider le refresh token pour récupérer les claims
+            let validation_result = auth_manager.validate_token(&request.refresh_token).await;
+            let claims = validation_result.claims.unwrap(); // Safe because refresh_token succeeded
+            
+            // Créer UserInfo à partir des claims avec i64 aligned
             let user_info = UserInfo {
-                id: "refreshed_user".to_string(),
-                username: "user".to_string(),
-                email: None,
-                roles: vec![Role::User],
-                permissions: vec![Permission::StreamAudio],
+                id: claims.sub,  // ALIGNED WITH i64 - use claims.sub directly
+                username: claims.username.clone(),
+                email: claims.email.clone(),
+                roles: claims.roles.clone(),
+                permissions: claims.permissions.clone(),
                 subscription_tier: SubscriptionTier::Free,
-                created_at: 0,
+                created_at: claims.iat,
                 last_login: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
             };
 

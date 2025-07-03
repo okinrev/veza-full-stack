@@ -16,7 +16,6 @@ use dashmap::DashMap;
 use uuid::Uuid;
 
 use crate::error::{ChatError, Result};
-use crate::core::message::{StoredMessage, MessageType};
 
 /// Message riche Discord-like avec toutes les fonctionnalités
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -280,7 +279,7 @@ pub struct MessageApplication {
     pub description: String,
 }
 
-/// Gestionnaire de messages riches
+/// Gestionnaire des messages enrichis
 #[derive(Debug)]
 pub struct RichMessageManager {
     /// Messages par ID
@@ -289,8 +288,6 @@ pub struct RichMessageManager {
     channel_messages: Arc<DashMap<String, Vec<String>>>,
     /// Index des threads
     threads: Arc<DashMap<String, MessageThread>>,
-    /// Index des réactions
-    reactions: Arc<DashMap<String, HashMap<String, MessageReaction>>>,
 }
 
 impl RichMessageManager {
@@ -299,7 +296,6 @@ impl RichMessageManager {
             messages: Arc::new(DashMap::new()),
             channel_messages: Arc::new(DashMap::new()),
             threads: Arc::new(DashMap::new()),
-            reactions: Arc::new(DashMap::new()),
         }
     }
     
@@ -564,7 +560,6 @@ impl Default for RichMessageManager {
             messages: Arc::new(DashMap::new()),
             channel_messages: Arc::new(DashMap::new()),
             threads: Arc::new(DashMap::new()),
-            reactions: Arc::new(DashMap::new()),
         }
     }
 }

@@ -4,7 +4,6 @@
 //! et activités Discord-like.
 
 use std::sync::Arc;
-use std::time::Duration;
 use dashmap::DashMap;
 use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
@@ -40,6 +39,7 @@ pub enum ActivityType {
 }
 
 /// Tracker de présence optimisé pour haute performance
+#[derive(Debug)]
 pub struct PresenceTracker {
     /// Status des utilisateurs
     statuses: Arc<DashMap<i64, PresenceStatus>>,

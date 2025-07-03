@@ -119,7 +119,10 @@ impl CodecFactory {
         match codec.to_lowercase().as_str() {
             "opus" => Ok(Box::new(opus::OpusEncoderImpl::new(config)?)),
             "aac" => Ok(Box::new(aac::AacEncoderImpl::new(config)?)),
-            "mp3" => Ok(Box::new(mp3::Mp3EncoderImpl::new(config)?)),
+            "mp3" => {
+                let mp3_config = Self::convert_to_mp3_encoder_config(config);
+                Ok(Box::new(mp3::Mp3EncoderImpl::new(mp3_config)))
+            },
             "flac" => Ok(Box::new(flac::FlacEncoderImpl::new(config)?)),
             _ => Err(AppError::UnsupportedCodec { codec: codec.to_string() }),
         }
@@ -130,7 +133,10 @@ impl CodecFactory {
         match codec.to_lowercase().as_str() {
             "opus" => Ok(Box::new(opus::OpusDecoderImpl::new(config)?)),
             "aac" => Ok(Box::new(aac::AacDecoderImpl::new(config)?)),
-            "mp3" => Ok(Box::new(mp3::Mp3DecoderImpl::new(config)?)),
+            "mp3" => {
+                let mp3_config = Self::convert_to_mp3_decoder_config(config);
+                Ok(Box::new(mp3::Mp3DecoderImpl::new(mp3_config)))
+            },
             "flac" => Ok(Box::new(flac::FlacDecoderImpl::new(config)?)),
             _ => Err(AppError::UnsupportedCodec { codec: codec.to_string() }),
         }
@@ -184,6 +190,54 @@ impl CodecFactory {
                 latency_ms: 40.0,
             },
         ]
+    }
+    
+    /// Convertit EncoderConfig vers Mp3EncoderConfig
+    fn convert_to_mp3_encoder_config(config: EncoderConfig) -> mp3::Mp3EncoderConfig {
+        let quality_preset = match config.quality {
+            CodecQuality::Low => mp3::Mp3QualityPreset::Economy,
+            CodecQuality::Medium => mp3::Mp3QualityPreset::Standard,
+            CodecQuality::High => mp3::Mp3QualityPreset::Extreme,
+            CodecQuality::VeryHigh => mp3::Mp3QualityPreset::Insane,
+            CodecQuality::Custom(_) => mp3::Mp3QualityPreset::Standard,
+        };
+        
+        let encoding_mode = if config.enable_vbr {
+            mp3::Mp3EncodingMode::VBR
+        } else {
+            mp3::Mp3EncodingMode::CBR
+        };
+        
+        mp3::Mp3EncoderConfig {
+            encoding_mode,
+            bitrate: config.bitrate / 1000, // Convert to kbps
+            vbr_quality: match config.quality {
+                CodecQuality::Low => 7,
+                CodecQuality::Medium => 4,
+                CodecQuality::High => 2,
+                CodecQuality::VeryHigh => 0,
+                CodecQuality::Custom(f) => ((1.0 - f) * 9.0) as u8,
+            },
+            sample_rate: config.sample_rate,
+            channels: config.channels,
+            quality_preset,
+            joint_stereo: config.channels == 2,
+            error_protection: false,
+            include_id3: true,
+            copyright: false,
+            original: true,
+        }
+    }
+    
+    /// Convertit DecoderConfig vers Mp3DecoderConfig
+    fn convert_to_mp3_decoder_config(_config: DecoderConfig) -> mp3::Mp3DecoderConfig {
+        mp3::Mp3DecoderConfig {
+            frame_buffer_size: 1024,
+            enable_seeking: true,
+            error_tolerance: mp3::Mp3ErrorTolerance::Tolerant,
+            gapless_playback: true,
+            auto_eq: false,
+        }
     }
 }
 
@@ -287,7 +341,8 @@ pub mod utils {
                 samples.iter()
                     .flat_map(|&sample| {
                         let scaled = (sample * 8388607.0).clamp(-8388608.0, 8388607.0) as i32;
-                        scaled.to_le_bytes()[0..3].iter().copied()
+                        let bytes = scaled.to_le_bytes();
+                        [bytes[0], bytes[1], bytes[2]]
                     })
                     .collect()
             }
@@ -333,18 +388,14 @@ pub mod utils {
         // Vérifier sample rate
         if !codec_info.sample_rates.contains(&sample_rate) {
             return Err(AppError::InvalidSampleRate { 
-                codec: codec_name.to_string(),
-                sample_rate,
-                supported: codec_info.sample_rates.clone(),
+                rate: sample_rate,
             });
         }
         
         // Vérifier channels
         if !codec_info.channels_supported.contains(&channels) {
             return Err(AppError::InvalidChannelCount { 
-                codec: codec_name.to_string(),
                 channels,
-                supported: codec_info.channels_supported.clone(),
             });
         }
         
@@ -352,9 +403,8 @@ pub mod utils {
         let (min_bitrate, max_bitrate) = codec_info.bitrate_range;
         if bitrate < min_bitrate || bitrate > max_bitrate {
             return Err(AppError::InvalidBitrate { 
-                codec: codec_name.to_string(),
                 bitrate,
-                range: (min_bitrate, max_bitrate),
+                codec: codec_name.to_string(),
             });
         }
         
@@ -362,8 +412,4 @@ pub mod utils {
     }
 }
 
-// Aliases pour la compatibilité avec mp3.rs
-pub type CodecConfig = EncoderConfig;
-pub type AudioFrame = DecodedAudio;
-pub type EncodingResult = Vec<u8>;
-pub type DecodingResult = DecodedAudio; 
+ 

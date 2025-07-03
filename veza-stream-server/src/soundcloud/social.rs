@@ -10,13 +10,12 @@
 
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
-use std::time::{Duration, SystemTime, Instant};
+use std::time::{Duration, SystemTime};
 
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
-use tokio::sync::{RwLock, broadcast, mpsc};
-use parking_lot::Mutex;
-use tracing::{info, debug, warn};
+use tokio::sync::{RwLock, broadcast};
+use tracing::{info, debug};
 
 use crate::error::AppError;
 

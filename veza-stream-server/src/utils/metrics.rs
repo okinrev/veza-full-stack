@@ -1,14 +1,15 @@
 use std::{
     sync::{
-        atomic::{AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicU64, Ordering},
         Arc,
     },
     time::{Duration, Instant, SystemTime},
 };
 use tokio::sync::RwLock;
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 use std::collections::HashMap;
-use crate::config::Config;
+use crate::Config;
+
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ServerMetrics {
@@ -56,9 +57,9 @@ pub struct IpStats {
     pub rate_limited_count: u64,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Metrics {
-    config: Arc<Config>,
+    _config: Arc<Config>,
     counters: Arc<MetricsCounters>,
     start_time: Instant,
 }
@@ -66,7 +67,7 @@ pub struct Metrics {
 impl Metrics {
     pub fn new(config: Arc<Config>) -> Self {
         Self {
-            config,
+            _config: config,
             counters: Arc::new(MetricsCounters::new()),
             start_time: Instant::now(),
         }
@@ -103,7 +104,7 @@ impl Metrics {
         self.counters.bytes_served.fetch_add(bytes, Ordering::Relaxed);
     }
 
-    pub async fn record_request(&self, filename: String, client_ip: String, bytes_served: u64, response_time: Duration) {
+    pub async fn record_request(&self, _filename: String, _client_ip: String, bytes_served: u64, _response_time: Duration) {
         self.increment_requests();
         self.add_bytes_served(bytes_served);
         
@@ -137,6 +138,7 @@ impl Metrics {
     }
 }
 
+#[derive(Debug)]
 pub struct MetricsCounters {
     pub total_requests: AtomicU64,
     pub successful_requests: AtomicU64,

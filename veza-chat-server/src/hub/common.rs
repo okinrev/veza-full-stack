@@ -156,7 +156,7 @@ impl ChatHub {
     }
 
     /// Vérifie le rate limiting pour un utilisateur
-    pub async fn check_rate_limit(&self, user_id: i32) -> bool {
+    pub async fn check_rate_limit(&self, _user_id: i32) -> bool {
         // self.rate_limiter.check_and_update(user_id).await
         false
     }
@@ -214,19 +214,19 @@ impl ChatHub {
     }
 
     /// Ajoute une connexion utilisateur
-    pub async fn add_connection(&self, user_id: i32, session: UserSession) {
+    pub async fn add_connection(&self, _user_id: i32, _session: UserSession) {
         // let mut connections = self.connections.write().await;
         // connections.insert(user_id, session);
     }
 
     /// Supprime une connexion utilisateur
-    pub async fn remove_connection(&self, user_id: i32) {
+    pub async fn remove_connection(&self, _user_id: i32) {
         // let mut connections = self.connections.write().await;
         // connections.remove(&user_id);
     }
 
     /// Vérifie si un utilisateur est connecté
-    pub async fn is_user_connected(&self, user_id: i32) -> bool {
+    pub async fn is_user_connected(&self, _user_id: i32) -> bool {
         // let connections = self.connections.read().await;
         // connections.contains_key(&user_id)
         false
@@ -256,7 +256,7 @@ impl ChatHub {
     }
 
     /// Diffuse un message à tous les utilisateurs d'un salon
-    pub async fn broadcast_to_room(&self, room: &str, message: &str, exclude_user: Option<i32>) {
+    pub async fn broadcast_to_room(&self, room: &str, _message: &str, exclude_user: Option<i32>) {
         let users = self.get_room_users(room).await;
         // let connections = self.connections.read().await;
 

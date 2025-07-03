@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use dashmap::DashMap;
 use ring::{aead, rand::{SystemRandom, SecureRandom}};
 use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
-use tokio::sync::RwLock;
 
 use crate::error::{ChatError, Result};
 

@@ -7,7 +7,7 @@ use dashmap::DashMap;
 use tokio::sync::RwLock;
 use parking_lot::Mutex;
 
-use crate::error::{ChatError, Result};
+use crate::error::Result;
 
 /// Service de rate limiting avancé anti-DDoS
 #[derive(Debug)]
@@ -247,8 +247,6 @@ pub struct RateLimitResult {
     pub reputation_impact: f32,
 }
 
-use std::collections::VecDeque;
-
 impl AdvancedRateLimiter {
     /// Crée un nouveau rate limiter avancé
     pub fn new(config: RateLimitConfig) -> Self {
@@ -269,7 +267,7 @@ impl AdvancedRateLimiter {
         ip: IpAddr,
         user_id: Option<i64>,
         channel_id: Option<String>,
-        limit_type: LimitType,
+        _limit_type: LimitType,
         request_info: RequestInfo,
     ) -> Result<RateLimitResult> {
         let start_time = Instant::now();
@@ -296,14 +294,14 @@ impl AdvancedRateLimiter {
         }
         
         // 2. Vérifier le rate limiting par IP
-        let ip_result = self.check_ip_rate_limit(ip, &limit_type, &request_info).await?;
+        let ip_result = self.check_ip_rate_limit(ip, &_limit_type, &request_info).await?;
         if !ip_result.allowed {
             return Ok(ip_result);
         }
         
         // 3. Vérifier le rate limiting par utilisateur si applicable
         if let Some(uid) = user_id {
-            let user_result = self.check_user_rate_limit(uid, &limit_type).await?;
+            let user_result = self.check_user_rate_limit(uid, &_limit_type).await?;
             if !user_result.allowed {
                 return Ok(user_result);
             }
@@ -311,7 +309,7 @@ impl AdvancedRateLimiter {
         
         // 4. Vérifier le rate limiting par canal si applicable
         if let Some(cid) = channel_id {
-            let channel_result = self.check_channel_rate_limit(&cid, &limit_type).await?;
+            let channel_result = self.check_channel_rate_limit(&cid, &_limit_type).await?;
             if !channel_result.allowed {
                 return Ok(channel_result);
             }
@@ -338,7 +336,7 @@ impl AdvancedRateLimiter {
     async fn check_ip_rate_limit(
         &self,
         ip: IpAddr,
-        limit_type: &LimitType,
+        _limit_type: &LimitType,
         request_info: &RequestInfo,
     ) -> Result<RateLimitResult> {
         let config = self.config.read().await;
@@ -375,7 +373,7 @@ impl AdvancedRateLimiter {
         
         // Appliquer le rate limiting avec token bucket
         let remaining_tokens = {
-            let bucket = ip_limiter.buckets.get_mut(limit_type).unwrap();
+            let bucket = ip_limiter.buckets.get_mut(_limit_type).unwrap();
             bucket.refill();
             
             if bucket.tokens > 0 {
@@ -392,7 +390,7 @@ impl AdvancedRateLimiter {
             // Enregistrer l'événement pour l'analyse de patterns
             ip_limiter.request_patterns.push_back(RequestEvent {
                 timestamp: Instant::now(),
-                request_type: format!("{:?}", limit_type),
+                request_type: format!("{:?}", _limit_type),
                 path: request_info.path.clone(),
                 user_agent: request_info.user_agent.clone(),
                 response_time: Duration::from_millis(0),
@@ -426,7 +424,7 @@ impl AdvancedRateLimiter {
             
             Ok(RateLimitResult {
                 allowed: false,
-                reason: Some(format!("Rate limit exceeded for {:?}", limit_type)),
+                reason: Some(format!("Rate limit exceeded for {:?}", _limit_type)),
                 retry_after: Some(Duration::from_secs(60)),
                 remaining_tokens: 0,
                 burst_remaining: 0,
@@ -436,7 +434,7 @@ impl AdvancedRateLimiter {
     }
     
     /// Vérifie le rate limiting par utilisateur
-    async fn check_user_rate_limit(&self, user_id: i64, limit_type: &LimitType) -> Result<RateLimitResult> {
+    async fn check_user_rate_limit(&self, user_id: i64, _limit_type: &LimitType) -> Result<RateLimitResult> {
         let config = self.config.read().await;
         
         let mut user_limiter = self.user_limiters.entry(user_id).or_insert_with(|| {
@@ -454,7 +452,7 @@ impl AdvancedRateLimiter {
 
         // Puis accéder au bucket avec la capacité ajustée
         let remaining_tokens = {
-            let bucket = user_limiter.buckets.get_mut(limit_type).unwrap();
+            let bucket = user_limiter.buckets.get_mut(_limit_type).unwrap();
             bucket.capacity = (bucket.capacity as f32 * capacity_multiplier) as u32;
             bucket.refill();
             
@@ -484,7 +482,7 @@ impl AdvancedRateLimiter {
             
             Ok(RateLimitResult {
                 allowed: false,
-                reason: Some(format!("User rate limit exceeded for {:?}", limit_type)),
+                reason: Some(format!("User rate limit exceeded for {:?}", _limit_type)),
                 retry_after: Some(Duration::from_secs(30)),
                 remaining_tokens: 0,
                 burst_remaining: 0,
@@ -494,19 +492,21 @@ impl AdvancedRateLimiter {
     }
     
     /// Vérifie le rate limiting par canal
-    async fn check_channel_rate_limit(&self, channel_id: &str, limit_type: &LimitType) -> Result<RateLimitResult> {
+    async fn check_channel_rate_limit(&self, channel_id: &str, _limit_type: &LimitType) -> Result<RateLimitResult> {
+        tracing::debug!(?_limit_type, "Vérification du rate limit canal");
         let config = self.config.read().await;
         
         let mut channel_limiter = self.channel_limiters.entry(channel_id.to_string()).or_insert_with(|| {
             ChannelRateLimiter::new(channel_id.to_string(), &config)
         });
         
-        // Appliquer la modération selon le niveau du canal
-        let rate_multiplier = match channel_limiter.moderation_level {
-            ModerationLevel::Low => 1.5,
-            ModerationLevel::Normal => 1.0,
-            ModerationLevel::High => 0.5,
-            ModerationLevel::Lockdown => 0.1,
+        // Appliquer la modération selon le niveau du canal et le type de limite
+        let rate_multiplier = match (channel_limiter.moderation_level.clone(), _limit_type) {
+            (ModerationLevel::Low, LimitType::MessagesPerMinute) => 1.5,
+            (ModerationLevel::Normal, LimitType::MessagesPerMinute) => 1.0,
+            (ModerationLevel::High, LimitType::MessagesPerMinute) => 0.5,
+            (ModerationLevel::Lockdown, LimitType::MessagesPerMinute) => 0.1,
+            (_, _) => 1.0, // Valeur par défaut pour autres types
         };
         
         channel_limiter.message_bucket.refill();

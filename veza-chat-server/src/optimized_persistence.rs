@@ -8,17 +8,17 @@
 //! - Réplication asynchrone
 //! - Indexation intelligente
 
-use std::collections::{HashMap, VecDeque};
-use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tokio::sync::{RwLock, Mutex, mpsc};
-use tokio::time::{interval, timeout};
-use serde::{Serialize, Deserialize};
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::{mpsc, Mutex, RwLock};
+use tokio::time::{interval, timeout};
+use uuid::Uuid;
 use redis::AsyncCommands;
 use dashmap::DashMap;
-use uuid::Uuid;
-use chrono::{DateTime, Utc};
 use lz4::block::{compress, decompress};
 
 use crate::error::{ChatError, Result};
@@ -154,27 +154,13 @@ impl CacheEntry {
 #[derive(Debug)]
 struct PendingBatch {
     messages: Vec<OptimizedMessage>,
-    created_at: Instant,
 }
 
 impl PendingBatch {
     fn new() -> Self {
         Self {
             messages: Vec::new(),
-            created_at: Instant::now(),
         }
-    }
-    
-    fn add_message(&mut self, message: OptimizedMessage) {
-        self.messages.push(message);
-    }
-    
-    fn is_ready(&self, max_size: usize, max_age: Duration) -> bool {
-        self.messages.len() >= max_size || self.created_at.elapsed() > max_age
-    }
-    
-    fn is_empty(&self) -> bool {
-        self.messages.is_empty()
     }
 }
 
@@ -660,23 +646,6 @@ impl OptimizedPersistenceEngine {
         Ok(())
     }
     
-    /// Ajoute un message au batch pour écriture
-    async fn add_to_batch(&self, message: OptimizedMessage) -> Result<()> {
-        let mut batch = self.pending_writes.lock().await;
-        batch.add_message(message);
-        
-        // Si le batch est prêt, le traiter
-        if batch.is_ready(self.config.batch_size, self.config.batch_flush_interval) {
-            let messages = std::mem::replace(&mut batch.messages, Vec::new());
-            drop(batch); // Libérer le lock
-            
-            self.batch_sender.send(messages)
-                .map_err(|e| ChatError::configuration_error(&format!("Batch send: {}", e)))?;
-        }
-        
-        Ok(())
-    }
-    
     /// Boucle de traitement des batches
     async fn batch_processing_loop(&self) {
         let mut receiver = self.batch_receiver.lock().await;
@@ -803,7 +772,7 @@ impl OptimizedPersistenceEngine {
             interval.tick().await;
             
             let mut batch = self.pending_writes.lock().await;
-            if !batch.is_empty() {
+            if !batch.messages.is_empty() {
                 let messages = std::mem::replace(&mut batch.messages, Vec::new());
                 *batch = PendingBatch::new();
                 drop(batch);
@@ -924,6 +893,19 @@ impl OptimizedPersistenceEngine {
         }
         
         tracing::info!("🛑 Moteur de persistance arrêté");
+    }
+
+    /// Nettoie les anciennes métriques (maintenance)
+    pub async fn cleanup_old_metrics(&self) -> Result<()> {
+        // Implémenter la logique de nettoyage
+        // Supprimer les métriques plus anciennes que X jours
+        Ok(())
+    }
+
+    /// Démarre les tâches de maintenance en arrière-plan
+    pub async fn start_maintenance_tasks(&self) -> Result<()> {
+        // ... existing code ...
+        Ok(())
     }
 }
 

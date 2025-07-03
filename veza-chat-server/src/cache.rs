@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 use serde::{Serialize, Deserialize};
-use crate::error::Result;
 
 /// Cache entry avec expiration
 #[derive(Debug, Clone)]

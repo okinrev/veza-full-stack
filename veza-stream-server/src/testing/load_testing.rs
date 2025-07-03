@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{RwLock, Semaphore};
-use tracing::{info, debug, warn};
+use tracing::{info, debug};
 use uuid::Uuid;
 use futures::future::join_all;
 
@@ -74,6 +74,8 @@ impl LoadTester {
         let mut interval = tokio::time::interval(Duration::from_millis(interval_ms));
         let mut created_connections = 0;
         
+        let _stream_manager = stream_manager.clone();
+        
         while created_connections < self.max_connections {
             interval.tick().await;
             
@@ -83,7 +85,7 @@ impl LoadTester {
             
             for _ in 0..batch_size.min(self.max_connections - created_connections) {
                 let permit = self.connection_semaphore.clone().acquire_owned().await
-                    .map_err(|e| AppError::NetworkError(format!("Semaphore error: {}", e)))?;
+                                         .map_err(|e| AppError::NetworkError { message: format!("Semaphore error: {}", e) })?;
                 
                 let connection_future = self.create_test_connection(permit);
                 batch_futures.push(connection_future);
@@ -153,8 +155,9 @@ impl LoadTester {
             let batch_size = (connections_per_second / 10.0).ceil() as usize;
             let mut connections_guard = active_connections.write().await;
             
-            let to_remove = batch_size.min(connections_guard.len());
-            connections_guard.truncate(connections_guard.len() - to_remove);
+            let current_len = connections_guard.len();
+            let to_remove = batch_size.min(current_len);
+            connections_guard.truncate(current_len - to_remove);
             
             if connections_guard.len() % 10_000 == 0 {
                 info!("📊 Connexions restantes: {}", connections_guard.len());
@@ -245,7 +248,7 @@ impl LoadPatternGenerator {
                 (progress * self.max_connections as f64) as u32
             },
             LoadPattern::Exponential => {
-                let exp_progress = (progress * progress * progress);
+                let exp_progress = progress * progress * progress;
                 (exp_progress * self.max_connections as f64) as u32
             },
             LoadPattern::Spike { spike_interval } => {

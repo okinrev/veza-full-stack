@@ -2,7 +2,7 @@ use axum::{
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
-    routing::{get, post},
+    routing::get,
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -40,7 +40,7 @@ async fn health_check() -> impl IntoResponse {
 
 async fn stream_file_handler(
     Query(params): Query<StreamRequest>,
-    headers: HeaderMap,
+    _headers: HeaderMap,
     State(_state): State<AppState>,
 ) -> Result<Response> {
     // Validation basique

@@ -15,7 +15,7 @@ pub async fn request_logging_middleware(
     next: Next,
 ) -> Response {
     let start = Instant::now();
-    let method = request.method().clone();
+    let _method = request.method().clone();
     let uri = request.uri().clone();
     let headers = request.headers().clone();
     let request_id = Uuid::new_v4();
@@ -32,7 +32,7 @@ pub async fn request_logging_middleware(
     // Enregistrer le début de la requête
     info!(
         request_id = %request_id,
-        method = %method,
+        method = %_method,
         uri = %uri,
         client_ip = %client_ip,
         user_agent = ?headers.get("user-agent"),
@@ -53,10 +53,10 @@ pub async fn request_logging_middleware(
     }
     
     // Détecter les requêtes suspectes
-    if is_suspicious_request(&method, &uri, &headers, status) {
+    if is_suspicious_request(&_method, &uri, &headers, status) {
         warn!(
             request_id = %request_id,
-            method = %method,
+            method = %_method,
             uri = %uri,
             client_ip = %client_ip,
             status = %status,
@@ -77,7 +77,7 @@ pub async fn request_logging_middleware(
     match log_level {
         tracing::Level::ERROR => error!(
             request_id = %request_id,
-            method = %method,
+            method = %_method,
             uri = %uri,
             client_ip = %client_ip,
             status = %status,
@@ -86,7 +86,7 @@ pub async fn request_logging_middleware(
         ),
         tracing::Level::WARN => warn!(
             request_id = %request_id,
-            method = %method,
+            method = %_method,
             uri = %uri,
             client_ip = %client_ip,
             status = %status,
@@ -95,7 +95,7 @@ pub async fn request_logging_middleware(
         ),
         _ => info!(
             request_id = %request_id,
-            method = %method,
+            method = %_method,
             uri = %uri,
             client_ip = %client_ip,
             status = %status,
@@ -140,7 +140,7 @@ fn extract_client_ip(headers: &HeaderMap) -> String {
 }
 
 fn is_suspicious_request(
-    method: &Method,
+    _method: &Method,
     uri: &Uri,
     headers: &HeaderMap,
     status: StatusCode,

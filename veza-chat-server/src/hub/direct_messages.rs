@@ -17,8 +17,7 @@ use crate::error::{ChatError, Result};
 use serde_json::{json, Value};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
-use sqlx::PgPool;
-use std::collections::HashMap;
+
 
 // ================================================================
 // STRUCTURES DE DONNÉES
@@ -275,7 +274,7 @@ pub async fn send_dm_message(
     .await
     .map_err(|e| ChatError::from_sqlx_error("check_dm_conversation", e))?;
     
-    let (is_blocked, blocked_by, user1_id, user2_id) = match conversation_info {
+    let (is_blocked, _blocked_by, user1_id, user2_id) = match conversation_info {
         Some(row) => (
             row.get::<bool, _>("is_blocked"),
             row.get::<Option<i64>, _>("blocked_by"),

@@ -6,14 +6,13 @@
 /// - Mastering et production
 /// - Audiophiles et HiFi
 
-use std::collections::HashMap;
-use std::time::{Instant, SystemTime};
-use serde::{Serialize, Deserialize};
+
+use std::time::Instant;
+
 use crate::error::AppError;
 use crate::codecs::{
     AudioEncoder, AudioDecoder, EncoderConfig, DecoderConfig,
-    EncoderInfo, DecoderInfo, EncoderMetrics, DecodedAudio,
-    AudioSampleFormat, CodecQuality, LatencyMode
+    EncoderInfo, DecoderInfo, EncoderMetrics, DecodedAudio
 };
 
 /// Implémentation FLAC Encoder

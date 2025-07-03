@@ -2,32 +2,36 @@
 package common
 
 import (
-	"net/http"
+	"errors"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GetUserIDFromContext récupère l'ID de l'utilisateur depuis le contexte
-func GetUserIDFromContext(c *gin.Context) (int, bool) {
-	userID, exists := c.Get("user_id")
+const UserIDKey = "user_id"
+
+// GetUserIDFromContext extracts user ID from Gin context
+func GetUserIDFromContext(c *gin.Context) (int64, bool) {
+	userID, exists := c.Get(UserIDKey)
 	if !exists {
 		return 0, false
 	}
 
-	// Gestion des différents types possibles
+	// Handle different types that might be stored
 	switch v := userID.(type) {
-	case int:
+	case int64:
 		return v, true
+	case int:
+		return int64(v), true
+	case float64:
+		return int64(v), true
 	case string:
-		id, err := strconv.Atoi(v)
-		if err != nil {
-			return 0, false
+		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
+			return id, true
 		}
-		return id, true
-	default:
-		return 0, false
 	}
+
+	return 0, false
 }
 
 // GetUsernameFromContext récupère le nom d'utilisateur depuis le contexte
@@ -57,9 +61,9 @@ func GetRequestIDFromContext(c *gin.Context) (string, bool) {
 	return requestID.(string), true
 }
 
-// SetUserIDInContext définit l'ID de l'utilisateur dans le contexte
-func SetUserIDInContext(c *gin.Context, userID int) {
-	c.Set("user_id", userID)
+// SetUserIDInContext sets user ID in Gin context
+func SetUserIDInContext(c *gin.Context, userID int64) {
+	c.Set(UserIDKey, userID)
 }
 
 // SetUsernameInContext définit le nom d'utilisateur dans le contexte
@@ -77,38 +81,59 @@ func SetRequestIDInContext(c *gin.Context, requestID string) {
 	c.Set("request_id", requestID)
 }
 
-// RequireOwnership middleware checks if user owns the resource
-func RequireOwnership(getOwnerIDFunc func(*gin.Context) (int, error)) gin.HandlerFunc {
+// RequireOwnership middleware to check if user owns a resource
+func RequireOwnership(getOwnerIDFunc func(*gin.Context) (int64, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, exists := GetUserIDFromContext(c)
 		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{
-				"success": false,
-				"error":   "User not authenticated",
-			})
+			c.JSON(401, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
 		}
 
 		ownerID, err := getOwnerIDFunc(c)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"success": false,
-				"error":   "Resource not found",
-			})
+			c.JSON(400, gin.H{"error": "Invalid resource"})
 			c.Abort()
 			return
 		}
 
 		if userID != ownerID {
-			c.JSON(http.StatusForbidden, gin.H{
-				"success": false,
-				"error":   "Access denied",
-			})
+			c.JSON(403, gin.H{"error": "Forbidden: You don't own this resource"})
 			c.Abort()
 			return
 		}
 
 		c.Next()
 	}
+}
+
+// GetUserIDFromParam extracts user ID from URL parameter
+func GetUserIDFromParam(c *gin.Context, paramName string) (int64, error) {
+	param := c.Param(paramName)
+	if param == "" {
+		return 0, errors.New("missing user ID parameter")
+	}
+
+	userID, err := strconv.ParseInt(param, 10, 64)
+	if err != nil {
+		return 0, errors.New("invalid user ID format")
+	}
+
+	return userID, nil
+}
+
+// GetUserIDFromQuery extracts user ID from query parameter
+func GetUserIDFromQuery(c *gin.Context, queryName string) (int64, error) {
+	param := c.Query(queryName)
+	if param == "" {
+		return 0, errors.New("missing user ID query parameter")
+	}
+
+	userID, err := strconv.ParseInt(param, 10, 64)
+	if err != nil {
+		return 0, errors.New("invalid user ID format")
+	}
+
+	return userID, nil
 }

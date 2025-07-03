@@ -5,18 +5,10 @@ use std::{
     time::{SystemTime, Duration},
 };
 use tokio::sync::RwLock;
-use symphonia::core::{
-    audio::{AudioBufferRef, Signal},
-    codecs::{DecoderOptions, CODEC_TYPE_NULL},
-    formats::{FormatOptions, FormatReader},
-    io::MediaSourceStream,
-    meta::MetadataOptions,
-    probe::Hint,
-};
-use rustfft::{FftPlanner, num_complex::Complex};
+
 // Imports simplifiés pour éviter les erreurs de compilation
 use serde::{Serialize, Deserialize};
-use tracing::{info, debug, error, warn};
+use tracing::{info, debug, warn};
 use crate::config::Config;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,9 +74,9 @@ impl AudioQuality {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct AudioProcessor {
-    config: Arc<Config>,
+    _config: Arc<Config>,
     metadata_cache: Arc<RwLock<HashMap<PathBuf, AudioMetadata>>>,
     waveform_cache: Arc<RwLock<HashMap<PathBuf, WaveformData>>>,
 }
@@ -92,7 +84,7 @@ pub struct AudioProcessor {
 impl AudioProcessor {
     pub fn new(config: Arc<Config>) -> Self {
         Self {
-            config,
+            _config: config,
             metadata_cache: Arc::new(RwLock::new(HashMap::new())),
             waveform_cache: Arc::new(RwLock::new(HashMap::new())),
         }

@@ -1,15 +1,15 @@
 /// Core Stream Management pour production
 /// Support de 10k+ streams simultanés avec gestion optimisée
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Instant, Duration};
 use std::collections::HashMap;
 
 use dashmap::DashMap;
 use parking_lot::RwLock;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-use tracing::{info, warn, error, debug};
+use tracing::{info, debug};
 
 use crate::core::AudioFormat;
 use crate::error::AppError;
@@ -24,7 +24,7 @@ pub struct StreamManager {
     /// Gestionnaire de buffers adaptatifs
     buffer_manager: Arc<crate::core::BufferManager>,
     /// Analytics temps réel
-    analytics: Arc<StreamAnalytics>,
+    _analytics: Arc<StreamAnalytics>,
     /// Événements globaux (nouveaux streams, fin, etc.)
     event_sender: broadcast::Sender<StreamEvent>,
     /// Configuration globale
@@ -226,6 +226,8 @@ impl Default for StreamConfig {
             max_concurrent_streams: 10_000,
             max_listeners_per_stream: 100_000,
             default_audio_format: AudioFormat {
+                codec: "opus".to_string(),
+                bitrate: 128_000,
                 sample_rate: 44100,
                 channels: 2,
                 bit_depth: 16,
@@ -248,7 +250,7 @@ impl StreamManager {
             streams: Arc::new(DashMap::new()),
             encoder_pool: Arc::new(crate::core::EncoderPool::new()?),
             buffer_manager: Arc::new(crate::core::BufferManager::new()),
-            analytics: Arc::new(StreamAnalytics::default()),
+            _analytics: Arc::new(StreamAnalytics::default()),
             event_sender,
             config: Arc::new(RwLock::new(config)),
         })
@@ -267,8 +269,8 @@ impl StreamManager {
         // Vérifier les limites
         if self.streams.len() >= config.max_concurrent_streams {
             return Err(AppError::LimitExceeded {
-                limit: config.max_concurrent_streams,
-                current: self.streams.len(),
+                resource: "concurrent_streams".to_string(),
+                limit: config.max_concurrent_streams as u32,
             });
         }
         
@@ -317,13 +319,13 @@ impl StreamManager {
         listener: Listener,
     ) -> Result<(), AppError> {
         let stream = self.streams.get(&stream_id)
-            .ok_or_else(|| AppError::NotFound { stream_id })?;
+            .ok_or_else(|| AppError::NotFound { resource: format!("stream {}", stream_id) })?;
         
         let config = self.config.read();
         if stream.listeners.len() >= config.max_listeners_per_stream {
             return Err(AppError::ListenerLimitExceeded {
-                stream_id,
-                limit: config.max_listeners_per_stream,
+                current: stream.listeners.len() as u32,
+                limit: config.max_listeners_per_stream as u32,
             });
         }
         
@@ -347,7 +349,7 @@ impl StreamManager {
         listener_id: Uuid,
     ) -> Result<(), AppError> {
         let stream = self.streams.get(&stream_id)
-            .ok_or_else(|| AppError::NotFound { stream_id })?;
+            .ok_or_else(|| AppError::NotFound { resource: format!("stream {}", stream_id) })?;
         
         stream.listeners.remove(&listener_id);
         
@@ -364,7 +366,7 @@ impl StreamManager {
     /// Termine un stream
     pub async fn end_stream(&self, stream_id: Uuid) -> Result<(), AppError> {
         let (_, stream) = self.streams.remove(&stream_id)
-            .ok_or_else(|| AppError::NotFound { stream_id })?;
+            .ok_or_else(|| AppError::NotFound { resource: format!("stream {}", stream_id) })?;
         
         let duration = stream.started_at.elapsed();
         

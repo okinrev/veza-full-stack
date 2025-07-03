@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"time"
 
 	"go.uber.org/zap"
@@ -19,22 +20,22 @@ type UserEngagementService struct {
 
 // UserEngagementMetrics métriques d'engagement utilisateur
 type UserEngagementMetrics struct {
-	DAU               int64                     `json:"dau"`                 // Daily Active Users
-	WAU               int64                     `json:"wau"`                 // Weekly Active Users
-	MAU               int64                     `json:"mau"`                 // Monthly Active Users
-	NewUsers          int64                     `json:"new_users"`           // Nouveaux utilisateurs
-	ReturningUsers    int64                     `json:"returning_users"`     // Utilisateurs de retour
-	SessionDuration   float64                   `json:"avg_session_duration"` // Durée moyenne de session (minutes)
-	PagesPerSession   float64                   `json:"avg_pages_per_session"` // Pages par session
-	BounceRate        float64                   `json:"bounce_rate"`         // Taux de rebond (%)
-	RetentionRate     float64                   `json:"retention_rate"`      // Taux de rétention (%)
-	ChurnRate         float64                   `json:"churn_rate"`          // Taux de désabonnement (%)
-	EngagementScore   float64                   `json:"engagement_score"`    // Score d'engagement (0-100)
-	TopActions        []ActionMetric            `json:"top_actions"`         // Actions les plus fréquentes
-	DeviceBreakdown   map[string]int64          `json:"device_breakdown"`    // Répartition par device
-	GeographicData    map[string]int64          `json:"geographic_data"`     // Données géographiques
-	CohortAnalysis    map[string]CohortMetric   `json:"cohort_analysis"`     // Analyse de cohorte
-	FunnelMetrics     map[string]FunnelStep     `json:"funnel_metrics"`      // Métriques d'entonnoir
+	DAU             int64                   `json:"dau"`                   // Daily Active Users
+	WAU             int64                   `json:"wau"`                   // Weekly Active Users
+	MAU             int64                   `json:"mau"`                   // Monthly Active Users
+	NewUsers        int64                   `json:"new_users"`             // Nouveaux utilisateurs
+	ReturningUsers  int64                   `json:"returning_users"`       // Utilisateurs de retour
+	SessionDuration float64                 `json:"avg_session_duration"`  // Durée moyenne de session (minutes)
+	PagesPerSession float64                 `json:"avg_pages_per_session"` // Pages par session
+	BounceRate      float64                 `json:"bounce_rate"`           // Taux de rebond (%)
+	RetentionRate   float64                 `json:"retention_rate"`        // Taux de rétention (%)
+	ChurnRate       float64                 `json:"churn_rate"`            // Taux de désabonnement (%)
+	EngagementScore float64                 `json:"engagement_score"`      // Score d'engagement (0-100)
+	TopActions      []ActionMetric          `json:"top_actions"`           // Actions les plus fréquentes
+	DeviceBreakdown map[string]int64        `json:"device_breakdown"`      // Répartition par device
+	GeographicData  map[string]int64        `json:"geographic_data"`       // Données géographiques
+	CohortAnalysis  map[string]CohortMetric `json:"cohort_analysis"`       // Analyse de cohorte
+	FunnelMetrics   map[string]FunnelStep   `json:"funnel_metrics"`        // Métriques d'entonnoir
 }
 
 // ActionMetric métrique d'action utilisateur
@@ -47,12 +48,12 @@ type ActionMetric struct {
 
 // CohortMetric métrique de cohorte
 type CohortMetric struct {
-	CohortDate    time.Time `json:"cohort_date"`
-	InitialSize   int64     `json:"initial_size"`
-	Day1Retention float64   `json:"day1_retention"`
-	Day7Retention float64   `json:"day7_retention"`
-	Day30Retention float64  `json:"day30_retention"`
-	Revenue       float64   `json:"revenue"`
+	CohortDate     time.Time `json:"cohort_date"`
+	InitialSize    int64     `json:"initial_size"`
+	Day1Retention  float64   `json:"day1_retention"`
+	Day7Retention  float64   `json:"day7_retention"`
+	Day30Retention float64   `json:"day30_retention"`
+	Revenue        float64   `json:"revenue"`
 }
 
 // FunnelStep étape d'entonnoir de conversion
@@ -190,7 +191,7 @@ func (s *UserEngagementService) TrackAction(ctx context.Context, action *UserAct
 func (s *UserEngagementService) TrackPageView(ctx context.Context, sessionID, page string) error {
 	updateQuery := `UPDATE user_sessions SET page_views = page_views + 1 WHERE id = $1`
 	_, err := s.db.ExecContext(ctx, updateQuery, sessionID)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to track page view: %w", err)
 	}
@@ -211,7 +212,7 @@ func (s *UserEngagementService) TrackPageView(ctx context.Context, sessionID, pa
 // GetDailyActiveUsers retourne le nombre d'utilisateurs actifs quotidiens
 func (s *UserEngagementService) GetDailyActiveUsers(ctx context.Context, date time.Time) (int64, error) {
 	cacheKey := fmt.Sprintf("dau:%s", date.Format("2006-01-02"))
-	
+
 	if cached, exists := s.cache.Get(cacheKey); exists {
 		return cached.(int64), nil
 	}
@@ -353,7 +354,7 @@ func (s *UserEngagementService) getNewVsReturningUsers(ctx context.Context, date
 
 	var newUsers, returningUsers int64
 	err := s.db.QueryRowContext(ctx, query, dateRange.Start, dateRange.End).Scan(&newUsers, &returningUsers)
-	
+
 	return newUsers, returningUsers, err
 }
 
@@ -365,11 +366,11 @@ func (s *UserEngagementService) getAverageSessionDuration(ctx context.Context, d
 
 	var avgDuration sql.NullFloat64
 	err := s.db.QueryRowContext(ctx, query, dateRange.Start, dateRange.End).Scan(&avgDuration)
-	
+
 	if err != nil || !avgDuration.Valid {
 		return 0, err
 	}
-	
+
 	return avgDuration.Float64, nil
 }
 
@@ -381,11 +382,11 @@ func (s *UserEngagementService) getAveragePagesPerSession(ctx context.Context, d
 
 	var avgPages sql.NullFloat64
 	err := s.db.QueryRowContext(ctx, query, dateRange.Start, dateRange.End).Scan(&avgPages)
-	
+
 	if err != nil || !avgPages.Valid {
 		return 0, err
 	}
-	
+
 	return avgPages.Float64, nil
 }
 
@@ -398,11 +399,11 @@ func (s *UserEngagementService) getBounceRate(ctx context.Context, dateRange Dat
 
 	var bounceRate sql.NullFloat64
 	err := s.db.QueryRowContext(ctx, query, dateRange.Start, dateRange.End).Scan(&bounceRate)
-	
+
 	if err != nil || !bounceRate.Valid {
 		return 0, err
 	}
-	
+
 	return bounceRate.Float64, nil
 }
 
@@ -509,12 +510,12 @@ func (s *UserEngagementService) calculateEngagementScore(metrics *UserEngagement
 
 	// Facteur taux de rebond inversé (max 25 points)
 	if metrics.BounceRate >= 0 {
-		score += (100-metrics.BounceRate)/100*25
+		score += (100 - metrics.BounceRate) / 100 * 25
 	}
 
 	// Facteur rétention (max 30 points)
 	if metrics.RetentionRate > 0 {
-		score += metrics.RetentionRate/100*30
+		score += metrics.RetentionRate / 100 * 30
 	}
 
 	return min(score, 100)

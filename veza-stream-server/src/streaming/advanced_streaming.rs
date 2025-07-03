@@ -2,16 +2,16 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
-use tokio::sync::{RwLock, broadcast, mpsc};
+use std::time::{Duration, SystemTime};
+use tokio::sync::{RwLock, broadcast};
 use serde::{Deserialize, Serialize};
-use tracing::{info, debug, warn, error, span, Level};
+use tracing::{info, debug, warn, span, Level};
 use uuid::Uuid;
 use serde_json;
 
-use super::webrtc::{WebRTCManager, WebRTCConfig, WebRTCMessage, AudioCodec};
-use super::sync_manager::{SyncManager, SyncConfig, SyncMessage};
-use super::live_recording::{LiveRecordingManager, RecordingConfig, RecordingMessage, RecordingQuality};
+use super::webrtc::{WebRTCManager, WebRTCConfig};
+use super::sync_manager::{SyncManager, SyncConfig};
+use super::live_recording::{LiveRecordingManager, RecordingConfig, RecordingQuality};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AdvancedStreamingConfig {
@@ -544,7 +544,7 @@ impl AdvancedStreamingEngine {
     /// Démarrer le moniteur de sessions
     async fn start_session_monitor(&self) {
         let sessions = self.sessions.clone();
-        let streaming_tx = self.streaming_tx.clone();
+        let _streaming_tx = self.streaming_tx.clone();
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(10));
@@ -576,7 +576,7 @@ impl AdvancedStreamingEngine {
         }
 
         let sessions = self.sessions.clone();
-        let streaming_tx = self.streaming_tx.clone();
+        let _streaming_tx = self.streaming_tx.clone();
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(5));
@@ -615,7 +615,7 @@ impl AdvancedStreamingEngine {
                                 new_quality: new_quality.to_string(),
                             };
 
-                            if let Err(e) = streaming_tx.send(quality_msg) {
+                            if let Err(e) = _streaming_tx.send(quality_msg) {
                                 warn!("Failed to send quality change message: {}", e);
                             }
                         }

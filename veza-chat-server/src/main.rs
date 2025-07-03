@@ -3,32 +3,31 @@
 //! Version complète du serveur de chat avec support WebSocket et HTTP REST.
 
 use axum::{
-    extract::{Query, State, WebSocketUpgrade, ws::{Message, WebSocket}},
+    extract::{Query, State, WebSocketUpgrade},
     http::StatusCode,
-    response::{Response, Json},
     routing::{get, post},
-    Router,
+    Json, Router,
+    response::Response,
 };
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::net::TcpListener;
-use serde::{Deserialize, Serialize};
-use tracing::{info, warn, error};
-use futures_util::{SinkExt, StreamExt};
-use tokio::sync::RwLock;
-
 use chat_server::{
-    simple_message_store::{SimpleMessageStore, SimpleMessage},
+    simple_message_store::{SimpleMessage, SimpleMessageStore},
     websocket::{WebSocketManager, IncomingMessage, OutgoingMessage},
     error::ChatError,
-    models::User,
 };
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::net::TcpListener;
+use tracing::{info, warn, error};
+use tracing_subscriber;
+use std::collections::HashMap;
+use axum::extract::ws::{WebSocket, Message};
+use futures_util::{StreamExt, SinkExt};
 
 /// État global de l'application
 #[derive(Clone)]
 struct AppState {
     store: Arc<SimpleMessageStore>,
-    ws_manager: Arc<WebSocketManager>,
+    _ws_manager: Arc<WebSocketManager>,
 }
 
 /// Requête d'envoi de message
@@ -100,7 +99,7 @@ async fn main() -> Result<(), ChatError> {
     
     let state = AppState {
         store,
-        ws_manager,
+        _ws_manager: ws_manager,
     };
 
     // Configuration des routes avec WebSocket

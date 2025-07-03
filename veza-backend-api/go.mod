@@ -18,6 +18,7 @@ require (
 	github.com/nats-io/nats.go v1.43.0
 	github.com/pquerna/otp v1.4.0
 	github.com/prometheus/client_golang v1.19.0
+	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/stretchr/testify v1.8.3
 	go.uber.org/zap v1.26.0
 	golang.org/x/crypto v0.37.0

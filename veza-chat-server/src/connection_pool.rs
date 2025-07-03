@@ -7,18 +7,15 @@
 //! - Monitoring en temps réel des connexions
 //! - Load balancing des messages
 
-use std::collections::HashMap;
 use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
 use std::time::{Duration, Instant};
 use tokio::sync::{RwLock, mpsc, broadcast, Mutex};
-use tokio::time::{interval, timeout};
-use serde::{Serialize, Deserialize};
+use tokio::time::interval;
+use serde::Serialize;
 use dashmap::DashMap;
 use uuid::Uuid;
 use futures_util::{SinkExt, StreamExt};
 use axum::extract::ws::{WebSocket, Message};
-use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::WebSocketStream;
 
 use crate::error::{ChatError, Result};
 use crate::monitoring::ChatMetrics;
@@ -218,11 +215,11 @@ impl ConnectionPool {
         let metadata = Arc::new(RwLock::new(ConnectionMetadata::new(user_id, username.clone())));
         
         // Créer le canal de communication
-        let (sender, mut receiver) = mpsc::unbounded_channel::<String>();
+        let (sender, receiver) = mpsc::unbounded_channel::<String>();
+        let _sender_clone = sender.clone();
         
         // Cloner les variables nécessaires pour les tâches
         let metadata_clone = metadata.clone();
-        let sender_clone = sender.clone();
         
         // Stocker la connexion
         self.connections.insert(user_id, metadata.clone());
@@ -324,19 +321,7 @@ impl ConnectionPool {
         self.remove_connection(user_id).await;
     }
 
-    /// Traite un message entrant
-    async fn handle_incoming_message(&self, user_id: i32, message: String) {
-        // Mettre à jour le timestamp du dernier message
-        if let Some(metadata_ref) = self.connections.get(&user_id) {
-            metadata_ref.write().await.last_message = Instant::now();
-        }
 
-        // Traiter le message (déléguer au ChatHub)
-        tracing::debug!(user_id = %user_id, message_len = %message.len(), "📨 Message reçu");
-        
-        // Ici, vous pouvez ajouter la logique de traitement des messages
-        // Par exemple, parser le JSON et router vers les handlers appropriés
-    }
 
     /// Supprime une connexion du pool
     pub async fn remove_connection(&self, user_id: i32) {

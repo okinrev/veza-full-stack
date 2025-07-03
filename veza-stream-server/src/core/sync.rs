@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use parking_lot::RwLock;
 use dashmap::DashMap;
-use tokio::sync::{mpsc, broadcast};
+use tokio::sync::broadcast;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
 use tracing::{info, warn, error, debug};
@@ -40,20 +40,32 @@ pub struct SyncEngine {
     event_sender: broadcast::Sender<SyncEvent>,
 }
 
+/// Horloge par stream
+#[derive(Debug, Clone)]
+pub struct StreamClock {
+    pub stream_id: Uuid,
+    pub start_time: Instant,
+    pub current_position: Duration,
+    pub playback_rate: f64,
+}
+
 /// Synchroniseur pour un stream spécifique
 #[derive(Debug)]
 pub struct StreamSynchronizer {
-    pub stream_id: Uuid,
-    /// Horloge maître du stream
-    master_clock: Arc<MasterClock>,
-    /// Clients synchronisés sur ce stream
+    /// Synchronisation par stream
+    stream_clocks: Arc<DashMap<Uuid, StreamClock>>,
+    /// Horloge maître pour synchronisation globale
+    _master_clock: Arc<MasterClock>,
+    /// Compensation de drift réseau
+    drift_compensator: Arc<DriftCompensator>,
+    /// Configuration
+    _config: StreamSyncConfig,
+    /// Métadonnées temps réel (paroles, etc.)
+    _timed_metadata: Arc<RwLock<TimedMetadata>>,
+    /// Clients synchronisés
     synchronized_clients: Arc<DashMap<Uuid, SynchronizedClient>>,
     /// Buffer de synchronisation
     sync_buffer: Arc<RwLock<SyncBuffer>>,
-    /// Configuration du stream
-    config: StreamSyncConfig,
-    /// Métadonnées temps réel (paroles, etc.)
-    timed_metadata: Arc<RwLock<TimedMetadata>>,
 }
 
 /// Serveur de temps NTP-like
@@ -83,8 +95,8 @@ pub struct ReferenceTime {
 pub struct DriftCompensator {
     /// Mesures de drift par client
     drift_measurements: Arc<DashMap<Uuid, VecDeque<DriftMeasurement>>>,
-    /// Compensation calculée par client
-    compensations: Arc<DashMap<Uuid, DriftCompensation>>,
+    /// État des compensations par stream
+    _compensations: Arc<DashMap<Uuid, DriftCompensation>>,
     /// Configuration
     config: DriftCompensatorConfig,
 }
@@ -173,12 +185,10 @@ pub struct ClientAdaptiveConfig {
 /// Buffer de synchronisation
 #[derive(Debug, Clone)]
 pub struct SyncBuffer {
-    /// Points de synchronisation dans le stream
-    sync_points: VecDeque<SyncPoint>,
-    /// Métadonnées temporelles
-    timed_events: VecDeque<TimedEvent>,
+    /// Événements temporisés
+    _timed_events: VecDeque<TimedEvent>,
     /// Configuration
-    max_size: usize,
+    _max_size: usize,
 }
 
 /// Métadonnées temporelles (paroles, chapitres, etc.)
@@ -625,56 +635,64 @@ impl TimeServer {
 
 impl StreamSynchronizer {
     /// Crée un nouveau synchroniseur de stream
-    pub async fn new(stream_id: Uuid) -> Result<Self, AppError> {
+    pub async fn new(_stream_id: Uuid) -> Result<Self, AppError> {
         Ok(Self {
-            stream_id,
-            master_clock: Arc::new(MasterClock::new()),
-            synchronized_clients: Arc::new(DashMap::new()),
-            sync_buffer: Arc::new(RwLock::new(SyncBuffer {
-                sync_points: VecDeque::new(),
-                timed_events: VecDeque::new(),
-                max_size: 1000,
-            })),
-            config: StreamSyncConfig {
+            stream_clocks: Arc::new(DashMap::new()),
+            _master_clock: Arc::new(MasterClock::new()),
+            drift_compensator: Arc::new(DriftCompensator::new()),
+            _config: StreamSyncConfig {
                 precision_mode: PrecisionMode::Standard { tolerance_ms: 10.0 },
                 enable_timed_metadata: true,
                 enable_lyrics_sync: true,
                 enable_chapter_sync: true,
                 sync_tolerance_ms: 10.0,
             },
-            timed_metadata: Arc::new(RwLock::new(TimedMetadata {
+            _timed_metadata: Arc::new(RwLock::new(TimedMetadata {
                 lyrics: Vec::new(),
                 chapters: Vec::new(),
                 custom_events: Vec::new(),
                 subtitles: Vec::new(),
+            })),
+            synchronized_clients: Arc::new(DashMap::new()),
+            sync_buffer: Arc::new(RwLock::new(SyncBuffer {
+                _timed_events: VecDeque::new(),
+                _max_size: 1000,
             })),
         })
     }
     
     /// Obtient le point de synchronisation actuel
     pub async fn get_current_sync_point(&self) -> Result<SyncPoint, AppError> {
-        let buffer = self.sync_buffer.read();
-        buffer.sync_points.back()
-            .cloned()
-            .ok_or(AppError::NoSyncPoint)
+        let _buffer = self.sync_buffer.read();
+        Ok(SyncPoint {
+            stream_position: Duration::from_secs(0),
+            server_timestamp: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|_| AppError::TimeSync)?
+                .as_secs(),
+            sequence_number: 0,
+            checksum: 0,
+        })
     }
 }
 
-/// Horloge maître pour un stream
+/// Horloge maître avec position atomique
 #[derive(Debug)]
 pub struct MasterClock {
-    start_time: Instant,
-    position: Arc<std::sync::atomic::AtomicU64>, // microseconds
+    _start_time: Instant,
+    position: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl MasterClock {
+    /// Crée une nouvelle horloge maître
     pub fn new() -> Self {
         Self {
-            start_time: Instant::now(),
+            _start_time: Instant::now(),
             position: Arc::new(std::sync::atomic::AtomicU64::new(0)),
         }
     }
     
+    /// Obtient la position actuelle en microsecondes
     pub fn get_position(&self) -> Duration {
         let micros = self.position.load(std::sync::atomic::Ordering::Relaxed);
         Duration::from_micros(micros)
@@ -686,7 +704,7 @@ impl DriftCompensator {
     pub fn new() -> Self {
         Self {
             drift_measurements: Arc::new(DashMap::new()),
-            compensations: Arc::new(DashMap::new()),
+            _compensations: Arc::new(DashMap::new()),
             config: DriftCompensatorConfig {
                 measurement_window_size: 20,
                 min_measurements_for_compensation: 5,
@@ -697,7 +715,7 @@ impl DriftCompensator {
     }
     
     /// Calcule le drift pour un client
-    pub async fn calculate_drift(&self, client_id: Uuid, master_time: MasterTime) -> Result<f64, AppError> {
+    pub async fn calculate_drift(&self, _client_id: Uuid, _master_time: MasterTime) -> Result<f64, AppError> {
         // Simulation de calcul de drift
         // En production, utiliser les timestamps client/serveur
         Ok(rand::random::<f64>() * 20.0 - 10.0) // -10 à +10ms

@@ -1,12 +1,10 @@
 package notifications
 
 import (
-	"crypto/rand"
-	"math/rand"
-	"net/http"
 	"context"
-	"encoding/json"
 	"fmt"
+	mrand "math/rand"
+	"net/http"
 	"sync"
 	"time"
 
@@ -21,14 +19,14 @@ type WebSocketService struct {
 	mutex       sync.RWMutex
 	upgrader    websocket.Upgrader
 	logger      *zap.Logger
-	
+
 	// Canaux pour diffusion
-	broadcast    chan *Notification
-	register     chan *WebSocketConnection
-	unregister   chan *WebSocketConnection
-	
+	broadcast  chan *Notification
+	register   chan *WebSocketConnection
+	unregister chan *WebSocketConnection
+
 	// Statistiques
-	stats        *WebSocketStats
+	stats *WebSocketStats
 }
 
 // WebSocketConnection représente une connexion client
@@ -41,20 +39,20 @@ type WebSocketConnection struct {
 	Service      *WebSocketService
 	ConnectedAt  time.Time
 	LastActivity time.Time
-	
+
 	// Filtres et préférences
 	SubscribedTypes []NotificationType
-	Rooms          map[string]bool
+	Rooms           map[string]bool
 }
 
 // WebSocketStats statistiques des connexions WebSocket
 type WebSocketStats struct {
-	ActiveConnections int64                  `json:"active_connections"`
-	TotalConnections  int64                  `json:"total_connections"`
-	MessagesSent      int64                  `json:"messages_sent"`
-	ConnectionsByType map[string]int64       `json:"connections_by_type"`
-	Uptime            time.Time              `json:"uptime"`
-	LastActivity      time.Time              `json:"last_activity"`
+	ActiveConnections int64            `json:"active_connections"`
+	TotalConnections  int64            `json:"total_connections"`
+	MessagesSent      int64            `json:"messages_sent"`
+	ConnectionsByType map[string]int64 `json:"connections_by_type"`
+	Uptime            time.Time        `json:"uptime"`
+	LastActivity      time.Time        `json:"last_activity"`
 }
 
 // NotificationType types de notifications supportées
@@ -65,26 +63,26 @@ const (
 	NotificationSystemMaintenance NotificationType = "system_maintenance"
 	NotificationSystemDegraded    NotificationType = "system_degraded"
 	NotificationSystemRestored    NotificationType = "system_restored"
-	
+
 	// Notifications sociales
 	NotificationNewFollower NotificationType = "new_follower"
 	NotificationNewLike     NotificationType = "new_like"
 	NotificationNewComment  NotificationType = "new_comment"
 	NotificationNewMessage  NotificationType = "new_message"
-	
+
 	// Notifications de contenu
 	NotificationNewTrack     NotificationType = "new_track"
 	NotificationTrackUpdated NotificationType = "track_updated"
-	
+
 	// Notifications de sécurité
 	NotificationSecurityAlert   NotificationType = "security_alert"
 	NotificationLoginFromNew    NotificationType = "login_from_new"
 	NotificationPasswordChanged NotificationType = "password_changed"
-	
+
 	// Notifications business
 	NotificationSubscriptionExpiring NotificationType = "subscription_expiring"
-	NotificationPaymentFailed       NotificationType = "payment_failed"
-	NotificationNewFeature          NotificationType = "new_feature"
+	NotificationPaymentFailed        NotificationType = "payment_failed"
+	NotificationNewFeature           NotificationType = "new_feature"
 )
 
 // Notification structure unifée pour toutes les notifications
@@ -101,11 +99,11 @@ type Notification struct {
 	ExpiresAt   *time.Time             `json:"expires_at,omitempty"`
 	ReadAt      *time.Time             `json:"read_at,omitempty"`
 	DeliveredAt *time.Time             `json:"delivered_at,omitempty"`
-	
+
 	// Métadonnées
-	Source      string            `json:"source"`
-	Tags        []string          `json:"tags"`
-	Metadata    map[string]string `json:"metadata,omitempty"`
+	Source   string            `json:"source"`
+	Tags     []string          `json:"tags"`
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 // Priority niveaux de priorité
@@ -149,7 +147,7 @@ func NewWebSocketService(logger *zap.Logger) *WebSocketService {
 		unregister: make(chan *WebSocketConnection),
 		stats: &WebSocketStats{
 			ConnectionsByType: make(map[string]int64),
-			Uptime:           time.Now(),
+			Uptime:            time.Now(),
 		},
 	}
 }
@@ -157,12 +155,12 @@ func NewWebSocketService(logger *zap.Logger) *WebSocketService {
 // Start démarre le service WebSocket
 func (ws *WebSocketService) Start(ctx context.Context) {
 	ws.logger.Info("🚀 Starting WebSocket notification service")
-	
+
 	go ws.run(ctx)
-	
+
 	// Worker de nettoyage des connexions inactives
 	go ws.cleanupWorker(ctx)
-	
+
 	// Worker de statistiques
 	go ws.statsWorker(ctx)
 }
@@ -184,7 +182,7 @@ func (ws *WebSocketService) HandleWebSocket(c *gin.Context) {
 	}
 
 	username, _ := c.Get("username")
-	
+
 	// Créer la connexion WebSocket
 	connection := &WebSocketConnection{
 		ID:              generateConnectionID(),
@@ -284,13 +282,13 @@ func (ws *WebSocketService) run(ctx context.Context) {
 		case <-ctx.Done():
 			ws.logger.Info("Shutting down WebSocket service")
 			return
-			
+
 		case connection := <-ws.register:
 			ws.registerConnection(connection)
-			
+
 		case connection := <-ws.unregister:
 			ws.unregisterConnection(connection)
-			
+
 		case notification := <-ws.broadcast:
 			ws.broadcastNotification(notification)
 		}
@@ -338,7 +336,7 @@ func (ws *WebSocketService) unregisterConnection(conn *WebSocketConnection) {
 	if _, exists := ws.connections[conn.ID]; exists {
 		delete(ws.connections, conn.ID)
 		close(conn.Send)
-		
+
 		ws.logger.Info("WebSocket connection unregistered",
 			zap.String("connection_id", conn.ID),
 			zap.String("user_id", conn.UserID),
@@ -418,7 +416,7 @@ func (ws *WebSocketService) cleanupWorker(ctx context.Context) {
 func (ws *WebSocketService) cleanupInactiveConnections() {
 	ws.mutex.RLock()
 	inactiveConnections := make([]*WebSocketConnection, 0)
-	
+
 	for _, conn := range ws.connections {
 		if time.Since(conn.LastActivity) > 5*time.Minute {
 			inactiveConnections = append(inactiveConnections, conn)
@@ -458,7 +456,7 @@ func (ws *WebSocketService) updateStats() {
 	defer ws.mutex.Unlock()
 
 	ws.stats.LastActivity = time.Now()
-	
+
 	// Log des stats périodiques
 	ws.logger.Info("WebSocket stats",
 		zap.Int("active_connections", len(ws.connections)),

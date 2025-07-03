@@ -12,10 +12,10 @@ use std::collections::{VecDeque, HashMap};
 
 use parking_lot::RwLock;
 use dashmap::DashMap;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::Mutex;
 use uuid::Uuid;
 use serde::{Serialize, Deserialize};
-use tracing::{info, warn, error, debug};
+use tracing::{info, debug};
 
 use crate::error::AppError;
 
@@ -30,8 +30,8 @@ pub struct BufferManager {
     config: Arc<RwLock<BufferConfig>>,
     /// Métriques de performance
     metrics: Arc<BufferMetrics>,
-    /// Analyseur de bande passante
-    bandwidth_analyzer: Arc<BandwidthAnalyzer>,
+    /// Analyseur de bande passante pour ajustements
+    _bandwidth_analyzer: Arc<BandwidthAnalyzer>,
 }
 
 /// Buffer adaptatif pour un stream spécifique
@@ -204,11 +204,13 @@ pub struct BandwidthAnalyzerConfig {
 /// Prédicteur de besoins du buffer
 #[derive(Debug)]
 pub struct BufferPredictor {
-    /// Historique des états du buffer
-    history: Arc<RwLock<VecDeque<BufferStateSnapshot>>>,
-    /// Modèle de prédiction (simplifié)
-    model: Arc<RwLock<PredictionModel>>,
-    /// Configuration
+    /// Historique de consommation par stream
+    consumption_history: Arc<RwLock<HashMap<Uuid, VecDeque<BufferStateSnapshot>>>>,
+    /// Prédictions actives
+    predictions: Arc<RwLock<HashMap<Uuid, BufferPrediction>>>,
+    /// Modèle de prédiction ML
+    _model: Arc<RwLock<PredictionModel>>,
+    /// Configuration du prédicteur
     config: PredictorConfig,
 }
 
@@ -276,7 +278,7 @@ impl BufferManager {
             chunk_pool: Arc::new(Mutex::new(Vec::new())),
             config: Arc::new(RwLock::new(BufferConfig::default())),
             metrics: Arc::new(BufferMetrics::default()),
-            bandwidth_analyzer: Arc::new(BandwidthAnalyzer::new()),
+            _bandwidth_analyzer: Arc::new(BandwidthAnalyzer::new()),
         }
     }
     
@@ -328,7 +330,7 @@ impl BufferManager {
     /// Ajoute un chunk à un buffer
     pub async fn add_chunk(&self, chunk: AudioChunk) -> Result<(), AppError> {
         let buffer = self.buffers.get(&chunk.stream_id)
-            .ok_or_else(|| AppError::BufferNotFound { stream_id: chunk.stream_id })?;
+            .ok_or_else(|| AppError::BufferNotFound { stream_id: chunk.stream_id.to_string() })?;
         
         buffer.add_chunk(chunk).await
     }
@@ -336,7 +338,7 @@ impl BufferManager {
     /// Récupère le prochain chunk d'un buffer
     pub async fn get_next_chunk(&self, stream_id: Uuid) -> Result<Option<AudioChunk>, AppError> {
         let buffer = self.buffers.get(&stream_id)
-            .ok_or_else(|| AppError::BufferNotFound { stream_id })?;
+            .ok_or_else(|| AppError::BufferNotFound { stream_id: stream_id.to_string() })?;
         
         buffer.get_next_chunk().await
     }
@@ -393,7 +395,7 @@ impl AdaptiveBuffer {
         // Vérifier si on dépasse la taille max
         if buffer.len() >= self.max_size {
             self.update_status(BufferStatus::Full).await;
-            return Err(AppError::BufferFull { stream_id: self.stream_id });
+            return Err(AppError::BufferFull { stream_id: self.stream_id.to_string() });
         }
         
         // Ajouter le chunk
@@ -419,7 +421,7 @@ impl AdaptiveBuffer {
         let mut buffer = self.buffer.write();
         let chunk = buffer.pop_front();
         
-        if let Some(ref chunk) = chunk {
+        if let Some(ref _chunk) = chunk {
             // Mettre à jour les statistiques
             self.update_stats(&buffer).await;
             
@@ -644,8 +646,9 @@ impl BufferPredictor {
     /// Crée un nouveau prédicteur
     pub fn new() -> Self {
         Self {
-            history: Arc::new(RwLock::new(VecDeque::new())),
-            model: Arc::new(RwLock::new(PredictionModel {
+            consumption_history: Arc::new(RwLock::new(HashMap::new())),
+            predictions: Arc::new(RwLock::new(HashMap::new())),
+            _model: Arc::new(RwLock::new(PredictionModel {
                 window_size: 10,
                 trend_weight: 0.3,
                 seasonal_component: 0.1,
@@ -661,14 +664,26 @@ impl BufferPredictor {
     
     /// Prédit les besoins futurs du buffer
     pub async fn predict_needs(&self) -> Result<BufferPrediction, AppError> {
-        let history = self.history.read();
+        let history = self.consumption_history.read();
         
         if history.len() < self.config.min_samples_for_prediction {
             return Err(AppError::InsufficientData);
         }
         
-        // Prédiction simple basée sur la tendance
-        let recent: Vec<_> = history.iter().rev().take(5).collect();
+        // Collecte de toutes les snapshots de tous les streams
+        let mut all_snapshots = Vec::new();
+        for snapshots in history.values() {
+            all_snapshots.extend(snapshots.iter().cloned());
+        }
+        
+        // Trier par timestamp et prendre les 5 plus récents
+        all_snapshots.sort_by_key(|s| s.timestamp);
+        let recent: Vec<_> = all_snapshots.into_iter().rev().take(5).collect();
+        
+        if recent.is_empty() {
+            return Err(AppError::InsufficientData);
+        }
+        
         let avg_size = recent.iter().map(|s| s.buffer_size as f32).sum::<f32>() / recent.len() as f32;
         let avg_fill_rate = recent.iter().map(|s| s.fill_rate).sum::<f32>() / recent.len() as f32;
         

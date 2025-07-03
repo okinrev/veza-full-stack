@@ -33,14 +33,14 @@ pub trait AudioEffect: Send + Sync + std::fmt::Debug {
 /// Chaîne d'effets pour le streaming
 #[derive(Debug)]
 pub struct EffectsChain {
-    /// Effets dans l'ordre de traitement
-    effects: Vec<Box<dyn AudioEffect>>,
-    /// Mix dry/wet global
-    dry_wet_mix: f32,
-    /// Bypass global
+    /// Effets appliqués en séquence
+    effects: Vec<Box<dyn AudioEffect + Send + Sync>>,
+    /// Configuration de mix dry/wet
+    _dry_wet_mix: f32,
+    /// État de bypass global
     bypass: bool,
     /// Métriques de performance
-    performance_metrics: Arc<RwLock<EffectsPerformanceMetrics>>,
+    _performance_metrics: Arc<RwLock<EffectsPerformanceMetrics>>,
 }
 
 /// Paramètre d'effet configurable
@@ -205,9 +205,9 @@ impl EffectsChain {
     pub fn new() -> Self {
         Self {
             effects: Vec::new(),
-            dry_wet_mix: 1.0,
+            _dry_wet_mix: 1.0,
             bypass: false,
-            performance_metrics: Arc::new(RwLock::new(EffectsPerformanceMetrics::default())),
+            _performance_metrics: Arc::new(RwLock::new(EffectsPerformanceMetrics::default())),
         }
     }
     

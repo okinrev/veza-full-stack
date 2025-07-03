@@ -1,17 +1,16 @@
 use std::{
     collections::HashMap,
-    path::{Path, PathBuf},
     sync::Arc,
-    time::{SystemTime, Duration, Instant},
+    time::SystemTime,
 };
 use tokio::sync::RwLock;
 use axum::{
     extract::{Path as AxumPath, Query, State},
     response::Response,
-    http::{StatusCode, HeaderMap, header},
+    http::{StatusCode, header},
 };
 use serde::{Deserialize, Serialize};
-use tracing::{info, debug, warn, error};
+
 use crate::{config::Config, utils::validate_signature};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -196,7 +195,7 @@ impl AdaptiveStreamingManager {
     }
 
     pub async fn start_quality_monitor(&self) {
-        let sessions = self.sessions.clone();
+        let _sessions = self.sessions.clone();
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
@@ -347,7 +346,7 @@ pub async fn hls_master_playlist(
         return Err((StatusCode::FORBIDDEN, "Signature invalide".to_string()));
     }
 
-    let base_url = format!("http://localhost:{}", streaming_manager.config.port);
+    let _base_url = format!("http://localhost:{}", streaming_manager.config.port);
     
     match streaming_manager.generate_master_playlist(&track_id).await {
         Ok(playlist) => {
@@ -375,7 +374,7 @@ pub async fn hls_quality_playlist(
         return Err((StatusCode::FORBIDDEN, "Signature invalide".to_string()));
     }
 
-    let base_url = format!("http://localhost:{}", streaming_manager.config.port);
+    let _base_url = format!("http://localhost:{}", streaming_manager.config.port);
     
     match streaming_manager.generate_quality_playlist(&track_id, &quality).await {
         Ok(playlist) => {

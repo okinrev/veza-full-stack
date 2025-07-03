@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use serde::{Serialize, Deserialize};
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::error::AppError;
 
@@ -548,7 +548,7 @@ impl WaveformGenerator {
         for (i, peak) in waveform.peaks.iter().enumerate() {
             let x = i as f32 * x_scale;
             let y_top = center_y as f32 - (peak.max * y_scale);
-            let y_bottom = center_y as f32 - (peak.min * y_scale);
+            let _y_bottom = center_y as f32 - (peak.min * y_scale);
             
             if i == 0 {
                 path.push_str(&format!("{},{}", x, y_top));
@@ -560,8 +560,8 @@ impl WaveformGenerator {
         // Fermer le chemin
         for (i, peak) in waveform.peaks.iter().enumerate().rev() {
             let x = i as f32 * x_scale;
-            let y_bottom = center_y as f32 - (peak.min * y_scale);
-            path.push_str(&format!(" L{},{}", x, y_bottom));
+            let _y_bottom = center_y as f32 - (peak.min * y_scale);
+            path.push_str(&format!(" L{},{}", x, _y_bottom));
         }
         path.push('Z');
         

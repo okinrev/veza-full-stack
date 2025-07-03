@@ -15,15 +15,11 @@ use tokio::sync::mpsc;
 
 use crate::advanced_moderation::{
     AdvancedModerationEngine, 
-    AdvancedModerationConfig,
     ViolationType,
-    UserBehaviorProfile
 };
-use crate::moderation::{SanctionType, SanctionReason};
-use crate::monitoring::ChatMetrics;
-use crate::permissions::{Permission, UserPermissions};
-use crate::core::{ConnectionManager, RichMessage, RichMessageManager};
-use crate::error::{ChatError, Result};
+use crate::core::{ConnectionManager};
+use crate::core::rich_messages::{RichMessage, RichMessageManager};
+use crate::error::Result;
 
 /// Service d'intégration de modération IA
 #[derive(Debug)]

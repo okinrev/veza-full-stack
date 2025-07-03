@@ -16,7 +16,7 @@ type AuthService interface {
 	RefreshToken(refreshToken string) (*TokenResponse, error)
 	Logout(refreshToken string) error
 	VerifyToken(tokenString string) (*TokenClaims, error)
-	GenerateTokenPair(userID int, username, role string) (*TokenPair, error)
+	GenerateTokenPair(userID int64, username, role string) (*TokenPair, error)
 }
 
 type authService struct {
@@ -62,7 +62,7 @@ type TokenPair struct {
 }
 
 type TokenClaims struct {
-	UserID   int    `json:"user_id"`
+	UserID   int64  `json:"user_id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 }
@@ -220,7 +220,7 @@ func (s *authService) VerifyToken(tokenString string) (*TokenClaims, error) {
 }
 
 // GenerateTokenPair generates both access and refresh tokens
-func (s *authService) GenerateTokenPair(userID int, username, role string) (*TokenPair, error) {
+func (s *authService) GenerateTokenPair(userID int64, username, role string) (*TokenPair, error) {
 	accessToken, refreshToken, expiresIn, err := utils.GenerateTokenPair(userID, username, role, s.jwtSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate token pair: %w", err)
@@ -234,7 +234,7 @@ func (s *authService) GenerateTokenPair(userID int, username, role string) (*Tok
 }
 
 // Helper methods
-func (s *authService) storeRefreshToken(userID int, token string) error {
+func (s *authService) storeRefreshToken(userID int64, token string) error {
 	_, err := s.db.Exec(`
 		INSERT INTO refresh_tokens (user_id, token, expires_at, created_at)
 		VALUES ($1, $2, EXTRACT(EPOCH FROM NOW() + INTERVAL '7 days'), EXTRACT(EPOCH FROM NOW()))

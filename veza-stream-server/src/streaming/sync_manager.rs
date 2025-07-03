@@ -3,10 +3,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
-use tokio::sync::{RwLock, broadcast, mpsc};
+use tokio::sync::{RwLock, broadcast};
 use serde::{Deserialize, Serialize};
-use tracing::{info, debug, warn, error, span, Level};
-use uuid::Uuid;
+use tracing::{info, warn, span, Level};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SyncConfig {

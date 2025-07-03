@@ -2,7 +2,8 @@
 
 use std::sync::Arc;
 use tonic::{transport::Server, Request, Response, Status};
-use tracing::{info, error, debug};
+use tracing::{info, debug};
+use crate::Config;
 
 // Importation des bindings protobuf générés
 pub mod stream {
@@ -17,8 +18,6 @@ use stream::{
     stream_service_server::{StreamService, StreamServiceServer},
     *,
 };
-
-use crate::config::Config;
 
 /// Implémentation du service gRPC Stream
 #[derive(Clone)]
@@ -198,6 +197,7 @@ impl StreamService for StreamServiceImpl {
 
     async fn subscribe_to_stream_events(&self, _request: Request<SubscribeToStreamEventsRequest>) -> Result<Response<Self::SubscribeToStreamEventsStream>, Status> {
         let (tx, rx) = tokio::sync::mpsc::channel(10);
+        let _tx = tx.clone();
         Ok(Response::new(tokio_stream::wrappers::ReceiverStream::new(rx)))
     }
 }

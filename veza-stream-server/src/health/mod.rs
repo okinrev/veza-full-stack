@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use serde::{Deserialize, Serialize};
-use tracing::{info, warn, error, debug};
-use crate::config::Config;
+use tracing::{info, debug};
+use crate::Config;
+
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthStatus {

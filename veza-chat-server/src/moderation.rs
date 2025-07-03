@@ -55,38 +55,12 @@ pub struct UserModerationRecord {
 /// Système de modération automatique et manuelle
 pub struct ModerationSystem {
     hub: std::sync::Arc<ChatHub>,
-    auto_sanctions: AutoSanctionRules,
-}
-
-#[derive(Debug, Clone)]
-pub struct AutoSanctionRules {
-    // Seuils pour la modération automatique
-    pub max_messages_per_minute: u32,
-    pub spam_detection_threshold: f32,
-    pub toxicity_threshold: f32,
-    pub warning_escalation_count: u32,
-    pub auto_mute_duration: Duration,
-    pub auto_ban_duration: Duration,
-}
-
-impl Default for AutoSanctionRules {
-    fn default() -> Self {
-        Self {
-            max_messages_per_minute: 20,
-            spam_detection_threshold: 0.8,
-            toxicity_threshold: 0.7,
-            warning_escalation_count: 3,
-            auto_mute_duration: Duration::from_secs(3600), // 1 heure
-            auto_ban_duration: Duration::from_secs(86400), // 24 heures
-        }
-    }
 }
 
 impl ModerationSystem {
     pub fn new(hub: std::sync::Arc<ChatHub>) -> Self {
         Self {
             hub,
-            auto_sanctions: AutoSanctionRules::default(),
         }
     }
 
@@ -313,24 +287,7 @@ impl ModerationSystem {
         Ok(similar_count >= 3)
     }
 
-    /// Détection de contenu inapproprié
-    async fn detect_inappropriate_content(&self, content: &str) -> Result<bool> {
-        // Liste de mots interdits basique
-        let forbidden_words = ["inappropriate", "badword1", "badword2"]; // Remplacer par vraie liste
-        let content_lower = content.to_lowercase();
-        
-        Ok(forbidden_words.iter().any(|word| content_lower.contains(word)))
-    }
 
-    /// Détection de toxicité (simplifiée)
-    async fn detect_toxicity(&self, content: &str) -> Result<bool> {
-        // Ici on pourrait intégrer une API de détection de toxicité comme Perspective API
-        // Pour l'exemple, détection basique
-        let toxic_patterns = ["idiot", "stupid", "hate you"];
-        let content_lower = content.to_lowercase();
-        
-        Ok(toxic_patterns.iter().any(|pattern| content_lower.contains(pattern)))
-    }
 
     /// Calcule la similarité entre deux strings (simplifiée)
     fn calculate_similarity(&self, a: &str, b: &str) -> f32 {
@@ -446,13 +403,5 @@ impl ModerationSystem {
         // Ici on notifierait l'utilisateur
         tracing::info!(user_id = %user_id, sanction_type = ?sanction_type, "📢 Utilisateur notifié de la sanction");
         Ok(())
-    }
-
-    fn get_auto_sanction_duration(&self, sanction_type: &SanctionType) -> Option<Duration> {
-        match sanction_type {
-            SanctionType::Mute => Some(self.auto_sanctions.auto_mute_duration),
-            SanctionType::TempBan => Some(self.auto_sanctions.auto_ban_duration),
-            _ => None,
-        }
     }
 } 

@@ -7,10 +7,10 @@
 set -e  # Arrêter le script en cas d'erreur
 
 # Configuration de la base de données
-DB_HOST="10.5.191.47"
-DB_USER="veza"
-DB_NAME="veza_db"
-DB_PASSWORD="N3W3Dm0Ura@#fn5J%4UQKu%vSXWCNbCvj8Ne0FIUs#KG1T&Ouy2lJt$T!#"
+DB_HOST="localhost"
+DB_USER="veza_user"
+DB_NAME="veza_dev"
+DB_PASSWORD="veza_password"
 
 # Couleurs pour l'affichage
 RED='\033[0;31m'
@@ -75,7 +75,7 @@ echo ""
 echo -e "${BLUE}🔧 Exécution de la migration...${NC}"
 echo ""
 
-if psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -f "migrations/999_cleanup_production_ready_fixed.sql"; then
+if psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -f "migrations/001_create_clean_database.sql"; then
     echo ""
     echo -e "${GREEN}🎉 Migration terminée avec succès!${NC}"
     echo ""

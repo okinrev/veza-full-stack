@@ -4,14 +4,11 @@
 //! appliquer les filtres de sécurité et déléguer aux modules métier appropriés.
 
 use std::sync::Arc;
+use tracing::info;
 use crate::error::{ChatError, Result};
 use crate::hub::common::ChatHub;
-use crate::permissions::{Role, Permission, check_permission};
+use crate::permissions::Role;
 use crate::security::{EnhancedSecurity, SecurityAction, ContentFilter};
-use serde_json::json;
-use tokio::sync::mpsc::UnboundedSender;
-use tokio_tungstenite::tungstenite::Message;
-use tracing::{info, warn};
 
 /// Gestionnaire centralisé pour tous les types de messages
 pub struct MessageHandler {
@@ -232,7 +229,7 @@ impl MessageHandler {
     }
 
     /// Vérifie si un utilisateur peut lire l'historique d'un salon
-    async fn can_read_room_history(&self, user_id: i32, user_role: &Role, _room: &str) -> Result<bool> {
+    async fn can_read_room_history(&self, _user_id: i32, user_role: &Role, _room: &str) -> Result<bool> {
         // Logique simple : les admins et modérateurs peuvent tout lire
         match user_role {
             Role::Admin | Role::Moderator => Ok(true),
@@ -264,7 +261,7 @@ impl MessageHandler {
     }
 
     /// Récupère l'ID d'un salon par son nom
-    async fn get_room_id_by_name(&self, room_name: &str) -> Result<i64> {
+    async fn get_room_id_by_name(&self, _room_name: &str) -> Result<i64> {
         // Pour l'instant, retourne un ID fictif
         // TODO: Implémenter la recherche d'ID de salon par nom
         Ok(1)

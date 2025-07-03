@@ -13,8 +13,7 @@ use crate::error::{ChatError, Result};
 use serde_json::{json, Value};
 use chrono::{DateTime, Utc, Duration};
 use std::collections::HashMap;
-use uuid::Uuid;
-use sqlx::{query, query_as, FromRow, Row, PgPool, Transaction, Postgres};
+use sqlx::{query, query_as, FromRow, Row};
 // use crate::validation::{validate_user_id, validate_limit};
 
 // ================================================================

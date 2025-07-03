@@ -8,15 +8,15 @@ use uuid::Uuid;
 
 /// Service de gestion des utilisateurs
 pub struct UserService {
-    db: Arc<PgPool>,
+    _db: Arc<PgPool>,
 }
 
 impl UserService {
     pub fn new(db: Arc<PgPool>) -> Self {
-        Self { db }
+        Self { _db: db }
     }
 
-    pub async fn get_user_by_id(&self, user_id: Uuid) -> Result<Option<User>> {
+    pub async fn get_user_by_id(&self, _user_id: Uuid) -> Result<Option<User>> {
         // TODO: Réactiver après migration DB
         /*
         let user = sqlx::query_as!(
@@ -24,7 +24,7 @@ impl UserService {
             "SELECT * FROM users WHERE id = $1 AND is_active = true",
             user_id
         )
-        .fetch_optional(&*self.db)
+        .fetch_optional(&*self._db)
         .await
         .map_err(|e| ChatError::database_error("get_user_by_id", e))?;
 
@@ -36,7 +36,7 @@ impl UserService {
         Ok(None)
     }
 
-    pub async fn get_user_by_username(&self, username: &str) -> Result<Option<User>> {
+    pub async fn get_user_by_username(&self, _username: &str) -> Result<Option<User>> {
         // TODO: Réactiver après migration DB
         /*
         let user = sqlx::query_as!(
@@ -44,7 +44,7 @@ impl UserService {
             "SELECT * FROM users WHERE username = $1 AND is_active = true",
             username
         )
-        .fetch_optional(&*self.db)
+        .fetch_optional(&*self._db)
         .await
         .map_err(|e| ChatError::database_error("get_user_by_username", e))?;
 
@@ -59,15 +59,15 @@ impl UserService {
 
 /// Service de gestion des messages
 pub struct MessageService {
-    db: Arc<PgPool>,
+    _db: Arc<PgPool>,
 }
 
 impl MessageService {
     pub fn new(db: Arc<PgPool>) -> Self {
-        Self { db }
+        Self { _db: db }
     }
 
-    pub async fn get_message_by_id(&self, message_id: Uuid) -> Result<Option<Message>> {
+    pub async fn get_message_by_id(&self, _message_id: Uuid) -> Result<Option<Message>> {
         // TODO: Réactiver après migration DB
         /*
         let message = sqlx::query_as!(
@@ -83,7 +83,7 @@ impl MessageService {
             "#,
             message_id
         )
-        .fetch_optional(&*self.db)
+        .fetch_optional(&*self._db)
         .await
         .map_err(|e| ChatError::database_error("get_message_by_id", e))?;
 
@@ -95,7 +95,7 @@ impl MessageService {
         Ok(None)
     }
 
-    pub async fn create_message(&self, conversation_id: Uuid, sender_id: Uuid, content: String) -> Result<Message> {
+    pub async fn create_message(&self, _conversation_id: Uuid, _sender_id: Uuid, _content: String) -> Result<Message> {
         // TODO: Réactiver après migration DB
         /*
         let message = sqlx::query_as!(
@@ -113,7 +113,7 @@ impl MessageService {
             sender_id,
             content
         )
-        .fetch_one(&*self.db)
+        .fetch_one(&*self._db)
         .await
         .map_err(|e| ChatError::database_error("create_message", e))?;
 
@@ -128,15 +128,15 @@ impl MessageService {
 
 /// Service de gestion des conversations
 pub struct ConversationService {
-    db: Arc<PgPool>,
+    _db: Arc<PgPool>,
 }
 
 impl ConversationService {
     pub fn new(db: Arc<PgPool>) -> Self {
-        Self { db }
+        Self { _db: db }
     }
 
-    pub async fn get_conversation_by_id(&self, conversation_id: Uuid) -> Result<Option<Conversation>> {
+    pub async fn get_conversation_by_id(&self, _conversation_id: Uuid) -> Result<Option<Conversation>> {
         // TODO: Réactiver après migration DB
         /*
         let conversation = sqlx::query_as!(
@@ -151,7 +151,7 @@ impl ConversationService {
             "#,
             conversation_id
         )
-        .fetch_optional(&*self.db)
+        .fetch_optional(&*self._db)
         .await
         .map_err(|e| ChatError::database_error("get_conversation_by_id", e))?;
 

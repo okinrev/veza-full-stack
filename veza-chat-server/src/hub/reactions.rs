@@ -9,9 +9,9 @@
 
 use sqlx::{query, query_as, FromRow, Row};
 use serde::{Serialize, Deserialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+
 use crate::hub::common::ChatHub;
 use crate::error::{ChatError, Result};
 

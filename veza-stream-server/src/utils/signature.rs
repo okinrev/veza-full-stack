@@ -11,6 +11,7 @@ use sha2::Sha256;
 use std::env;
 use clap::Parser;
 
+
 #[derive(Parser)]
 #[command(name = "generate_url")]
 #[command(about = "Génère une URL signée pour le serveur de streaming")]
@@ -28,6 +29,9 @@ struct Args {
     base_url: String,
 }
 
+
+
+#[allow(dead_code)]
 fn generate_signature(filename: &str, expires: i64, secret: &str) -> String {
     let to_sign = format!("{}|{}", filename, expires);
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
@@ -37,6 +41,7 @@ fn generate_signature(filename: &str, expires: i64, secret: &str) -> String {
     hex::encode(result.into_bytes())
 }
 
+#[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 

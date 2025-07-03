@@ -1,9 +1,7 @@
 /// Service gRPC pour les événements
 
-use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{info, debug, error};
-use serde::{Serialize, Deserialize};
+use tracing::{info};
 
 use crate::error::AppError;
 use crate::core::StreamEvent;
@@ -23,7 +21,7 @@ impl EventsServiceImpl {
         info!("📡 Publication événement: {:?}", event);
         
         self.event_sender.send(event)
-            .map_err(|e| AppError::NetworkError(format!("Failed to send event: {}", e)))?;
+            .map_err(|e| AppError::NetworkError { message: format!("Failed to send event: {}", e) })?;
         
         Ok(())
     }

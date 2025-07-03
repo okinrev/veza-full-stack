@@ -14,6 +14,7 @@ use super::message::*;
 use super::user::*;
 
 /// Salle de chat optimisée
+#[derive(Debug)]
 pub struct Room {
     /// Identifiant de la salle
     pub id: String,
@@ -133,6 +134,7 @@ impl Default for RoomSettings {
 }
 
 /// Buffer circulaire pour messages récents
+#[derive(Debug)]
 pub struct MessageBuffer {
     messages: Vec<StoredMessage>,
     capacity: usize,

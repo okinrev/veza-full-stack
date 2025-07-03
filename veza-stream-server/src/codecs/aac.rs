@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use parking_lot::Mutex;
 use serde::{Serialize, Deserialize};
-use tracing::{debug, warn, error};
+use tracing::debug;
 
 use crate::error::AppError;
 use super::{
@@ -129,61 +129,56 @@ pub enum AacConcealMethod {
 #[derive(Debug)]
 struct AacEncoderState {
     initialized: bool,
-    last_frame_time: Option<Instant>,
-    total_frames: u64,
-    total_bytes: u64,
-    psychoacoustic_model: PsychoacousticModel,
-    bandwidth_extension: BandwidthExtension,
+    samples_encoded: u64,
+    _psychoacoustic_model: PsychoacousticModel,
+    _bandwidth_extension: BandwidthExtension,
 }
 
 /// État interne du décodeur AAC
 #[derive(Debug)]
 struct AacDecoderState {
     initialized: bool,
-    last_decode_time: Option<Instant>,
-    total_frames: u64,
-    error_concealment: ErrorConcealmentState,
-    spectral_data: SpectralData,
+    current_frame: u64,
+    _spectral_data: SpectralData,
 }
 
 /// Modèle psychoacoustique simplifié
 #[derive(Debug)]
 struct PsychoacousticModel {
-    masking_threshold: Vec<f32>,
-    perceptual_entropy: f32,
-    tonal_components: Vec<TonalComponent>,
+    _masking_threshold: Vec<f32>,
+    _perceptual_entropy: f32,
+    _tonal_components: Vec<TonalComponent>,
 }
 
 /// Extension de bande passante (SBR/PS)
 #[derive(Debug)]
 struct BandwidthExtension {
-    sbr_active: bool,
-    ps_active: bool,
-    high_freq_reconstruction: Vec<f32>,
+    _sbr_active: bool,
+    _ps_active: bool,
+    _high_freq_reconstruction: Vec<f32>,
 }
 
 /// État de dissimulation d'erreur
 #[derive(Debug)]
 struct ErrorConcealmentState {
     last_good_spectrum: Option<Vec<f32>>,
-    concealment_method: AacConcealMethod,
-    error_count: u32,
+    _concealment_method: AacConcealMethod,
 }
 
 /// Données spectrales
 #[derive(Debug)]
 struct SpectralData {
-    mdct_coefficients: Vec<f32>,
-    scale_factors: Vec<u8>,
-    quantized_spectrum: Vec<i16>,
+    _mdct_coefficients: Vec<f32>,
+    _scale_factors: Vec<u8>,
+    _quantized_spectrum: Vec<i16>,
 }
 
 /// Composante tonale pour modèle psychoacoustique
 #[derive(Debug)]
 struct TonalComponent {
-    frequency: f32,
-    amplitude: f32,
-    phase: f32,
+    _frequency: f32,
+    _amplitude: f32,
+    _phase: f32,
 }
 
 impl Default for AacEncoderConfig {
@@ -238,18 +233,16 @@ impl AacEncoderImpl {
         
         let encoder_state = AacEncoderState {
             initialized: false,
-            last_frame_time: None,
-            total_frames: 0,
-            total_bytes: 0,
-            psychoacoustic_model: PsychoacousticModel {
-                masking_threshold: vec![0.0; 512],
-                perceptual_entropy: 0.0,
-                tonal_components: Vec::new(),
+            samples_encoded: 0,
+            _psychoacoustic_model: PsychoacousticModel {
+                _masking_threshold: vec![0.0; 512],
+                _perceptual_entropy: 0.0,
+                _tonal_components: Vec::new(),
             },
-            bandwidth_extension: BandwidthExtension {
-                sbr_active: aac_config.sbr_enabled,
-                ps_active: aac_config.ps_enabled,
-                high_freq_reconstruction: Vec::new(),
+            _bandwidth_extension: BandwidthExtension {
+                _sbr_active: aac_config.sbr_enabled,
+                _ps_active: aac_config.ps_enabled,
+                _high_freq_reconstruction: Vec::new(),
             },
         };
         
@@ -283,27 +276,22 @@ impl AacEncoderImpl {
         let valid_rates = [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000, 88200, 96000];
         if !valid_rates.contains(&self.config.sample_rate) {
             return Err(AppError::InvalidSampleRate {
-                codec: "aac".to_string(),
-                sample_rate: self.config.sample_rate,
-                supported: valid_rates.to_vec(),
+                rate: self.config.sample_rate,
             });
         }
         
         // Jusqu'à 8 canaux
         if self.config.channels == 0 || self.config.channels > 8 {
             return Err(AppError::InvalidChannelCount {
-                codec: "aac".to_string(),
                 channels: self.config.channels,
-                supported: (1..=8).collect(),
             });
         }
         
         // Bitrate : 8kbps à 800kbps
         if self.config.bitrate < 8_000 || self.config.bitrate > 800_000 {
             return Err(AppError::InvalidBitrate {
-                codec: "aac".to_string(),
                 bitrate: self.config.bitrate,
-                range: (8_000, 800_000),
+                codec: "aac".to_string(),
             });
         }
         
@@ -350,6 +338,7 @@ impl AacEncoderImpl {
     fn simulate_quantization_and_coding(&self, output: &mut [u8]) -> Result<(), AppError> {
         // Simulation de quantification et codage entropique
         for (i, byte) in output.iter_mut().enumerate() {
+            let _i = i;
             *byte = (i % 256) as u8; // Données simulées
         }
         Ok(())
@@ -365,9 +354,7 @@ impl AacEncoderImpl {
         
         {
             let mut state = self.encoder_state.lock();
-            state.total_frames += 1;
-            state.total_bytes += output_bytes as u64;
-            state.last_frame_time = Some(Instant::now());
+            state.samples_encoded += 1;
         }
     }
 }
@@ -377,7 +364,7 @@ impl AudioEncoder for AacEncoderImpl {
         if sample_rate != self.config.sample_rate || channels != self.config.channels {
             return Err(AppError::ParameterMismatch {
                 expected: format!("{}Hz, {} ch", self.config.sample_rate, self.config.channels),
-                received: format!("{}Hz, {} ch", sample_rate, channels),
+                got: format!("{}Hz, {} ch", sample_rate, channels),
             });
         }
         
@@ -410,9 +397,7 @@ impl AudioEncoder for AacEncoderImpl {
         
         {
             let mut state = self.encoder_state.lock();
-            state.total_frames = 0;
-            state.total_bytes = 0;
-            state.last_frame_time = None;
+            state.samples_encoded = 0;
         }
         
         Ok(())
@@ -421,9 +406,8 @@ impl AudioEncoder for AacEncoderImpl {
     fn set_bitrate(&mut self, bitrate: u32) -> Result<(), AppError> {
         if bitrate < 8_000 || bitrate > 800_000 {
             return Err(AppError::InvalidBitrate {
-                codec: "aac".to_string(),
                 bitrate,
-                range: (8_000, 800_000),
+                codec: "aac".to_string(),
             });
         }
         
@@ -461,17 +445,11 @@ impl AacDecoderImpl {
         
         let decoder_state = AacDecoderState {
             initialized: false,
-            last_decode_time: None,
-            total_frames: 0,
-            error_concealment: ErrorConcealmentState {
-                last_good_spectrum: None,
-                concealment_method: aac_config.conceal_method.clone(),
-                error_count: 0,
-            },
-            spectral_data: SpectralData {
-                mdct_coefficients: Vec::new(),
-                scale_factors: Vec::new(),
-                quantized_spectrum: Vec::new(),
+            current_frame: 0,
+            _spectral_data: SpectralData {
+                _mdct_coefficients: Vec::new(),
+                _scale_factors: Vec::new(),
+                _quantized_spectrum: Vec::new(),
             },
         };
         
@@ -500,7 +478,7 @@ impl AudioDecoder for AacDecoderImpl {
         let mut samples = Vec::with_capacity(frame_size);
         
         // Simulation simple de décodage AAC
-        for (i, &byte) in data.iter().enumerate() {
+        for (_i, &byte) in data.iter().enumerate() {
             if samples.len() < frame_size {
                 let sample = (byte as f32 - 128.0) / 128.0;
                 samples.push(sample);
@@ -520,8 +498,7 @@ impl AudioDecoder for AacDecoderImpl {
         
         {
             let mut state = self.decoder_state.lock();
-            state.total_frames += 1;
-            state.last_decode_time = Some(Instant::now());
+            state.current_frame += 1;
         }
         
         Ok(DecodedAudio {
@@ -538,10 +515,7 @@ impl AudioDecoder for AacDecoderImpl {
         
         {
             let mut state = self.decoder_state.lock();
-            state.total_frames = 0;
-            state.last_decode_time = None;
-            state.error_concealment.last_good_spectrum = None;
-            state.error_concealment.error_count = 0;
+            state.current_frame = 0;
         }
         
         Ok(())

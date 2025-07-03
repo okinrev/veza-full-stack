@@ -3,7 +3,7 @@
 pub mod metrics;
 pub mod signature;
 
-use crate::config::Config;
+use crate::Config;
 use crate::error::{AppError, Result};
 use axum::{
     body::Body,
@@ -11,7 +11,7 @@ use axum::{
     response::Response,
 };
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use tokio_util::io::ReaderStream;
@@ -91,7 +91,7 @@ pub async fn serve_partial_file(
         .map_err(|_| AppError::FileNotFound)?;
     
     let metadata = file.metadata().await
-        .map_err(|_| AppError::Internal("Failed to read file metadata".to_string()))?;
+        .map_err(|_| AppError::InternalError { message: "Failed to read file metadata".to_string() })?;
     
     let file_size = metadata.len();
     
@@ -107,7 +107,7 @@ pub async fn serve_partial_file(
                 let mut file = file;
                 let mut buffer = vec![0; content_length as usize];
                 file.read_exact(&mut buffer).await
-                    .map_err(|_| AppError::Internal("Failed to read file range".to_string()))?;
+                    .map_err(|_| AppError::InternalError { message: "Failed to read file range".to_string() })?;
                 
                 let mut response = Response::builder()
                     .status(StatusCode::PARTIAL_CONTENT)
@@ -118,7 +118,7 @@ pub async fn serve_partial_file(
                 add_security_headers(&mut response);
                 
                 return Ok(response.body(Body::from(buffer))
-                    .map_err(|_| AppError::Internal("Failed to create response".to_string()))?);
+                    .map_err(|_| AppError::InternalError { message: "Failed to create response".to_string() })?);
             }
         }
     }
@@ -134,7 +134,7 @@ pub async fn serve_partial_file(
     add_security_headers(&mut response);
     
     Ok(response.body(body)
-        .map_err(|_| AppError::Internal("Failed to create response".to_string()))?)
+        .map_err(|_| AppError::InternalError { message: "Failed to create response".to_string() })?)
 }
 
 pub fn validate_signature(config: &Config, filename: &str, expires: &str, sig: &str) -> bool {

@@ -7,8 +7,8 @@ use std::{
 use tokio::sync::RwLock;
 use tracing::{info, debug};
 use serde::{Serialize, Deserialize};
-use crate::config::Config;
-use sha2::{Sha256, Digest};
+
+use sha2::Digest;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileMetadata {

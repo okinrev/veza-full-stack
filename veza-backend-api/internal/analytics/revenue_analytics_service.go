@@ -3,6 +3,7 @@ package analytics
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -18,45 +19,45 @@ type RevenueAnalyticsService struct {
 
 // RevenueMetrics métriques de revenus complètes
 type RevenueMetrics struct {
-	TotalRevenue          float64                    `json:"total_revenue"`
-	RecurringRevenue      float64                    `json:"recurring_revenue"`      // MRR
-	OneTimeRevenue        float64                    `json:"one_time_revenue"`
-	RevenueGrowth         float64                    `json:"revenue_growth_percent"`
-	ARPU                  float64                    `json:"arpu"`                   // Average Revenue Per User
-	LTV                   float64                    `json:"ltv"`                    // Customer Lifetime Value
-	ChurnRate             float64                    `json:"churn_rate"`
-	RevenueBySource       map[string]float64         `json:"revenue_by_source"`
-	RevenueByPlan         map[string]RevenueByPlan   `json:"revenue_by_plan"`
-	RevenueByGeography    map[string]float64         `json:"revenue_by_geography"`
-	DailyRevenue          []DailyRevenueData         `json:"daily_revenue"`
-	SubscriptionMetrics   SubscriptionMetrics        `json:"subscription_metrics"`
-	RefundMetrics         RefundMetrics              `json:"refund_metrics"`
-	PaymentMethodBreakdown map[string]float64        `json:"payment_method_breakdown"`
-	ConversionFunnel      ConversionFunnelMetrics    `json:"conversion_funnel"`
-	CohortRevenue         []CohortRevenueAnalysis    `json:"cohort_revenue"`
-	RevenueForecasting    RevenueForecast            `json:"revenue_forecasting"`
+	TotalRevenue           float64                  `json:"total_revenue"`
+	RecurringRevenue       float64                  `json:"recurring_revenue"` // MRR
+	OneTimeRevenue         float64                  `json:"one_time_revenue"`
+	RevenueGrowth          float64                  `json:"revenue_growth_percent"`
+	ARPU                   float64                  `json:"arpu"` // Average Revenue Per User
+	LTV                    float64                  `json:"ltv"`  // Customer Lifetime Value
+	ChurnRate              float64                  `json:"churn_rate"`
+	RevenueBySource        map[string]float64       `json:"revenue_by_source"`
+	RevenueByPlan          map[string]RevenueByPlan `json:"revenue_by_plan"`
+	RevenueByGeography     map[string]float64       `json:"revenue_by_geography"`
+	DailyRevenue           []DailyRevenueData       `json:"daily_revenue"`
+	SubscriptionMetrics    SubscriptionMetrics      `json:"subscription_metrics"`
+	RefundMetrics          RefundMetrics            `json:"refund_metrics"`
+	PaymentMethodBreakdown map[string]float64       `json:"payment_method_breakdown"`
+	ConversionFunnel       ConversionFunnelMetrics  `json:"conversion_funnel"`
+	CohortRevenue          []CohortRevenueAnalysis  `json:"cohort_revenue"`
+	RevenueForecasting     RevenueForecast          `json:"revenue_forecasting"`
 }
 
 // RevenueByPlan revenus par plan d'abonnement
 type RevenueByPlan struct {
-	PlanName       string  `json:"plan_name"`
-	Revenue        float64 `json:"revenue"`
-	Subscribers    int64   `json:"subscribers"`
-	ChurnRate      float64 `json:"churn_rate"`
-	AverageStay    float64 `json:"average_stay_months"`
-	UpgradeRate    float64 `json:"upgrade_rate"`
+	PlanName    string  `json:"plan_name"`
+	Revenue     float64 `json:"revenue"`
+	Subscribers int64   `json:"subscribers"`
+	ChurnRate   float64 `json:"churn_rate"`
+	AverageStay float64 `json:"average_stay_months"`
+	UpgradeRate float64 `json:"upgrade_rate"`
 }
 
 // DailyRevenueData données de revenus quotidiens
 type DailyRevenueData struct {
-	Date               time.Time `json:"date"`
-	Revenue            float64   `json:"revenue"`
-	NewSubscriptions   int64     `json:"new_subscriptions"`
-	Cancellations      int64     `json:"cancellations"`
-	Upgrades           int64     `json:"upgrades"`
-	Downgrades         int64     `json:"downgrades"`
-	Refunds            float64   `json:"refunds"`
-	NetRevenue         float64   `json:"net_revenue"`
+	Date             time.Time `json:"date"`
+	Revenue          float64   `json:"revenue"`
+	NewSubscriptions int64     `json:"new_subscriptions"`
+	Cancellations    int64     `json:"cancellations"`
+	Upgrades         int64     `json:"upgrades"`
+	Downgrades       int64     `json:"downgrades"`
+	Refunds          float64   `json:"refunds"`
+	NetRevenue       float64   `json:"net_revenue"`
 }
 
 // SubscriptionMetrics métriques d'abonnement
@@ -67,83 +68,83 @@ type SubscriptionMetrics struct {
 	CancelledSubscribers int64   `json:"cancelled_subscribers"`
 	TrialUsers           int64   `json:"trial_users"`
 	TrialConversionRate  float64 `json:"trial_conversion_rate"`
-	MRR                  float64 `json:"mrr"`                   // Monthly Recurring Revenue
-	ARR                  float64 `json:"arr"`                   // Annual Recurring Revenue
+	MRR                  float64 `json:"mrr"` // Monthly Recurring Revenue
+	ARR                  float64 `json:"arr"` // Annual Recurring Revenue
 	ChurnRate            float64 `json:"churn_rate"`
 	NetRevenueRetention  float64 `json:"net_revenue_retention"`
 }
 
 // RefundMetrics métriques de remboursement
 type RefundMetrics struct {
-	TotalRefunds       float64 `json:"total_refunds"`
-	RefundCount        int64   `json:"refund_count"`
-	RefundRate         float64 `json:"refund_rate_percent"`
-	AvgRefundAmount    float64 `json:"avg_refund_amount"`
-	RefundsByReason    map[string]float64 `json:"refunds_by_reason"`
-	RefundsByPlan      map[string]float64 `json:"refunds_by_plan"`
+	TotalRefunds    float64            `json:"total_refunds"`
+	RefundCount     int64              `json:"refund_count"`
+	RefundRate      float64            `json:"refund_rate_percent"`
+	AvgRefundAmount float64            `json:"avg_refund_amount"`
+	RefundsByReason map[string]float64 `json:"refunds_by_reason"`
+	RefundsByPlan   map[string]float64 `json:"refunds_by_plan"`
 }
 
 // ConversionFunnelMetrics métriques d'entonnoir de conversion
 type ConversionFunnelMetrics struct {
-	Visitors           int64   `json:"visitors"`
-	SignUps            int64   `json:"sign_ups"`
-	TrialStarts        int64   `json:"trial_starts"`
-	PaidConversions    int64   `json:"paid_conversions"`
-	VisitorToSignUp    float64 `json:"visitor_to_signup_rate"`
-	SignUpToTrial      float64 `json:"signup_to_trial_rate"`
-	TrialToPaid        float64 `json:"trial_to_paid_rate"`
-	OverallConversion  float64 `json:"overall_conversion_rate"`
+	Visitors          int64   `json:"visitors"`
+	SignUps           int64   `json:"sign_ups"`
+	TrialStarts       int64   `json:"trial_starts"`
+	PaidConversions   int64   `json:"paid_conversions"`
+	VisitorToSignUp   float64 `json:"visitor_to_signup_rate"`
+	SignUpToTrial     float64 `json:"signup_to_trial_rate"`
+	TrialToPaid       float64 `json:"trial_to_paid_rate"`
+	OverallConversion float64 `json:"overall_conversion_rate"`
 }
 
 // CohortRevenueAnalysis analyse de revenus par cohorte
 type CohortRevenueAnalysis struct {
-	CohortMonth    time.Time              `json:"cohort_month"`
-	InitialSize    int64                  `json:"initial_size"`
-	MonthlyRevenue map[string]float64     `json:"monthly_revenue"`    // Revenus par mois depuis création
-	RetentionRate  map[string]float64     `json:"retention_rate"`     // Taux de rétention par mois
-	CumulativeRevenue float64             `json:"cumulative_revenue"`
+	CohortMonth       time.Time          `json:"cohort_month"`
+	InitialSize       int64              `json:"initial_size"`
+	MonthlyRevenue    map[string]float64 `json:"monthly_revenue"` // Revenus par mois depuis création
+	RetentionRate     map[string]float64 `json:"retention_rate"`  // Taux de rétention par mois
+	CumulativeRevenue float64            `json:"cumulative_revenue"`
 }
 
 // RevenueForecast prévisions de revenus
 type RevenueForecast struct {
-	NextMonthPrediction  float64                `json:"next_month_prediction"`
-	NextQuarterPrediction float64               `json:"next_quarter_prediction"`
-	AnnualPrediction     float64                `json:"annual_prediction"`
-	Confidence           float64                `json:"confidence_percent"`
-	ForecastDetails      []MonthlyForecast      `json:"forecast_details"`
-	GrowthAssumptions    GrowthAssumptions      `json:"growth_assumptions"`
+	NextMonthPrediction   float64           `json:"next_month_prediction"`
+	NextQuarterPrediction float64           `json:"next_quarter_prediction"`
+	AnnualPrediction      float64           `json:"annual_prediction"`
+	Confidence            float64           `json:"confidence_percent"`
+	ForecastDetails       []MonthlyForecast `json:"forecast_details"`
+	GrowthAssumptions     GrowthAssumptions `json:"growth_assumptions"`
 }
 
 // MonthlyForecast prévision mensuelle
 type MonthlyForecast struct {
-	Month           time.Time `json:"month"`
-	PredictedRevenue float64  `json:"predicted_revenue"`
-	LowerBound       float64  `json:"lower_bound"`
-	UpperBound       float64  `json:"upper_bound"`
+	Month            time.Time `json:"month"`
+	PredictedRevenue float64   `json:"predicted_revenue"`
+	LowerBound       float64   `json:"lower_bound"`
+	UpperBound       float64   `json:"upper_bound"`
 }
 
 // GrowthAssumptions hypothèses de croissance
 type GrowthAssumptions struct {
-	MonthlyGrowthRate    float64 `json:"monthly_growth_rate"`
-	ChurnRateAssumption  float64 `json:"churn_rate_assumption"`
-	NewCustomerRate      float64 `json:"new_customer_rate"`
-	PriceChangeImpact    float64 `json:"price_change_impact"`
+	MonthlyGrowthRate   float64 `json:"monthly_growth_rate"`
+	ChurnRateAssumption float64 `json:"churn_rate_assumption"`
+	NewCustomerRate     float64 `json:"new_customer_rate"`
+	PriceChangeImpact   float64 `json:"price_change_impact"`
 }
 
 // Transaction transaction de revenus
 type Transaction struct {
-	ID              string                 `json:"id"`
-	UserID          string                 `json:"user_id"`
-	Amount          float64                `json:"amount"`
-	Currency        string                 `json:"currency"`
-	Type            string                 `json:"type"`           // subscription, one_time, refund
-	Status          string                 `json:"status"`         // completed, pending, failed
-	PaymentMethod   string                 `json:"payment_method"` // card, paypal, etc.
-	PlanID          string                 `json:"plan_id,omitempty"`
-	Country         string                 `json:"country"`
-	Timestamp       time.Time              `json:"timestamp"`
-	RefundReason    string                 `json:"refund_reason,omitempty"`
-	Metadata        map[string]interface{} `json:"metadata"`
+	ID            string                 `json:"id"`
+	UserID        string                 `json:"user_id"`
+	Amount        float64                `json:"amount"`
+	Currency      string                 `json:"currency"`
+	Type          string                 `json:"type"`           // subscription, one_time, refund
+	Status        string                 `json:"status"`         // completed, pending, failed
+	PaymentMethod string                 `json:"payment_method"` // card, paypal, etc.
+	PlanID        string                 `json:"plan_id,omitempty"`
+	Country       string                 `json:"country"`
+	Timestamp     time.Time              `json:"timestamp"`
+	RefundReason  string                 `json:"refund_reason,omitempty"`
+	Metadata      map[string]interface{} `json:"metadata"`
 }
 
 // NewRevenueAnalyticsService crée un nouveau service d'analytics des revenus
@@ -348,7 +349,7 @@ func (s *RevenueAnalyticsService) getLTV(ctx context.Context, dateRange DateRang
 	}
 
 	// TODO: Obtenir le taux de churn réel depuis la base de données
-	churnRate := 0.05 // 5% par mois (exemple)
+	churnRate := 0.05  // 5% par mois (exemple)
 	grossMargin := 0.8 // 80% de marge (exemple)
 
 	if churnRate == 0 {
@@ -576,13 +577,13 @@ func (s *RevenueAnalyticsService) getConversionFunnel(ctx context.Context, dateR
 func (s *RevenueAnalyticsService) getRevenueForecast(ctx context.Context, dateRange DateRange) (RevenueForecast, error) {
 	// Prévision simple basée sur la tendance des 3 derniers mois
 	currentRevenue, _ := s.getTotalRevenue(ctx, dateRange)
-	
+
 	// TODO: Implémenter un modèle de prévision plus sophistiqué
 	forecast := RevenueForecast{
-		NextMonthPrediction:   currentRevenue * 1.08,  // +8% de croissance
-		NextQuarterPrediction: currentRevenue * 3.25,  // +8.33% par mois
-		AnnualPrediction:      currentRevenue * 13.0,  // +8.33% par mois
-		Confidence:            75.0,                    // 75% de confiance
+		NextMonthPrediction:   currentRevenue * 1.08, // +8% de croissance
+		NextQuarterPrediction: currentRevenue * 3.25, // +8.33% par mois
+		AnnualPrediction:      currentRevenue * 13.0, // +8.33% par mois
+		Confidence:            75.0,                  // 75% de confiance
 		GrowthAssumptions: GrowthAssumptions{
 			MonthlyGrowthRate:   8.0,
 			ChurnRateAssumption: 5.0,

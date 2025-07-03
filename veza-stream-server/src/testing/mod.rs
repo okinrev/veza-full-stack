@@ -16,7 +16,7 @@ pub use stress_testing::*;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{info, warn, error, debug};
+use tracing::{info};
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
@@ -158,6 +158,12 @@ pub enum TestStatus {
     Passed,
     Failed { reason: String },
     PartiallyPassed { warnings: Vec<String> },
+}
+
+impl Default for TestStatus {
+    fn default() -> Self {
+        TestStatus::Passed
+    }
 }
 
 /// Connexion de test simulée
