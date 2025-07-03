@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["Environment","LogFormat"],"struct":["CacheConfig","CliArgs","DatabaseConfig","EmailConfig","FeaturesConfig","IntegrationsConfig","LimitsConfig","LogRotation","LoggingConfig","PrometheusConfig","SecurityConfig","ServerConfig","ServerSettings","WebhookConfig"]};

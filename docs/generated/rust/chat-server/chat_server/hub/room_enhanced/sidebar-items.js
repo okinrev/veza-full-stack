@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["create_room","fetch_pinned_messages","fetch_room_history","get_room_stats","join_room","leave_room","list_room_members","send_room_message"]};

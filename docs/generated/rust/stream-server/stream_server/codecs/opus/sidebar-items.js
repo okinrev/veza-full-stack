@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["OpusApplication","OpusFrameDuration","OpusSignalType","OpusVbrMode"],"struct":["BandwidthAdaptation","OpusDecoderConfig","OpusDecoderImpl","OpusDecoderState","OpusEncoderConfig","OpusEncoderImpl","OpusEncoderState","PacketLossConcealmentState"]};

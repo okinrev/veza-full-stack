@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["ChatServiceServer","_Inner"],"trait":["ChatService"]};

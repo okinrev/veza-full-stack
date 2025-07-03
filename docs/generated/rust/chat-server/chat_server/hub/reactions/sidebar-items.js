@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["add_reaction","broadcast_reaction_update","check_message_access","get_message_access_users","get_message_reactions","get_popular_emojis","get_user_reactions","remove_reaction","toggle_reaction","validate_emoji"],"struct":["MessageReaction","MessageReactions","ReactionSummary","ReactionUser"]};

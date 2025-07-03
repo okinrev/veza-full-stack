@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ConnectionType","DeviceType"],"fn":["hls_master_playlist","hls_quality_playlist"],"struct":["AdaptiveProfile","AdaptiveStreamQuery","AdaptiveStreamingManager","ClientCapabilities","HLSManifest","HLSSegment","MasterPlaylist","PerformanceMetrics","QualityProfile","StreamInfo","StreamingSession"]};

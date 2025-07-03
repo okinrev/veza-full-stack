@@ -1,0 +1,1 @@
+searchState.loadedDescShard("test_new_architecture", 0, "Test d’intégration pour la nouvelle architecture …")

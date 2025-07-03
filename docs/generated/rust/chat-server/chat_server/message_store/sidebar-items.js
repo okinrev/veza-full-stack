@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["MessageStatus","MessageType"],"struct":["DMConversation","GlobalMessageStats","Message","MessageAttachment","MessageReaction","MessageStats","MessageStore"]};

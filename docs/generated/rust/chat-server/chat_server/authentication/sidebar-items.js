@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PresenceStatus","Role"],"struct":["AuthManager","UserSession"]};

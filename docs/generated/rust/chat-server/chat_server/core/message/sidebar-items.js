@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["IncomingMessage","MessageType","OutgoingMessage"],"struct":["EmbedAuthor","EmbedField","EmbedFooter","EmbedImage","EmbedThumbnail","MessageAttachment","MessageEmbed","MessageReaction","ModerationFlags","StoredMessage"]};

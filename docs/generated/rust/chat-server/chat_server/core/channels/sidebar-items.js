@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ChannelPermission","ChannelType","PermissionTargetType"],"struct":["Channel","ChannelCategory","ChannelConfig","ChannelManager","ChannelPermissions","ChannelStats","ChannelWithCategory","VoiceMember"]};

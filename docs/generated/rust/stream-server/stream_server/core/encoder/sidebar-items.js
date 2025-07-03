@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AacObjectType","AacProfile","AudioCodec","EncodingPreset","Mp3Mode","OpusSignalType"],"struct":["EncoderMetrics","EncoderOutput","EncoderPipeline","EncoderPool","EncoderPoolConfig","QualityProfile"],"trait":["AacEncoder","AudioEffect","FlacEncoder","Mp3Encoder","OpusEncoder"]};

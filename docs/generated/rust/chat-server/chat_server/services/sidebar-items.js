@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["ConversationService","MessageService","Services","UserService"]};

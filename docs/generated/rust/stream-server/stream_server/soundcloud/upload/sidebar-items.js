@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ProcessingStage","UploadEvent","UploadStatus"],"struct":["LocalFileStorage","MetadataExtractor","MetadataExtractorConfig","StoredFile","TrackMetadata","UploadConfig","UploadManager","UploadProgress","UploadSession"],"trait":["FileStorage"]};

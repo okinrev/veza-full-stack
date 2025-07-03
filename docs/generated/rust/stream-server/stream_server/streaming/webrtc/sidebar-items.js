@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AudioCodec","ConnectionState","IceConnectionState","WebRTCMessage"],"fn":["default_instant"],"struct":["IceServer","PeerStats","WebRTCConfig","WebRTCManager","WebRTCPeer"]};

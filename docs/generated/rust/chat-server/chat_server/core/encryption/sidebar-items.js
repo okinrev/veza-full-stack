@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["EncryptionAlgorithm","KeyStatus","SessionStatus"],"struct":["E2EEncryptionService","EncryptedMessage","EncryptionPreferences","EncryptionResult","EncryptionSession","MessageMetadata","UserKeyPair"]};

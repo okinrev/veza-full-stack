@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PoolMessage"],"struct":["ConnectionMetadata","ConnectionPool","ConnectionPoolConfig","PoolStats"]};

@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"struct":["AuthServiceServer","_Inner"],"trait":["AuthService"]};
