@@ -10,6 +10,7 @@ import (
 
 	"github.com/okinrev/veza-web-app/internal/database"
 	"github.com/okinrev/veza-web-app/internal/models"
+	"github.com/okinrev/veza-web-app/internal/utils"
 )
 
 // MagicLinkService service pour l'authentification par liens magiques
@@ -48,7 +49,7 @@ type MagicLinkValidation struct {
 // MagicLink structure interne du Magic Link
 type MagicLink struct {
 	ID          int        `db:"id"`
-	UserID      int        `db:"user_id"`
+	UserID      int64      `db:"user_id"`
 	Email       string     `db:"email"`
 	Token       string     `db:"token"`
 	RedirectURL string     `db:"redirect_url"`
@@ -154,8 +155,7 @@ func (s *MagicLinkService) ValidateMagicLink(token, ipAddress string) (*LoginRes
 	}
 
 	// Générer les tokens d'authentification
-	service := &Service{db: s.db} // TODO: Injecter le service proprement
-	tokenPair, err := service.GenerateTokenPair(user.ID, user.Username, user.Role)
+	accessToken, refreshToken, expiresIn, err := utils.GenerateTokenPair(user.ID, user.Username, user.Role, "your-jwt-secret") // TODO: Injecter le secret
 	if err != nil {
 		return nil, fmt.Errorf("erreur génération tokens: %w", err)
 	}
@@ -164,13 +164,13 @@ func (s *MagicLinkService) ValidateMagicLink(token, ipAddress string) (*LoginRes
 	s.db.Exec("UPDATE users SET updated_at = NOW() WHERE id = $1", user.ID)
 
 	// Enregistrer l'événement de connexion pour audit
-	s.recordLoginEvent(user.ID, "magic_link", ipAddress, true)
+	s.recordLoginEvent(int(user.ID), "magic_link", ipAddress, true)
 
 	return &LoginResponse{
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		User:         user,
-		ExpiresIn:    tokenPair.ExpiresIn,
+		ExpiresIn:    expiresIn,
 	}, nil
 }
 
@@ -233,7 +233,7 @@ func (s *MagicLinkService) getUserByEmail(email string) (*models.User, error) {
 }
 
 // getUserByID récupère un utilisateur par ID
-func (s *MagicLinkService) getUserByID(userID int) (*models.User, error) {
+func (s *MagicLinkService) getUserByID(userID int64) (*models.User, error) {
 	var user models.User
 	err := s.db.QueryRow(`
 		SELECT id, username, email, role, created_at, updated_at

@@ -20,7 +20,7 @@ var upgrader = websocket.Upgrader{
 
 type Client struct {
 	conn     *websocket.Conn
-	userID   int
+	userID   int64
 	username string
 	send     chan []byte
 }

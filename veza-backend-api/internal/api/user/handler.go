@@ -4,8 +4,9 @@ package user
 import (
 	"net/http"
 	"strconv"
-	"github.com/okinrev/veza-web-app/internal/utils/response"  // ADD THIS
-    "github.com/okinrev/veza-web-app/internal/common"
+
+	"github.com/okinrev/veza-web-app/internal/common"
+	"github.com/okinrev/veza-web-app/internal/utils/response" // ADD THIS
 
 	"github.com/gin-gonic/gin"
 )
@@ -129,7 +130,7 @@ func (h *Handler) GetUsersExceptMe(c *gin.Context) {
 	// Filtrer l'utilisateur connecté
 	filteredUsers := []UserResponse{}
 	for _, user := range users {
-		if user.ID != userID {
+		if user.ID != int(userID) {
 			filteredUsers = append(filteredUsers, user)
 		}
 	}
@@ -173,7 +174,7 @@ func (h *Handler) SearchUsers(c *gin.Context) {
 
 func (h *Handler) GetUserAvatar(c *gin.Context) {
 	idStr := c.Param("id")
-	userID, err := strconv.Atoi(idStr)
+	userID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.ErrorJSON(c.Writer, "Invalid user ID", http.StatusBadRequest)
 		return

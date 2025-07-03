@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/okinrev/veza-web-app/internal/response"
+	"github.com/okinrev/veza-web-app/internal/utils"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
 	"golang.org/x/oauth2/google"
@@ -425,16 +426,16 @@ func (h *OAuthHandler) authenticateOAuthUser(email, username, provider string, u
 	user, err := h.service.GetUserByEmail(email)
 	if err == nil && user != nil {
 		// Utilisateur existe, générer les tokens
-		tokenPair, err := h.service.GenerateTokenPair(user.ID, user.Username, user.Role)
+		accessToken, refreshToken, expiresIn, err := utils.GenerateTokenPair(user.ID, user.Username, user.Role, "your-jwt-secret") // TODO: Injecter le secret
 		if err != nil {
 			return nil, fmt.Errorf("génération tokens: %w", err)
 		}
 
 		return &LoginResponse{
-			AccessToken:  tokenPair.AccessToken,
-			RefreshToken: tokenPair.RefreshToken,
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
 			User:         user,
-			ExpiresIn:    tokenPair.ExpiresIn,
+			ExpiresIn:    expiresIn,
 		}, nil
 	}
 
@@ -451,16 +452,16 @@ func (h *OAuthHandler) authenticateOAuthUser(email, username, provider string, u
 	}
 
 	// Générer les tokens pour le nouvel utilisateur
-	tokenPair, err := h.service.GenerateTokenPair(newUser.ID, newUser.Username, newUser.Role)
+	accessToken, refreshToken, expiresIn, err := utils.GenerateTokenPair(newUser.ID, newUser.Username, newUser.Role, "your-jwt-secret") // TODO: Injecter le secret
 	if err != nil {
 		return nil, fmt.Errorf("génération tokens nouvel utilisateur: %w", err)
 	}
 
 	return &LoginResponse{
-		AccessToken:  tokenPair.AccessToken,
-		RefreshToken: tokenPair.RefreshToken,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		User:         newUser,
-		ExpiresIn:    tokenPair.ExpiresIn,
+		ExpiresIn:    expiresIn,
 	}, nil
 }
 

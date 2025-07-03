@@ -216,7 +216,7 @@ func (s *Service) Logout(refreshToken string) error {
 	return err
 }
 
-func (s *Service) GetMe(userID int) (*models.UserResponse, error) {
+func (s *Service) GetMe(userID int64) (*models.UserResponse, error) {
 	var user models.User
 	err := s.db.QueryRow(`
 		SELECT id, username, email, role, created_at, updated_at

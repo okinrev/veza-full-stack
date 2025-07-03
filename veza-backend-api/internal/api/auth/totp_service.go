@@ -47,7 +47,7 @@ type TwoFactorStatus struct {
 }
 
 // Generate2FASetup génère la configuration initiale 2FA
-func (s *TotpService) Generate2FASetup(userID int, email string) (*TwoFactorSetup, error) {
+func (s *TotpService) Generate2FASetup(userID int64, email string) (*TwoFactorSetup, error) {
 	// Vérifier que l'utilisateur n'a pas déjà 2FA activé
 	if s.is2FAEnabled(userID) {
 		return nil, fmt.Errorf("2FA déjà activé pour cet utilisateur")
@@ -97,7 +97,7 @@ func (s *TotpService) Generate2FASetup(userID int, email string) (*TwoFactorSetu
 }
 
 // Verify2FASetup vérifie et active 2FA
-func (s *TotpService) Verify2FASetup(userID int, totpCode string) error {
+func (s *TotpService) Verify2FASetup(userID int64, totpCode string) error {
 	// Récupérer la configuration temporaire
 	tempSetup, err := s.getTemporary2FASetup(userID)
 	if err != nil {
@@ -105,7 +105,7 @@ func (s *TotpService) Verify2FASetup(userID int, totpCode string) error {
 	}
 
 	// Vérifier le code TOTP
-	valid := totp.Validate(totpCode, tempSetup.Secret, time.Now())
+	valid := totp.Validate(totpCode, tempSetup.Secret)
 	if !valid {
 		return fmt.Errorf("code TOTP invalide")
 	}
@@ -123,7 +123,7 @@ func (s *TotpService) Verify2FASetup(userID int, totpCode string) error {
 }
 
 // ValidateTOTP valide un code TOTP
-func (s *TotpService) ValidateTOTP(userID int, totpCode string) error {
+func (s *TotpService) ValidateTOTP(userID int64, totpCode string) error {
 	// Récupérer le secret de l'utilisateur
 	secret, err := s.getTOTPSecret(userID)
 	if err != nil {
@@ -131,7 +131,7 @@ func (s *TotpService) ValidateTOTP(userID int, totpCode string) error {
 	}
 
 	// Vérifier le code TOTP avec fenêtre de tolérance
-	valid := totp.Validate(totpCode, secret, time.Now())
+	valid := totp.Validate(totpCode, secret)
 	if !valid {
 		return fmt.Errorf("code TOTP invalide")
 	}
@@ -143,7 +143,7 @@ func (s *TotpService) ValidateTOTP(userID int, totpCode string) error {
 }
 
 // ValidateBackupCode valide et consume un code de récupération
-func (s *TotpService) ValidateBackupCode(userID int, backupCode string) error {
+func (s *TotpService) ValidateBackupCode(userID int64, backupCode string) error {
 	// Normaliser le code
 	normalizedCode := strings.ToUpper(strings.ReplaceAll(backupCode, "-", ""))
 
@@ -157,7 +157,7 @@ func (s *TotpService) ValidateBackupCode(userID int, backupCode string) error {
 }
 
 // Disable2FA désactive l'authentification à deux facteurs
-func (s *TotpService) Disable2FA(userID int, password string) error {
+func (s *TotpService) Disable2FA(userID int64, password string) error {
 	// Vérifier le mot de passe actuel
 	err := s.verifyUserPassword(userID, password)
 	if err != nil {
@@ -179,7 +179,7 @@ func (s *TotpService) Disable2FA(userID int, password string) error {
 }
 
 // GetTwoFactorStatus récupère le statut 2FA de l'utilisateur
-func (s *TotpService) GetTwoFactorStatus(userID int) (*TwoFactorStatus, error) {
+func (s *TotpService) GetTwoFactorStatus(userID int64) (*TwoFactorStatus, error) {
 	var status TwoFactorStatus
 	var lastUsed sql.NullTime
 	var backupCodesCount int
@@ -216,7 +216,7 @@ func (s *TotpService) GetTwoFactorStatus(userID int) (*TwoFactorStatus, error) {
 }
 
 // RegenerateBackupCodes génère de nouveaux codes de récupération
-func (s *TotpService) RegenerateBackupCodes(userID int, password string) ([]string, error) {
+func (s *TotpService) RegenerateBackupCodes(userID int64, password string) ([]string, error) {
 	// Vérifier le mot de passe
 	err := s.verifyUserPassword(userID, password)
 	if err != nil {
@@ -267,7 +267,7 @@ func (s *TotpService) RegenerateBackupCodes(userID int, password string) ([]stri
 // ============================================================================
 
 // is2FAEnabled vérifie si 2FA est activé pour l'utilisateur
-func (s *TotpService) is2FAEnabled(userID int) bool {
+func (s *TotpService) is2FAEnabled(userID int64) bool {
 	var count int
 	s.db.QueryRow("SELECT COUNT(*) FROM user_totp_secrets WHERE user_id = $1", userID).Scan(&count)
 	return count > 0
@@ -300,7 +300,7 @@ func (s *TotpService) generateQRCodeImage(data string) (string, error) {
 }
 
 // saveTemporary2FASetup sauvegarde temporairement la configuration
-func (s *TotpService) saveTemporary2FASetup(userID int, secret string, backupCodes []string) error {
+func (s *TotpService) saveTemporary2FASetup(userID int64, secret string, backupCodes []string) error {
 	// Supprimer ancienne configuration temporaire
 	s.db.Exec("DELETE FROM user_totp_temp WHERE user_id = $1", userID)
 
@@ -322,7 +322,7 @@ func (s *TotpService) saveTemporary2FASetup(userID int, secret string, backupCod
 }
 
 // getTemporary2FASetup récupère la configuration temporaire
-func (s *TotpService) getTemporary2FASetup(userID int) (*struct {
+func (s *TotpService) getTemporary2FASetup(userID int64) (*struct {
 	Secret      string
 	BackupCodes []string
 }, error) {
@@ -347,12 +347,12 @@ func (s *TotpService) getTemporary2FASetup(userID int) (*struct {
 }
 
 // deleteTemporary2FASetup supprime la configuration temporaire
-func (s *TotpService) deleteTemporary2FASetup(userID int) {
+func (s *TotpService) deleteTemporary2FASetup(userID int64) {
 	s.db.Exec("DELETE FROM user_totp_temp WHERE user_id = $1", userID)
 }
 
 // enable2FA active définitivement 2FA
-func (s *TotpService) enable2FA(userID int, secret string, backupCodes []string) error {
+func (s *TotpService) enable2FA(userID int64, secret string, backupCodes []string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -383,19 +383,19 @@ func (s *TotpService) enable2FA(userID int, secret string, backupCodes []string)
 }
 
 // getTOTPSecret récupère le secret TOTP de l'utilisateur
-func (s *TotpService) getTOTPSecret(userID int) (string, error) {
+func (s *TotpService) getTOTPSecret(userID int64) (string, error) {
 	var secret string
 	err := s.db.QueryRow("SELECT secret FROM user_totp_secrets WHERE user_id = $1", userID).Scan(&secret)
 	return secret, err
 }
 
 // updateLastTOTPUsage met à jour la dernière utilisation TOTP
-func (s *TotpService) updateLastTOTPUsage(userID int) {
+func (s *TotpService) updateLastTOTPUsage(userID int64) {
 	s.db.Exec("UPDATE user_totp_secrets SET last_used_at = $1 WHERE user_id = $2", time.Now(), userID)
 }
 
 // consumeBackupCode consomme un code de récupération
-func (s *TotpService) consumeBackupCode(userID int, code string) error {
+func (s *TotpService) consumeBackupCode(userID int64, code string) error {
 	result, err := s.db.Exec(`
 		UPDATE user_backup_codes 
 		SET used_at = $1 
@@ -415,7 +415,7 @@ func (s *TotpService) consumeBackupCode(userID int, code string) error {
 }
 
 // verifyUserPassword vérifie le mot de passe de l'utilisateur
-func (s *TotpService) verifyUserPassword(userID int, password string) error {
+func (s *TotpService) verifyUserPassword(userID int64, password string) error {
 	var storedHash string
 	err := s.db.QueryRow("SELECT password_hash FROM users WHERE id = $1", userID).Scan(&storedHash)
 	if err != nil {

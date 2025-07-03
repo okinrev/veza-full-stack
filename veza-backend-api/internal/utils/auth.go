@@ -25,14 +25,14 @@ func CheckPasswordHash(password, hash string) error {
 
 // JWT Claims
 type Claims struct {
-	UserID   int    `json:"user_id"`
+	UserID   int64  `json:"user_id"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 	jwt.RegisteredClaims
 }
 
 // JWT functions
-func GenerateTokenPair(userID int, username, role, secret string) (access string, refresh string, expiresIn int64, err error) {
+func GenerateTokenPair(userID int64, username, role, secret string) (access string, refresh string, expiresIn int64, err error) {
 	fmt.Printf("🔑 Génération des tokens pour userID=%d, username=%s, role=%s\n", userID, username, role)
 
 	// Access token (1 hour)
@@ -66,7 +66,7 @@ func GenerateTokenPair(userID int, username, role, secret string) (access string
 	return accessToken, refreshTokenString, expiresIn, nil
 }
 
-func GenerateAccessToken(userID int, username, role, secret string) (string, int64, error) {
+func GenerateAccessToken(userID int64, username, role, secret string) (string, int64, error) {
 	fmt.Printf("🔑 Génération du token d'accès pour userID=%d, username=%s, role=%s\n", userID, username, role)
 
 	expiresIn := int64(3600) // 1 hour
@@ -113,7 +113,7 @@ func ValidateJWT(tokenString, secret string) (*Claims, error) {
 }
 
 // Signed URL functions
-func GenerateSignedURL(filename string, userID int, secret string) (string, error) {
+func GenerateSignedURL(filename string, userID int64, secret string) (string, error) {
 	expires := time.Now().Add(time.Hour).Unix()
 	message := fmt.Sprintf("%s:%d:%d", filename, userID, expires)
 
@@ -125,7 +125,7 @@ func GenerateSignedURL(filename string, userID int, secret string) (string, erro
 		filename, expires, signature, userID), nil
 }
 
-func ValidateSignedURL(filename string, userID int, expires int64, signature, secret string) bool {
+func ValidateSignedURL(filename string, userID int64, expires int64, signature, secret string) bool {
 	if time.Now().Unix() > expires {
 		return false
 	}

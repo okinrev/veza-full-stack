@@ -2,7 +2,6 @@ package auth
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/okinrev/veza-web-app/internal/common"
@@ -214,7 +213,7 @@ func (h *TotpHandler) RegenerateBackupCodes(c *gin.Context) {
 }
 
 // GetUserByID méthode helper pour récupérer un utilisateur par ID
-func (s *Service) GetUserByID(userID int) (*User, error) {
+func (s *Service) GetUserByID(userID int64) (*User, error) {
 	var user User
 	err := s.db.QueryRow(`
 		SELECT id, username, email, role, created_at, updated_at

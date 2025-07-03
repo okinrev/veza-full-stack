@@ -13,7 +13,7 @@ func NewService(db *database.DB) *Service {
 	return &Service{db: db}
 }
 
-func (s *Service) IsAdmin(userID int) bool {
+func (s *Service) IsAdmin(userID int64) bool {
 	var role string
 	err := s.db.QueryRow("SELECT role FROM users WHERE id = $1", userID).Scan(&role)
 	if err != nil {
