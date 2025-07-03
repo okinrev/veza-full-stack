@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["AuthError","Permission","Role","SubscriptionTier"],"fn":["auth_middleware","extract_token_from_headers","login_handler","logout_handler","refresh_handler","require_permission","require_role","user_info_handler"],"struct":["AuthManager","Claims","LoginRequest","LoginResponse","RefreshTokenRequest","TokenValidationResult","UserInfo"]};

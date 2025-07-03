@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["EffectFactory","EffectParameter","EffectsChain","EffectsPerformanceMetrics","SIMDCompressor"],"trait":["AudioEffect"]};

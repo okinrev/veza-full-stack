@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ActivityType","PresenceStatus"],"struct":["PresenceStats","PresenceTracker","UserActivity"]};

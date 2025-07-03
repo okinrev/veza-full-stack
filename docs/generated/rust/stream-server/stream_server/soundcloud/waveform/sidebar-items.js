@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["WaveformFormat"],"struct":["AudioData","AudioStatistics","PeakAnalyzer","PeakAnalyzerConfig","PeakCandidate","PeakDetectionState","SpectralData","SpectralFrame","WaveformConfig","WaveformData","WaveformGenerator","WaveformPeak"]};

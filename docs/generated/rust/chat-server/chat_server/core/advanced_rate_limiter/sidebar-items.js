@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["AttackType","IpStatus","LimitType","ModerationLevel","ReputationLevel"],"struct":["AdvancedRateLimiter","AttackPattern","BlacklistEntry","ChannelRateLimiter","DailyLimits","IpRateLimiter","RateLimitConfig","RateLimitMetrics","RateLimitResult","RequestEvent","RequestInfo","TokenBucket","UserRateLimiter","UserReputation"]};

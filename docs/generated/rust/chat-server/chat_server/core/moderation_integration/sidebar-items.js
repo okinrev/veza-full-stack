@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ModerationAction","TrustLevel","ViolationSeverity"],"struct":["ModerationDecision","ModerationIntegrationService","ModerationMetrics","SanctionRecord","ShadowBanRestrictions"]};

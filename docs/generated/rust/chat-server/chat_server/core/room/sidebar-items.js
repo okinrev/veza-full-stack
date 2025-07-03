@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ChannelType"],"struct":["MessageBuffer","Room","RoomMember","RoomPermissions","RoomSettings"]};

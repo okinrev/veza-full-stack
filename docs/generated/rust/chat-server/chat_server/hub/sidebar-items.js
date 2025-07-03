@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["audit","channel_websocket","channels","common","direct_messages","direct_messages_websocket","reactions","room_enhanced"]};

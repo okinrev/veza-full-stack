@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["calculate_compression_ratio","convert_samples","validate_codec_params"]};

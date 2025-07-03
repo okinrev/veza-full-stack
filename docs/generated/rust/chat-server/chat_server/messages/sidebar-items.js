@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["MessageType","WsInbound"],"struct":["MessageContent"]};

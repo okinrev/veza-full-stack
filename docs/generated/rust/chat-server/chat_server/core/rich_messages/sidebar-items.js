@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["RichMessageType"],"struct":["EmbedAuthor","EmbedField","EmbedFooter","EmbedImage","EmbedProvider","EmbedThumbnail","EmbedVideo","MessageActivity","MessageApplication","MessageAttachment","MessageEmbed","MessageFlags","MessageMentions","MessageReaction","MessageReference","MessageThread","ReactionEmoji","RichMessage","RichMessageManager"]};

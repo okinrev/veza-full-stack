@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["EffectType","InvitationStatus","ProjectStatus"],"struct":["AnalyticsSummary","AudioEditor","AudioEffect","AudioPreset","CollabInvitation","CollaborationProject","CollaborationTools","CreatorAnalytics","CreatorDashboard","CreatorMonetization","CreatorTools","TrackStats"]};

@@ -1,9 +1,0 @@
-(function() {
-    var implementors = Object.fromEntries([["stream_server",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"enum\" href=\"stream_server/audio/compression/enum.CompressionError.html\" title=\"enum stream_server::audio::compression::CompressionError\">CompressionError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"enum\" href=\"stream_server/auth/enum.AuthError.html\" title=\"enum stream_server::auth::AuthError\">AuthError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"enum\" href=\"stream_server/config/enum.ConfigError.html\" title=\"enum stream_server::config::ConfigError\">ConfigError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"enum\" href=\"stream_server/error/enum.AppError.html\" title=\"enum stream_server::error::AppError\">AppError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.88.0/core/fmt/trait.Display.html\" title=\"trait core::fmt::Display\">Display</a> for <a class=\"enum\" href=\"stream_server/notifications/enum.NotificationError.html\" title=\"enum stream_server::notifications::NotificationError\">NotificationError</a>"]]]]);
-    if (window.register_implementors) {
-        window.register_implementors(implementors);
-    } else {
-        window.pending_implementors = implementors;
-    }
-})()
-//{"start":57,"fragment_lengths":[1493]}

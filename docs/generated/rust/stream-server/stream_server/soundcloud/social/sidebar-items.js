@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["FeedItemType","LikeSource","RecommendationReason","RepostVisibility","SocialEvent"],"struct":["CommentData","CommentEntry","FeedItem","FollowGraph","LikeData","LikeEntry","RepostData","RepostEntry","SocialConfig","SocialManager","UserFeed","UserSocialStats"]};

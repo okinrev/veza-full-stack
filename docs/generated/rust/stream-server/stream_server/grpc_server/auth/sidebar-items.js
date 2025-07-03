@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["auth_service_server"],"struct":["CheckPermissionsRequest","CheckPermissionsResponse","GetUserInfoRequest","GetUserInfoResponse","RevokeTokenRequest","RevokeTokenResponse","UserClaims","UserInfo","ValidateTokenRequest","ValidateTokenResponse"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["SecurityAction"],"struct":["AdvancedRateLimiter","ContentFilter","EnhancedSecurity","IpMonitor","RateLimit","SessionInfo","SessionManager","SpamDetector","ToxicityDetector"]};

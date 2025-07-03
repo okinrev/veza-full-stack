@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["MessageType"],"struct":["AttachmentInfo","CacheEntry","MessageMetadata","OptimizedMessage","OptimizedPersistenceConfig","OptimizedPersistenceEngine","PendingBatch","PersistenceStats"]};

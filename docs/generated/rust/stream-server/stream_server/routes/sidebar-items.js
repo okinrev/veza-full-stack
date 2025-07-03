@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["create_routes","file_metadata_handler","health_check","stream_file_handler","websocket_handler"],"struct":["StreamRequest","StreamResponse"]};

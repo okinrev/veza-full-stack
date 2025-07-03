@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["AbuseType","ToxicitySeverity","ViolationType"],"struct":["AdvancedModerationConfig","AdvancedModerationEngine","UserBehaviorProfile"],"type":["ConfidenceScore"]};

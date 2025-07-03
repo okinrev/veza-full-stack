@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["CacheEntry","CacheManager","CacheStats","GlobalCacheStats","MessageCacheEntry","SmartCache","UserPresenceEntry"],"type":["DirectMessageCache","RoomMessageCache","UserPresenceCache"]};

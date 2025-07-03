@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"mod":["adaptive","advanced_streaming","live_recording","sync_manager","webrtc","websocket"]};

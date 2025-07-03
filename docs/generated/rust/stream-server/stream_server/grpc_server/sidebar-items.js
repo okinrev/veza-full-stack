@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["start_grpc_server"],"mod":["auth","stream"],"struct":["StreamServiceImpl"]};

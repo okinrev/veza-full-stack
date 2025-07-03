@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ConversationType","MemberRole","MessageType"],"struct":["Conversation","ConversationMember","Message","MessageReaction","User","UserSession"]};

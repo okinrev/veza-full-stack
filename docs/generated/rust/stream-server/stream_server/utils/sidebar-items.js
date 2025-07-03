@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["add_security_headers","build_safe_path","generate_signature","parse_range","serve_partial_file","validate_filename","validate_signature"],"mod":["metrics","signature"]};

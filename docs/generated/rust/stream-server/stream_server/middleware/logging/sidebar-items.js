@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["contains_dangerous_patterns","contains_injection_patterns","extract_client_ip","is_suspicious_request","request_logging_middleware"]};

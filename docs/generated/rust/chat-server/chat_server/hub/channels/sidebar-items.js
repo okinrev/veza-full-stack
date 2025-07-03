@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["broadcast_room_message","create_room","fetch_pinned_messages","fetch_room_history","get_room_stats","join_room","leave_room","list_room_members","pin_message","process_mentions","send_room_message","validate_limit"],"struct":["EnhancedRoomMessage","Room","RoomMember","RoomMessage","RoomPermissions","RoomStats"]};

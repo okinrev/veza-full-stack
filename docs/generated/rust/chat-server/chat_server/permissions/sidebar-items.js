@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Permission","Role"],"fn":["check_permission"],"struct":["UserPermissions"]};

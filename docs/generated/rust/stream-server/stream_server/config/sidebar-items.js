@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["ConfigError","Environment","LogFormat"],"struct":["CacheConfig","CompressionConfig","Config","DatabaseConfig","EmailProvider","MonitoringConfig","NotificationConfig","PerformanceConfig","PushProvider","SecurityConfig","SmsProvider"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"struct":["BroadcastOptimizer","ConnectionConfig","ConnectionManager","ConnectionMetadata","ConnectionStats","RateLimiter","UserConnection"]};

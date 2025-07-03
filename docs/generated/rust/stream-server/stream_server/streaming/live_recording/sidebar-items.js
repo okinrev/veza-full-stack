@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["AudioFormat","RecordingMessage","RecordingState","TranscodingState"],"struct":["LiveRecording","LiveRecordingManager","RecordingConfig","RecordingMetadata","RecordingQuality","RecordingSegment","RecordingStats","TranscodingJob"]};
