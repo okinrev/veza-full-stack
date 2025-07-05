@@ -1,0 +1,1479 @@
+# ===== ENDPOINTS UTILISATEURS =====
+# Extension de l'API Veza pour la gestion des utilisateurs
+
+paths:
+  /api/v1/users:
+    get:
+      tags:
+        - Utilisateurs
+      summary: Liste des utilisateurs
+      description: |
+        Récupère la liste paginée des utilisateurs publics de la plateforme.
+        
+        ### Fonctionnalités
+        - Pagination avec métadonnées
+        - Filtrage par statut, rôle, date d'inscription
+        - Tri par nom, date de création, popularité
+        - Recherche par nom d'utilisateur ou email
+        
+        ### Permissions
+        - Accessible à tous les utilisateurs authentifiés
+        - Les données sensibles sont filtrées (email masqué)
+        
+        ### Performance
+        - Cache Redis 5 minutes
+        - Index sur username, created_at
+        - Lazy loading des avatars
+        
+      operationId: getUsers
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: sort
+          in: query
+          description: Critère de tri
+          required: false
+          schema:
+            type: string
+            enum: [username, created_at, popularity, last_active]
+            default: username
+          example: username
+        - name: order
+          in: query
+          description: Ordre de tri
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          example: asc
+        - name: role
+          in: query
+          description: Filtrer par rôle
+          required: false
+          schema:
+            type: string
+            enum: [user, admin, super_admin]
+          example: user
+        - name: status
+          in: query
+          description: Filtrer par statut
+          required: false
+          schema:
+            type: string
+            enum: [active, inactive, banned]
+            default: active
+          example: active
+        - name: search
+          in: query
+          description: Recherche par username ou nom complet
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          example: "alice"
+        - name: created_after
+          in: query
+          description: Utilisateurs créés après cette date
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-01-01"
+        - name: created_before
+          in: query
+          description: Utilisateurs créés avant cette date
+          required: false
+          schema:
+            type: string
+            format: date
+          example: "2024-12-31"
+      responses:
+        '200':
+          description: Liste des utilisateurs récupérée avec succès
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '../openapi-spec.yaml#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PublicUserProfile'
+                      meta:
+                        $ref: '#/components/schemas/PaginationMeta'
+              examples:
+                users_list:
+                  summary: Liste d'utilisateurs
+                  value:
+                    success: true
+                    message: "Users retrieved successfully"
+                    data:
+                      - id: 123
+                        username: "alice_doe"
+                        display_name: "Alice Doe"
+                        avatar_url: "https://cdn.veza.app/avatars/123.jpg"
+                        role: "user"
+                        created_at: "2024-01-15T10:30:00Z"
+                        last_active: "2024-01-20T15:45:00Z"
+                        stats:
+                          tracks: 15
+                          followers: 89
+                          following: 156
+                        is_verified: true
+                        is_online: false
+                      - id: 124
+                        username: "dj_producer"
+                        display_name: "DJ Producer"
+                        avatar_url: "https://cdn.veza.app/avatars/124.jpg"
+                        role: "user"
+                        created_at: "2024-01-16T09:15:00Z"
+                        last_active: "2024-01-20T16:30:00Z"
+                        stats:
+                          tracks: 42
+                          followers: 234
+                          following: 78
+                        is_verified: true
+                        is_online: true
+                    meta:
+                      page: 1
+                      per_page: 20
+                      total: 1250
+                      total_pages: 63
+                      has_next: true
+                      has_prev: false
+        '400':
+          description: Paramètres de requête invalides
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+              examples:
+                invalid_params:
+                  summary: Paramètres invalides
+                  value:
+                    success: false
+                    message: "Invalid query parameters"
+                    error_code: "INVALID_PARAMETERS"
+                    details:
+                      - field: "page"
+                        message: "Page must be a positive integer"
+                      - field: "limit"
+                        message: "Limit must be between 1 and 100"
+        '401':
+          description: Authentification requise
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+        '500':
+          description: Erreur serveur interne
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/users/me:
+    get:
+      tags:
+        - Utilisateurs
+      summary: Profil de l'utilisateur connecté
+      description: |
+        Récupère le profil complet de l'utilisateur actuellement authentifié.
+        
+        ### Données incluses
+        - Informations personnelles complètes
+        - Préférences et paramètres
+        - Statistiques détaillées
+        - Historique d'activité récent
+        - Configuration de confidentialité
+        
+        ### Cache
+        - Données mises en cache 2 minutes
+        - Invalidation automatique lors de modifications
+        
+      operationId: getCurrentUserProfile
+      responses:
+        '200':
+          description: Profil utilisateur récupéré avec succès
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '../openapi-spec.yaml#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CompleteUserProfile'
+              examples:
+                complete_profile:
+                  summary: Profil complet
+                  value:
+                    success: true
+                    message: "User profile retrieved successfully"
+                    data:
+                      id: 123
+                      username: "alice_doe"
+                      email: "alice@example.com"
+                      display_name: "Alice Doe"
+                      bio: "Passionate music lover and audio engineer"
+                      avatar_url: "https://cdn.veza.app/avatars/123.jpg"
+                      banner_url: "https://cdn.veza.app/banners/123.jpg"
+                      role: "user"
+                      is_verified: true
+                      created_at: "2024-01-15T10:30:00Z"
+                      updated_at: "2024-01-20T10:15:00Z"
+                      last_login: "2024-01-20T15:45:00Z"
+                      timezone: "Europe/Paris"
+                      language: "fr"
+                      preferences:
+                        theme: "dark"
+                        notifications:
+                          email: true
+                          push: true
+                          desktop: false
+                          new_followers: true
+                          track_comments: true
+                          direct_messages: true
+                        privacy:
+                          show_email: false
+                          show_activity: true
+                          allow_dm: true
+                          track_visibility: "public"
+                        audio:
+                          auto_play: false
+                          quality: "high"
+                          volume: 0.8
+                      stats:
+                        tracks_uploaded: 15
+                        total_plays: 1234
+                        total_likes: 89
+                        followers: 89
+                        following: 156
+                        playlists: 8
+                        total_listening_time: 45680
+                      recent_activity:
+                        - type: "track_upload"
+                          timestamp: "2024-01-20T14:30:00Z"
+                          details:
+                            track_id: 456
+                            track_title: "Summer Vibes"
+                        - type: "new_follower"
+                          timestamp: "2024-01-20T12:15:00Z"
+                          details:
+                            follower_id: 789
+                            follower_username: "music_fan"
+                      subscription:
+                        plan: "free"
+                        expires_at: null
+                        features:
+                          - "basic_upload"
+                          - "public_tracks"
+                        limits:
+                          upload_size_mb: 100
+                          tracks_per_month: 10
+                          storage_gb: 1
+        '401':
+          description: Authentification requise
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+        '500':
+          description: Erreur serveur interne
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Utilisateurs
+      summary: Mise à jour du profil
+      description: |
+        Met à jour les informations du profil de l'utilisateur connecté.
+        
+        ### Champs modifiables
+        - Nom d'affichage et biographie
+        - Avatar et bannière
+        - Préférences utilisateur
+        - Paramètres de confidentialité
+        - Configuration des notifications
+        
+        ### Validations
+        - Username: unique, 3-50 caractères
+        - Display name: 1-100 caractères
+        - Bio: max 500 caractères
+        - Timezone: valeur IANA valide
+        
+        ### Sécurité
+        - Email nécessite vérification séparée
+        - Changement username limité (1/mois)
+        - Audit trail complet
+        
+      operationId: updateCurrentUserProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileRequest'
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                profile_data:
+                  type: string
+                  description: Données JSON du profil
+                avatar:
+                  type: string
+                  format: binary
+                  description: Fichier image pour l'avatar
+                banner:
+                  type: string
+                  format: binary
+                  description: Fichier image pour la bannière
+            examples:
+              with_images:
+                summary: Mise à jour avec images
+                value:
+                  profile_data: '{"display_name":"Alice Producer","bio":"Electronic music producer"}'
+                  avatar: "(fichier binaire)"
+                  banner: "(fichier binaire)"
+      responses:
+        '200':
+          description: Profil mis à jour avec succès
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '../openapi-spec.yaml#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CompleteUserProfile'
+              examples:
+                updated_profile:
+                  summary: Profil mis à jour
+                  value:
+                    success: true
+                    message: "Profile updated successfully"
+                    data:
+                      id: 123
+                      username: "alice_doe"
+                      display_name: "Alice Producer"
+                      bio: "Electronic music producer"
+                      avatar_url: "https://cdn.veza.app/avatars/123_v2.jpg"
+                      updated_at: "2024-01-20T16:45:00Z"
+        '400':
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  summary: Erreur de validation
+                  value:
+                    success: false
+                    message: "Validation failed"
+                    error_code: "VALIDATION_ERROR"
+                    details:
+                      - field: "display_name"
+                        message: "Display name cannot be empty"
+                      - field: "bio"
+                        message: "Bio cannot exceed 500 characters"
+        '413':
+          description: Fichier trop volumineux
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+              examples:
+                file_too_large:
+                  summary: Fichier trop volumineux
+                  value:
+                    success: false
+                    message: "Image file too large"
+                    error_code: "FILE_TOO_LARGE"
+                    details:
+                      max_size: "5MB"
+                      received_size: "8MB"
+        '415':
+          description: Type de fichier non supporté
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentification requise
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/users/me/password:
+    put:
+      tags:
+        - Utilisateurs
+      summary: Changement de mot de passe
+      description: |
+        Change le mot de passe de l'utilisateur connecté.
+        
+        ### Processus de sécurité
+        1. Vérification du mot de passe actuel
+        2. Validation du nouveau mot de passe
+        3. Hash sécurisé (bcrypt coût 12)
+        4. Révocation de tous les tokens existants
+        5. Notification par email
+        6. Audit trail complet
+        
+        ### Politique de mot de passe
+        - Minimum 8 caractères
+        - Au moins 1 majuscule, 1 minuscule, 1 chiffre
+        - Caractères spéciaux recommandés
+        - Différent des 5 derniers mots de passe
+        
+        ### Sécurité
+        - Rate limiting: 3 tentatives/heure
+        - Détection de compromission
+        - Force logout tous appareils
+        
+      operationId: changeUserPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordRequest'
+            examples:
+              password_change:
+                summary: Changement de mot de passe
+                value:
+                  current_password: "OldPassword123!"
+                  new_password: "NewSecurePass456!"
+                  confirm_password: "NewSecurePass456!"
+                  logout_all_devices: true
+      responses:
+        '200':
+          description: Mot de passe changé avec succès
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '../openapi-spec.yaml#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          changed_at:
+                            type: string
+                            format: date-time
+                            description: Timestamp du changement
+                          devices_logged_out:
+                            type: integer
+                            description: Nombre d'appareils déconnectés
+                          new_tokens_required:
+                            type: boolean
+                            description: Nouveaux tokens requis
+              examples:
+                password_changed:
+                  summary: Mot de passe changé
+                  value:
+                    success: true
+                    message: "Password changed successfully"
+                    data:
+                      changed_at: "2024-01-20T16:45:00Z"
+                      devices_logged_out: 3
+                      new_tokens_required: true
+        '400':
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+              examples:
+                weak_password:
+                  summary: Mot de passe faible
+                  value:
+                    success: false
+                    message: "Password does not meet requirements"
+                    error_code: "WEAK_PASSWORD"
+                    details:
+                      - field: "new_password"
+                        message: "Password must contain at least one uppercase letter"
+                password_mismatch:
+                  summary: Mots de passe différents
+                  value:
+                    success: false
+                    message: "Password confirmation does not match"
+                    error_code: "PASSWORD_MISMATCH"
+        '401':
+          description: Mot de passe actuel incorrect
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+              examples:
+                wrong_current_password:
+                  summary: Mot de passe actuel incorrect
+                  value:
+                    success: false
+                    message: "Current password is incorrect"
+                    error_code: "INVALID_CURRENT_PASSWORD"
+        '429':
+          description: Trop de tentatives
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/users/except-me:
+    get:
+      tags:
+        - Utilisateurs
+      summary: Utilisateurs sauf moi
+      description: |
+        Récupère la liste des utilisateurs en excluant l'utilisateur connecté.
+        
+        ### Utilisation
+        - Interface de chat (sélection destinataire)
+        - Système de suivi/abonnement
+        - Mentions et collaborations
+        - Recommandations d'amis
+        
+        ### Filtres
+        - Recherche par nom d'utilisateur
+        - Filtrage par activité récente
+        - Exclusion des utilisateurs bloqués
+        - Priorisation des contacts fréquents
+        
+      operationId: getUsersExceptCurrent
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/SearchParam'
+        - name: active_only
+          in: query
+          description: Afficher uniquement les utilisateurs actifs récemment
+          required: false
+          schema:
+            type: boolean
+            default: false
+          example: true
+        - name: exclude_blocked
+          in: query
+          description: Exclure les utilisateurs bloqués
+          required: false
+          schema:
+            type: boolean
+            default: true
+          example: true
+        - name: sort_by_interaction
+          in: query
+          description: Trier par fréquence d'interaction
+          required: false
+          schema:
+            type: boolean
+            default: false
+          example: true
+      responses:
+        '200':
+          description: Liste des autres utilisateurs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '../openapi-spec.yaml#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PublicUserProfile'
+                      meta:
+                        $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          description: Authentification requise
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/users/search:
+    get:
+      tags:
+        - Utilisateurs
+      summary: Recherche d'utilisateurs
+      description: |
+        Recherche avancée d'utilisateurs avec multiples critères.
+        
+        ### Algorithme de recherche
+        - Recherche fuzzy sur username et display_name
+        - Recherche exacte prioritaire
+        - Score de pertinence basé sur:
+          * Correspondance exacte du début
+          * Popularité de l'utilisateur
+          * Activité récente
+          * Interactions passées avec le chercheur
+        
+        ### Fonctionnalités
+        - Autocomplétion temps réel
+        - Suggestions basées sur l'historique
+        - Filtres avancés (rôle, localisation, activité)
+        - Recherche dans les compétences/tags
+        
+        ### Performance
+        - Index ElasticSearch/Algolia
+        - Cache des résultats populaires
+        - Pagination curseur pour grands ensembles
+        
+      operationId: searchUsers
+      parameters:
+        - name: q
+          in: query
+          description: Terme de recherche principal
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+          example: "alice"
+        - name: limit
+          in: query
+          description: Nombre maximum de résultats
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+          example: 10
+        - name: role
+          in: query
+          description: Filtrer par rôle
+          required: false
+          schema:
+            type: string
+            enum: [user, admin, super_admin]
+        - name: verified_only
+          in: query
+          description: Utilisateurs vérifiés uniquement
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: has_tracks
+          in: query
+          description: Utilisateurs ayant uploadé des tracks
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: location
+          in: query
+          description: Filtrer par localisation
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          example: "Paris, France"
+        - name: skills
+          in: query
+          description: Recherche par compétences/tags
+          required: false
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+          example: ["producer", "mixing", "mastering"]
+        - name: cursor
+          in: query
+          description: Curseur de pagination pour grands ensembles
+          required: false
+          schema:
+            type: string
+          example: "eyJsYXN0X2lkIjoxMjM="
+      responses:
+        '200':
+          description: Résultats de recherche
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '../openapi-spec.yaml#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          results:
+                            type: array
+                            items:
+                              allOf:
+                                - $ref: '#/components/schemas/PublicUserProfile'
+                                - type: object
+                                  properties:
+                                    search_score:
+                                      type: number
+                                      description: Score de pertinence (0-1)
+                                      example: 0.95
+                                    match_reasons:
+                                      type: array
+                                      description: Raisons de la correspondance
+                                      items:
+                                        type: string
+                                      example: ["username_exact", "skill_match"]
+                          suggestions:
+                            type: array
+                            description: Suggestions de recherche
+                            items:
+                              type: string
+                            example: ["alice_doe", "alice_producer", "alice_music"]
+                          total_count:
+                            type: integer
+                            description: Nombre total de résultats
+                            example: 156
+                          next_cursor:
+                            type: string
+                            description: Curseur pour la page suivante
+                            example: "eyJsYXN0X2lkIjoxNDU="
+              examples:
+                search_results:
+                  summary: Résultats de recherche
+                  value:
+                    success: true
+                    message: "Search completed successfully"
+                    data:
+                      results:
+                        - id: 123
+                          username: "alice_doe"
+                          display_name: "Alice Doe"
+                          avatar_url: "https://cdn.veza.app/avatars/123.jpg"
+                          role: "user"
+                          is_verified: true
+                          is_online: false
+                          search_score: 0.95
+                          match_reasons: ["username_exact"]
+                          stats:
+                            tracks: 15
+                            followers: 89
+                        - id: 124
+                          username: "alice_producer"
+                          display_name: "Alice Producer"
+                          avatar_url: "https://cdn.veza.app/avatars/124.jpg"
+                          role: "user"
+                          is_verified: true
+                          is_online: true
+                          search_score: 0.87
+                          match_reasons: ["username_partial", "skill_match"]
+                          stats:
+                            tracks: 42
+                            followers: 234
+                      suggestions: ["alice_doe", "alice_producer", "alice_music"]
+                      total_count: 156
+                      next_cursor: "eyJsYXN0X2lkIjoxNDU="
+        '400':
+          description: Paramètres de recherche invalides
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+              examples:
+                query_too_short:
+                  summary: Requête trop courte
+                  value:
+                    success: false
+                    message: "Search query must be at least 2 characters"
+                    error_code: "QUERY_TOO_SHORT"
+        '401':
+          description: Authentification requise
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+
+  /api/v1/users/{id}/avatar:
+    get:
+      tags:
+        - Utilisateurs
+      summary: Avatar d'un utilisateur
+      description: |
+        Récupère l'avatar d'un utilisateur spécifique.
+        
+        ### Fonctionnalités
+        - Redimensionnement automatique
+        - Formats multiples (JPEG, PNG, WebP)
+        - Cache CDN longue durée
+        - Avatar par défaut si non défini
+        - Support des avatars animés (GIF, WebP)
+        
+        ### Paramètres de qualité
+        - Tailles prédéfinies: 32, 64, 128, 256, 512px
+        - Compression optimisée selon la taille
+        - Détection du support WebP/AVIF
+        
+        ### Cache et performance
+        - Cache CDN: 30 jours
+        - ETag pour validation cache client
+        - Compression gzip/brotli
+        
+      operationId: getUserAvatar
+      parameters:
+        - name: id
+          in: path
+          description: ID de l'utilisateur
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          example: 123
+        - name: size
+          in: query
+          description: Taille de l'avatar en pixels
+          required: false
+          schema:
+            type: integer
+            enum: [32, 64, 128, 256, 512]
+            default: 128
+          example: 128
+        - name: format
+          in: query
+          description: Format de l'image
+          required: false
+          schema:
+            type: string
+            enum: [jpeg, png, webp, avif]
+            default: jpeg
+          example: webp
+        - name: quality
+          in: query
+          description: Qualité de compression (1-100)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 85
+          example: 85
+      responses:
+        '200':
+          description: Avatar de l'utilisateur
+          headers:
+            Cache-Control:
+              description: Directives de cache
+              schema:
+                type: string
+                example: "public, max-age=2592000"
+            ETag:
+              description: Tag d'entité pour validation cache
+              schema:
+                type: string
+                example: '"abc123def456"'
+            Content-Type:
+              description: Type MIME de l'image
+              schema:
+                type: string
+                example: "image/webp"
+            Content-Length:
+              description: Taille du fichier en octets
+              schema:
+                type: integer
+                example: 8192
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            image/avif:
+              schema:
+                type: string
+                format: binary
+        '304':
+          description: Non modifié (cache valide)
+        '400':
+          description: Paramètres invalides
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+              examples:
+                invalid_size:
+                  summary: Taille invalide
+                  value:
+                    success: false
+                    message: "Invalid avatar size"
+                    error_code: "INVALID_SIZE"
+                    valid_sizes: [32, 64, 128, 256, 512]
+        '404':
+          description: Utilisateur non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '../openapi-spec.yaml#/components/schemas/ErrorResponse'
+              examples:
+                user_not_found:
+                  summary: Utilisateur non trouvé
+                  value:
+                    success: false
+                    message: "User not found"
+                    error_code: "USER_NOT_FOUND"
+
+components:
+  schemas:
+    # ===== SCHÉMAS UTILISATEURS =====
+    PublicUserProfile:
+      type: object
+      description: Profil utilisateur public (données non sensibles)
+      properties:
+        id:
+          type: integer
+          description: ID unique de l'utilisateur
+          example: 123
+        username:
+          type: string
+          description: Nom d'utilisateur unique
+          example: "alice_doe"
+        display_name:
+          type: string
+          description: Nom d'affichage public
+          example: "Alice Doe"
+        bio:
+          type: string
+          description: Biographie publique
+          example: "Passionate music lover and audio engineer"
+        avatar_url:
+          type: string
+          format: uri
+          description: URL de l'avatar
+          example: "https://cdn.veza.app/avatars/123.jpg"
+        banner_url:
+          type: string
+          format: uri
+          nullable: true
+          description: URL de la bannière de profil
+          example: "https://cdn.veza.app/banners/123.jpg"
+        role:
+          type: string
+          enum: [user, admin, super_admin]
+          description: Rôle de l'utilisateur
+          example: "user"
+        is_verified:
+          type: boolean
+          description: Statut de vérification
+          example: true
+        is_online:
+          type: boolean
+          description: Statut en ligne
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          description: Date de création du compte
+          example: "2024-01-15T10:30:00Z"
+        last_active:
+          type: string
+          format: date-time
+          description: Dernière activité
+          example: "2024-01-20T15:45:00Z"
+        location:
+          type: string
+          nullable: true
+          description: Localisation publique
+          example: "Paris, France"
+        website:
+          type: string
+          format: uri
+          nullable: true
+          description: Site web personnel
+          example: "https://alice-music.com"
+        social_links:
+          type: object
+          nullable: true
+          description: Liens vers réseaux sociaux
+          properties:
+            twitter:
+              type: string
+              example: "alice_doe"
+            instagram:
+              type: string
+              example: "alice.music"
+            soundcloud:
+              type: string
+              example: "alice-producer"
+        stats:
+          type: object
+          description: Statistiques publiques
+          properties:
+            tracks:
+              type: integer
+              description: Nombre de tracks uploadées
+              example: 15
+            followers:
+              type: integer
+              description: Nombre d'abonnés
+              example: 89
+            following:
+              type: integer
+              description: Nombre d'abonnements
+              example: 156
+            total_plays:
+              type: integer
+              description: Total d'écoutes
+              example: 1234
+        skills:
+          type: array
+          description: Compétences/tags publics
+          items:
+            type: string
+          example: ["producer", "mixing", "electronic"]
+
+    CompleteUserProfile:
+      allOf:
+        - $ref: '#/components/schemas/PublicUserProfile'
+        - type: object
+          description: Profil utilisateur complet (utilisateur connecté)
+          properties:
+            email:
+              type: string
+              format: email
+              description: Adresse email (privée)
+              example: "alice@example.com"
+            phone:
+              type: string
+              nullable: true
+              description: Numéro de téléphone (privé)
+              example: "+33123456789"
+            timezone:
+              type: string
+              description: Fuseau horaire IANA
+              example: "Europe/Paris"
+            language:
+              type: string
+              description: Langue préférée (ISO 639-1)
+              example: "fr"
+            updated_at:
+              type: string
+              format: date-time
+              description: Dernière modification du profil
+              example: "2024-01-20T10:15:00Z"
+            last_login:
+              type: string
+              format: date-time
+              description: Dernière connexion
+              example: "2024-01-20T15:45:00Z"
+            preferences:
+              $ref: '#/components/schemas/UserPreferences'
+            subscription:
+              $ref: '#/components/schemas/UserSubscription'
+            security:
+              $ref: '#/components/schemas/UserSecurity'
+            recent_activity:
+              type: array
+              description: Activité récente
+              items:
+                $ref: '#/components/schemas/UserActivity'
+
+    UserPreferences:
+      type: object
+      description: Préférences utilisateur
+      properties:
+        theme:
+          type: string
+          enum: [light, dark, auto]
+          description: Thème de l'interface
+          example: "dark"
+        notifications:
+          type: object
+          properties:
+            email:
+              type: boolean
+              description: Notifications par email
+              example: true
+            push:
+              type: boolean
+              description: Notifications push mobiles
+              example: true
+            desktop:
+              type: boolean
+              description: Notifications desktop
+              example: false
+            new_followers:
+              type: boolean
+              description: Nouveaux abonnés
+              example: true
+            track_comments:
+              type: boolean
+              description: Commentaires sur tracks
+              example: true
+            direct_messages:
+              type: boolean
+              description: Messages directs
+              example: true
+            mentions:
+              type: boolean
+              description: Mentions
+              example: true
+            likes:
+              type: boolean
+              description: Likes sur tracks
+              example: true
+        privacy:
+          type: object
+          properties:
+            show_email:
+              type: boolean
+              description: Afficher l'email publiquement
+              example: false
+            show_activity:
+              type: boolean
+              description: Afficher l'activité récente
+              example: true
+            allow_dm:
+              type: boolean
+              description: Autoriser les messages directs
+              example: true
+            track_visibility:
+              type: string
+              enum: [public, followers, private]
+              description: Visibilité par défaut des tracks
+              example: "public"
+            profile_visibility:
+              type: string
+              enum: [public, registered, private]
+              description: Visibilité du profil
+              example: "public"
+        audio:
+          type: object
+          properties:
+            auto_play:
+              type: boolean
+              description: Lecture automatique
+              example: false
+            quality:
+              type: string
+              enum: [low, medium, high, lossless]
+              description: Qualité audio préférée
+              example: "high"
+            volume:
+              type: number
+              minimum: 0
+              maximum: 1
+              description: Volume par défaut
+              example: 0.8
+            crossfade:
+              type: integer
+              minimum: 0
+              maximum: 12
+              description: Fondu enchaîné (secondes)
+              example: 3
+
+    UserSubscription:
+      type: object
+      description: Informations d'abonnement
+      properties:
+        plan:
+          type: string
+          enum: [free, basic, premium, pro]
+          description: Plan d'abonnement actuel
+          example: "free"
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date d'expiration (null pour free)
+          example: null
+        features:
+          type: array
+          description: Fonctionnalités disponibles
+          items:
+            type: string
+          example: ["basic_upload", "public_tracks"]
+        limits:
+          type: object
+          description: Limites du plan
+          properties:
+            upload_size_mb:
+              type: integer
+              description: Taille max upload (MB)
+              example: 100
+            tracks_per_month:
+              type: integer
+              description: Tracks par mois
+              example: 10
+            storage_gb:
+              type: number
+              description: Stockage total (GB)
+              example: 1
+            bandwidth_gb:
+              type: number
+              description: Bande passante mensuelle (GB)
+              example: 10
+        usage:
+          type: object
+          description: Utilisation actuelle
+          properties:
+            tracks_this_month:
+              type: integer
+              description: Tracks uploadées ce mois
+              example: 3
+            storage_used_gb:
+              type: number
+              description: Stockage utilisé (GB)
+              example: 0.45
+            bandwidth_used_gb:
+              type: number
+              description: Bande passante utilisée ce mois (GB)
+              example: 2.1
+
+    UserSecurity:
+      type: object
+      description: Informations de sécurité
+      properties:
+        two_factor_enabled:
+          type: boolean
+          description: Authentification à deux facteurs activée
+          example: false
+        last_password_change:
+          type: string
+          format: date-time
+          description: Dernier changement de mot de passe
+          example: "2024-01-15T10:30:00Z"
+        active_sessions:
+          type: integer
+          description: Nombre de sessions actives
+          example: 2
+        login_attempts:
+          type: object
+          properties:
+            failed_today:
+              type: integer
+              description: Tentatives échouées aujourd'hui
+              example: 0
+            last_failed:
+              type: string
+              format: date-time
+              nullable: true
+              description: Dernière tentative échouée
+              example: null
+        trusted_devices:
+          type: array
+          description: Appareils de confiance
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: ID de l'appareil
+                example: "device_abc123"
+              name:
+                type: string
+                description: Nom de l'appareil
+                example: "MacBook Pro - Chrome"
+              last_used:
+                type: string
+                format: date-time
+                description: Dernière utilisation
+                example: "2024-01-20T15:45:00Z"
+              ip_address:
+                type: string
+                description: Adresse IP
+                example: "192.168.1.100"
+              location:
+                type: string
+                description: Localisation approximative
+                example: "Paris, France"
+
+    UserActivity:
+      type: object
+      description: Activité utilisateur
+      properties:
+        type:
+          type: string
+          enum: [track_upload, track_like, track_comment, new_follower, follow_user, playlist_create, profile_update]
+          description: Type d'activité
+          example: "track_upload"
+        timestamp:
+          type: string
+          format: date-time
+          description: Horodatage de l'activité
+          example: "2024-01-20T14:30:00Z"
+        details:
+          type: object
+          description: Détails spécifiques à l'activité
+          additionalProperties: true
+          example:
+            track_id: 456
+            track_title: "Summer Vibes"
+
+    UpdateUserProfileRequest:
+      type: object
+      description: Requête de mise à jour du profil
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Nom d'affichage
+          example: "Alice Producer"
+        bio:
+          type: string
+          maxLength: 500
+          description: Biographie
+          example: "Electronic music producer"
+        location:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Localisation
+          example: "Paris, France"
+        website:
+          type: string
+          format: uri
+          maxLength: 255
+          nullable: true
+          description: Site web
+          example: "https://alice-music.com"
+        timezone:
+          type: string
+          description: Fuseau horaire IANA
+          example: "Europe/Paris"
+        language:
+          type: string
+          pattern: '^[a-z]{2}$'
+          description: Code langue ISO 639-1
+          example: "fr"
+        social_links:
+          type: object
+          description: Liens réseaux sociaux
+          properties:
+            twitter:
+              type: string
+              maxLength: 50
+              example: "alice_doe"
+            instagram:
+              type: string
+              maxLength: 50
+              example: "alice.music"
+            soundcloud:
+              type: string
+              maxLength: 50
+              example: "alice-producer"
+        skills:
+          type: array
+          maxItems: 10
+          description: Compétences/tags
+          items:
+            type: string
+            maxLength: 30
+          example: ["producer", "mixing", "electronic"]
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - current_password
+        - new_password
+        - confirm_password
+      description: Requête de changement de mot de passe
+      properties:
+        current_password:
+          type: string
+          description: Mot de passe actuel
+          example: "OldPassword123!"
+        new_password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: Nouveau mot de passe
+          example: "NewSecurePass456!"
+        confirm_password:
+          type: string
+          description: Confirmation du nouveau mot de passe
+          example: "NewSecurePass456!"
+        logout_all_devices:
+          type: boolean
+          default: true
+          description: Déconnecter tous les appareils
+          example: true
+
+    PaginationMeta:
+      type: object
+      description: Métadonnées de pagination
+      properties:
+        page:
+          type: integer
+          description: Page actuelle
+          minimum: 1
+          example: 1
+        per_page:
+          type: integer
+          description: Éléments par page
+          minimum: 1
+          example: 20
+        total:
+          type: integer
+          description: Nombre total d'éléments
+          minimum: 0
+          example: 1250
+        total_pages:
+          type: integer
+          description: Nombre total de pages
+          minimum: 0
+          example: 63
+        has_next:
+          type: boolean
+          description: Page suivante disponible
+          example: true
+        has_prev:
+          type: boolean
+          description: Page précédente disponible
+          example: false
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Numéro de page (commence à 1)
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    
+    LimitParam:
+      name: limit
+      in: query
+      description: Nombre d'éléments par page
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+    
+    SearchParam:
+      name: search
+      in: query
+      description: Terme de recherche
+      required: false
+      schema:
+        type: string
+        maxLength: 255
+      example: "alice" 

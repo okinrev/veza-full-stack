@@ -1,0 +1,160 @@
+name: Deploy Veza Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'veza-docs/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'veza-docs/**'
+
+jobs:
+  # Job de test et validation
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: veza-docs/package-lock.json
+        
+    - name: Install dependencies
+      run: |
+        cd veza-docs
+        npm ci
+        
+    - name: Lint documentation
+      run: |
+        cd veza-docs
+        npm run lint
+        
+    - name: Build documentation
+      run: |
+        cd veza-docs
+        npm run build
+        
+    - name: Check for broken links
+      run: |
+        cd veza-docs
+        npm run broken-links
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: docusaurus-build
+        path: veza-docs/build/
+        retention-days: 1
+
+  # Job de déploiement sur GitHub Pages
+  deploy-github-pages:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: veza-docs/package-lock.json
+        
+    - name: Install dependencies
+      run: |
+        cd veza-docs
+        npm ci
+        
+    - name: Build documentation
+      run: |
+        cd veza-docs
+        npm run build
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./veza-docs/build
+        cname: veza-docs.vercel.app
+        
+    - name: Comment PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '✅ Documentation déployée avec succès sur GitHub Pages !'
+          })
+
+  # Job de déploiement sur Vercel (optionnel)
+  deploy-vercel:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && vars.VERCEL_TOKEN != ''
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: veza-docs/package-lock.json
+        
+    - name: Install dependencies
+      run: |
+        cd veza-docs
+        npm ci
+        
+    - name: Build documentation
+      run: |
+        cd veza-docs
+        npm run build
+        
+    - name: Deploy to Vercel
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ vars.VERCEL_TOKEN }}
+        vercel-org-id: ${{ vars.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ vars.VERCEL_PROJECT_ID }}
+        working-directory: ./veza-docs
+        vercel-args: '--prod'
+
+  # Job de notification
+  notify:
+    needs: [deploy-github-pages, deploy-vercel]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Notify deployment status
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: deployments } = await github.rest.repos.listDeployments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            ref: context.sha,
+            environment: 'production'
+          });
+          
+          if (deployments.length > 0) {
+            console.log('✅ Déploiement terminé avec succès');
+          } else {
+            console.log('⚠️ Déploiement terminé avec des avertissements');
+          } 

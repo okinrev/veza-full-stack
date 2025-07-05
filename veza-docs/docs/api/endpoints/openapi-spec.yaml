@@ -1,0 +1,978 @@
+openapi: 3.0.3
+info:
+  title: Veza Backend API
+  description: |
+    API REST complète pour la plateforme de streaming audio et chat en temps réel Veza.
+    
+    ## Authentification
+    Cette API utilise JWT (JSON Web Tokens) pour l'authentification.
+    - Les tokens d'accès expirent après 1 heure
+    - Les refresh tokens permettent de renouveler l'accès
+    - OAuth2 est supporté (Google, GitHub, Discord)
+    
+    ## Rate Limiting
+    - 100 requêtes par minute par IP
+    - Headers de rate limiting inclus dans les réponses
+    
+    ## WebSocket
+    - Chat temps réel: `ws://localhost:8080/ws/chat`
+    - Notifications: `ws://localhost:8080/ws/notifications`
+    
+    ## Environnements
+    - **Développement**: http://localhost:8080
+    - **Production**: https://api.veza.app
+    
+  version: 2.0.0
+  contact:
+    name: Équipe Veza
+    email: dev@veza.app
+    url: https://veza.app
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  
+servers:
+  - url: http://localhost:8080
+    description: Serveur de développement
+  - url: https://api.veza.app
+    description: Serveur de production
+
+security:
+  - BearerAuth: []
+
+paths:
+  # ===== AUTHENTIFICATION =====
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Authentification
+      summary: Inscription d'un nouvel utilisateur
+      description: |
+        Crée un nouveau compte utilisateur avec validation des données.
+        
+        ### Validation
+        - Username: 3-50 caractères, alphanumériques et underscore uniquement
+        - Email: format email valide, doit être unique
+        - Password: minimum 8 caractères, doit contenir majuscule, minuscule, chiffre
+        
+        ### Sécurité
+        - Le mot de passe est hashé avec bcrypt (coût 12)
+        - L'email doit être vérifié (en développement, vérifié automatiquement)
+        - Rate limiting: 5 tentatives par IP/10 minutes
+        
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              basic:
+                summary: Inscription basique
+                value:
+                  username: "alice_doe"
+                  email: "alice@example.com"
+                  password: "SecurePass123!"
+              musician:
+                summary: Musicien
+                value:
+                  username: "dj_producer"
+                  email: "dj@musiclabel.com"
+                  password: "MusicLover2024!"
+      responses:
+        '201':
+          description: Utilisateur créé avec succès
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserCreatedResponse'
+              examples:
+                success:
+                  summary: Inscription réussie
+                  value:
+                    success: true
+                    message: "User registered successfully"
+                    data:
+                      user_id: 123
+                      username: "alice_doe"
+                      email: "alice@example.com"
+                      created_at: "2024-01-15T10:30:00Z"
+                      role: "user"
+                      is_verified: false
+        '400':
+          description: Données de requête invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validation_error:
+                  summary: Erreur de validation
+                  value:
+                    success: false
+                    message: "Invalid request data"
+                    error_code: "VALIDATION_ERROR"
+                    details:
+                      - field: "password"
+                        message: "Password must be at least 8 characters"
+                      - field: "email"
+                        message: "Invalid email format"
+        '409':
+          description: Conflit - Email ou username déjà utilisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                email_exists:
+                  summary: Email déjà utilisé
+                  value:
+                    success: false
+                    message: "Email already exists"
+                    error_code: "EMAIL_ALREADY_EXISTS"
+                username_exists:
+                  summary: Username déjà utilisé
+                  value:
+                    success: false
+                    message: "Username already exists"
+                    error_code: "USERNAME_ALREADY_EXISTS"
+        '429':
+          description: Trop de tentatives
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                rate_limited:
+                  summary: Rate limiting
+                  value:
+                    success: false
+                    message: "Too many registration attempts"
+                    error_code: "RATE_LIMITED"
+                    retry_after: 600
+        '500':
+          description: Erreur serveur interne
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/signup:
+    post:
+      tags:
+        - Authentification
+      summary: Alias pour l'inscription
+      description: Endpoint alternatif pour l'inscription (identique à /register)
+      operationId: signupUser
+      requestBody:
+        $ref: '#/paths/~1api~1v1~1auth~1register/post/requestBody'
+      responses:
+        $ref: '#/paths/~1api~1v1~1auth~1register/post/responses'
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentification
+      summary: Connexion utilisateur
+      description: |
+        Authentifie un utilisateur et retourne les tokens JWT.
+        
+        ### Fonctionnalités
+        - Authentification par email/mot de passe
+        - Génération de token d'accès (1h) et refresh token (7 jours)
+        - Support de "Remember Me" (30 jours pour refresh token)
+        - Détection de géolocalisation et dispositif
+        
+        ### Sécurité
+        - Protection contre brute force (5 tentatives/IP/10min)
+        - Audit trail des connexions
+        - Détection d'activité suspecte
+        
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              basic:
+                summary: Connexion standard
+                value:
+                  email: "alice@example.com"
+                  password: "SecurePass123!"
+              remember_me:
+                summary: Avec Remember Me
+                value:
+                  email: "alice@example.com"
+                  password: "SecurePass123!"
+                  remember_me: true
+      responses:
+        '200':
+          description: Connexion réussie
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LoginResponse'
+              examples:
+                success:
+                  summary: Connexion réussie
+                  value:
+                    success: true
+                    message: "Login successful"
+                    data:
+                      access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      token_type: "Bearer"
+                      expires_in: 3600
+                      user:
+                        id: 123
+                        username: "alice_doe"
+                        email: "alice@example.com"
+                        role: "user"
+                        avatar_url: "https://cdn.veza.app/avatars/123.jpg"
+                        created_at: "2024-01-15T10:30:00Z"
+                        last_login: "2024-01-20T15:45:00Z"
+        '400':
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Identifiants incorrects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_credentials:
+                  summary: Identifiants incorrects
+                  value:
+                    success: false
+                    message: "Invalid email or password"
+                    error_code: "INVALID_CREDENTIALS"
+        '423':
+          description: Compte verrouillé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                account_locked:
+                  summary: Compte verrouillé
+                  value:
+                    success: false
+                    message: "Account locked due to too many failed attempts"
+                    error_code: "ACCOUNT_LOCKED"
+                    unlock_time: "2024-01-20T16:00:00Z"
+        '429':
+          description: Trop de tentatives
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/refresh:
+    post:
+      tags:
+        - Authentification
+      summary: Renouvellement de token
+      description: |
+        Renouvelle le token d'accès à l'aide du refresh token.
+        
+        ### Processus
+        1. Validation du refresh token
+        2. Vérification que le token n'est pas révoqué
+        3. Génération d'un nouveau token d'accès
+        4. Rotation optionnelle du refresh token
+        
+        ### Sécurité
+        - Révocation automatique en cas de réutilisation
+        - Détection de token volé
+        - Audit trail des renouvellements
+        
+      operationId: refreshToken
+      security: []  # Pas besoin de Bearer token pour refresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+            examples:
+              refresh:
+                summary: Renouvellement token
+                value:
+                  refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Token renouvelé avec succès
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TokenResponse'
+              examples:
+                success:
+                  summary: Token renouvelé
+                  value:
+                    success: true
+                    message: "Token refreshed successfully"
+                    data:
+                      access_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                      token_type: "Bearer"
+                      expires_in: 3600
+                      refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        '401':
+          description: Refresh token invalide ou expiré
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_token:
+                  summary: Token invalide
+                  value:
+                    success: false
+                    message: "Invalid or expired refresh token"
+                    error_code: "INVALID_REFRESH_TOKEN"
+
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - Authentification
+      summary: Déconnexion utilisateur
+      description: |
+        Déconnecte l'utilisateur et révoque les tokens.
+        
+        ### Processus
+        1. Révocation du refresh token
+        2. Blacklist du token d'accès (jusqu'à expiration)
+        3. Audit trail de la déconnexion
+        4. Nettoyage des sessions WebSocket associées
+        
+        ### Options
+        - Déconnexion de tous les appareils
+        - Déconnexion de l'appareil actuel uniquement
+        
+      operationId: logoutUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+            examples:
+              current_device:
+                summary: Déconnexion appareil actuel
+                value:
+                  refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  all_devices: false
+              all_devices:
+                summary: Déconnexion de tous les appareils
+                value:
+                  refresh_token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  all_devices: true
+      responses:
+        '200':
+          description: Déconnexion réussie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                success:
+                  summary: Déconnexion réussie
+                  value:
+                    success: true
+                    message: "Logout successful"
+                    data:
+                      devices_disconnected: 1
+                      timestamp: "2024-01-20T16:00:00Z"
+        '400':
+          description: Requête invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/me:
+    get:
+      tags:
+        - Authentification
+      summary: Informations utilisateur connecté
+      description: |
+        Retourne les informations détaillées de l'utilisateur authentifié.
+        
+        ### Données incluses
+        - Profil utilisateur complet
+        - Préférences et paramètres
+        - Statistiques d'utilisation
+        - Dernières activités
+        
+        ### Utilisation
+        - Validation de token en cours
+        - Affichage du profil utilisateur
+        - Synchronisation des données frontend
+        
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Informations utilisateur récupérées
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserProfile'
+              examples:
+                user_profile:
+                  summary: Profil utilisateur
+                  value:
+                    success: true
+                    message: "User profile retrieved"
+                    data:
+                      id: 123
+                      username: "alice_doe"
+                      email: "alice@example.com"
+                      role: "user"
+                      avatar_url: "https://cdn.veza.app/avatars/123.jpg"
+                      created_at: "2024-01-15T10:30:00Z"
+                      last_login: "2024-01-20T15:45:00Z"
+                      preferences:
+                        theme: "dark"
+                        language: "fr"
+                        notifications: true
+                      stats:
+                        tracks_uploaded: 15
+                        total_plays: 1234
+                        followers: 89
+                        following: 156
+        '401':
+          description: Token manquant ou invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/test:
+    get:
+      tags:
+        - Authentification
+      summary: Test de validation JWT
+      description: |
+        Endpoint de test pour valider l'authentification JWT.
+        Utilisé par tous les services pour vérifier les tokens.
+        
+        ### Fonctionnalités
+        - Validation complète du token JWT
+        - Vérification des claims et de l'expiration
+        - Retour des informations d'authentification
+        - URLs des services connectés
+        
+        ### Utilisation
+        - Health check d'authentification
+        - Validation inter-services
+        - Debug et monitoring
+        
+      operationId: testAuth
+      responses:
+        '200':
+          description: Token valide
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthTestResponse'
+              examples:
+                valid_token:
+                  summary: Token valide
+                  value:
+                    success: true
+                    message: "Token validé avec succès"
+                    data:
+                      user_id: 123
+                      username: "alice_doe"
+                      role: "user"
+                      issued_at: 1705756800
+                      service: "backend-go"
+                      endpoints:
+                        chat_ws: "ws://10.5.191.108:3001/ws"
+                        stream_ws: "ws://10.5.191.188:3002/ws"
+                        api_rest: "http://10.5.191.175:8080/api/v1"
+        '401':
+          description: Token invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Token JWT d'authentification.
+        Format: `Authorization: Bearer <token>`
+
+  schemas:
+    # ===== SCHÉMAS DE REQUÊTE =====
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9_]+$'
+          description: Nom d'utilisateur unique (alphanumériques et underscore)
+          example: "alice_doe"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: Adresse email valide et unique
+          example: "alice@example.com"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: |
+            Mot de passe sécurisé (min 8 caractères)
+            Doit contenir: majuscule, minuscule, chiffre
+          example: "SecurePass123!"
+      example:
+        username: "alice_doe"
+        email: "alice@example.com"
+        password: "SecurePass123!"
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Adresse email du compte
+          example: "alice@example.com"
+        password:
+          type: string
+          description: Mot de passe du compte
+          example: "SecurePass123!"
+        remember_me:
+          type: boolean
+          default: false
+          description: Étendre la durée de vie du refresh token (30 jours)
+          example: false
+      example:
+        email: "alice@example.com"
+        password: "SecurePass123!"
+
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Token de rafraîchissement JWT
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    LogoutRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Token de rafraîchissement à révoquer
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        all_devices:
+          type: boolean
+          default: false
+          description: Déconnecter tous les appareils de l'utilisateur
+          example: false
+
+    # ===== SCHÉMAS DE RÉPONSE =====
+    SuccessResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Indicateur de succès
+          example: true
+        message:
+          type: string
+          description: Message descriptif
+          example: "Operation completed successfully"
+        data:
+          type: object
+          description: Données de réponse (varie selon l'endpoint)
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Indicateur d'erreur
+          example: false
+        message:
+          type: string
+          description: Message d'erreur
+          example: "An error occurred"
+        error_code:
+          type: string
+          description: Code d'erreur spécifique
+          example: "VALIDATION_ERROR"
+        details:
+          type: array
+          description: Détails des erreurs de validation
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Champ en erreur
+              message:
+                type: string
+                description: Message d'erreur pour ce champ
+        retry_after:
+          type: integer
+          description: Secondes à attendre avant de réessayer (rate limiting)
+          example: 600
+
+    UserCreatedResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: ID unique de l'utilisateur créé
+          example: 123
+        username:
+          type: string
+          description: Nom d'utilisateur
+          example: "alice_doe"
+        email:
+          type: string
+          description: Adresse email
+          example: "alice@example.com"
+        created_at:
+          type: string
+          format: date-time
+          description: Date de création du compte
+          example: "2024-01-15T10:30:00Z"
+        role:
+          type: string
+          enum: [user, admin, super_admin]
+          description: Rôle de l'utilisateur
+          example: "user"
+        is_verified:
+          type: boolean
+          description: Statut de vérification email
+          example: false
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Token d'accès JWT (valide 1h)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        refresh_token:
+          type: string
+          description: Token de rafraîchissement (valide 7-30 jours)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          description: Type de token
+          example: "Bearer"
+        expires_in:
+          type: integer
+          description: Durée de validité du token d'accès (secondes)
+          example: 3600
+        user:
+          $ref: '#/components/schemas/UserProfile'
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: Nouveau token d'accès JWT
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          description: Type de token
+          example: "Bearer"
+        expires_in:
+          type: integer
+          description: Durée de validité (secondes)
+          example: 3600
+        refresh_token:
+          type: string
+          description: Nouveau refresh token (rotation activée)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID unique de l'utilisateur
+          example: 123
+        username:
+          type: string
+          description: Nom d'utilisateur
+          example: "alice_doe"
+        email:
+          type: string
+          description: Adresse email
+          example: "alice@example.com"
+        role:
+          type: string
+          enum: [user, admin, super_admin]
+          description: Rôle de l'utilisateur
+          example: "user"
+        avatar_url:
+          type: string
+          format: uri
+          description: URL de l'avatar
+          example: "https://cdn.veza.app/avatars/123.jpg"
+        created_at:
+          type: string
+          format: date-time
+          description: Date de création du compte
+          example: "2024-01-15T10:30:00Z"
+        last_login:
+          type: string
+          format: date-time
+          description: Dernière connexion
+          example: "2024-01-20T15:45:00Z"
+        preferences:
+          type: object
+          description: Préférences utilisateur
+          properties:
+            theme:
+              type: string
+              enum: [light, dark, auto]
+              description: Thème de l'interface
+              example: "dark"
+            language:
+              type: string
+              description: Langue préférée (ISO 639-1)
+              example: "fr"
+            notifications:
+              type: boolean
+              description: Notifications activées
+              example: true
+        stats:
+          type: object
+          description: Statistiques utilisateur
+          properties:
+            tracks_uploaded:
+              type: integer
+              description: Nombre de tracks uploadées
+              example: 15
+            total_plays:
+              type: integer
+              description: Total d'écoutes
+              example: 1234
+            followers:
+              type: integer
+              description: Nombre d'abonnés
+              example: 89
+            following:
+              type: integer
+              description: Nombre d'abonnements
+              example: 156
+
+    AuthTestResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: ID de l'utilisateur authentifié
+          example: 123
+        username:
+          type: string
+          description: Nom d'utilisateur
+          example: "alice_doe"
+        role:
+          type: string
+          description: Rôle de l'utilisateur
+          example: "user"
+        issued_at:
+          type: integer
+          description: Timestamp d'émission du token
+          example: 1705756800
+        service:
+          type: string
+          description: Service émetteur du token
+          example: "backend-go"
+        endpoints:
+          type: object
+          description: URLs des services connectés
+          properties:
+            chat_ws:
+              type: string
+              description: WebSocket du serveur de chat
+              example: "ws://10.5.191.108:3001/ws"
+            stream_ws:
+              type: string
+              description: WebSocket du serveur de streaming
+              example: "ws://10.5.191.188:3002/ws"
+            api_rest:
+              type: string
+              description: API REST backend
+              example: "http://10.5.191.175:8080/api/v1"
+
+  # ===== EXEMPLES RÉUTILISABLES =====
+  examples:
+    BasicUser:
+      summary: Utilisateur basique
+      value:
+        username: "alice_doe"
+        email: "alice@example.com"
+        password: "SecurePass123!"
+    
+    MusicianUser:
+      summary: Musicien/Producteur
+      value:
+        username: "dj_producer"
+        email: "dj@musiclabel.com"
+        password: "MusicLover2024!"
+    
+    AdminUser:
+      summary: Administrateur
+      value:
+        username: "admin_user"
+        email: "admin@veza.app"
+        password: "AdminSecure123!"
+
+  # ===== PARAMÈTRES RÉUTILISABLES =====
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Numéro de page (commence à 1)
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+    
+    LimitParam:
+      name: limit
+      in: query
+      description: Nombre d'éléments par page
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      example: 20
+    
+    SearchParam:
+      name: search
+      in: query
+      description: Terme de recherche
+      required: false
+      schema:
+        type: string
+        maxLength: 255
+      example: "alice"
+
+tags:
+  - name: Authentification
+    description: |
+      Endpoints d'authentification et gestion des sessions.
+      
+      Comprend l'inscription, connexion, déconnexion, 
+      gestion des tokens JWT et OAuth2.
+  
+  - name: Utilisateurs
+    description: |
+      Gestion des profils utilisateurs et opérations associées.
+      
+      Profils, préférences, avatars, recherche d'utilisateurs.
+  
+  - name: Administration
+    description: |
+      Endpoints d'administration nécessitant des privilèges élevés.
+      
+      Tableaux de bord, gestion des utilisateurs, analytiques.
+  
+  - name: Tracks
+    description: |
+      Gestion des pistes audio et métadonnées associées.
+      
+      Upload, streaming, tags, statistiques d'écoute.
+  
+  - name: Chat
+    description: |
+      Fonctionnalités de chat temps réel.
+      
+      Messages directs, salons publics/privés, WebSocket.
+  
+  - name: Recherche
+    description: |
+      Moteur de recherche global et filtres avancés.
+      
+      Recherche de contenu, utilisateurs, autocomplétion.
+
+# ===== EXTENSIONS OPENAPI =====
+x-veza-api:
+  version: "2.0.0"
+  environment: "development"
+  rate_limits:
+    global: "100/minute"
+    auth: "5/minute"
+    upload: "10/hour"
+  websocket_endpoints:
+    - path: "/ws/chat"
+      description: "Chat temps réel"
+    - path: "/ws/notifications"
+      description: "Notifications push"
+  monitoring:
+    health_check: "/health"
+    metrics: "/metrics"
+    ready: "/ready" 

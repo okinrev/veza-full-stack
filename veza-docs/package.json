@@ -1,0 +1,61 @@
+{
+  "name": "veza-docs",
+  "version": "1.0.0",
+  "description": "Documentation complète de la plateforme Veza",
+  "private": true,
+  "scripts": {
+    "docusaurus": "docusaurus",
+    "start": "docusaurus start",
+    "build": "docusaurus build",
+    "swizzle": "docusaurus swizzle",
+    "deploy": "docusaurus deploy",
+    "clear": "docusaurus clear",
+    "serve": "docusaurus serve",
+    "write-translations": "docusaurus write-translations",
+    "write-heading-ids": "docusaurus write-heading-ids",
+    "typecheck": "echo 'TypeScript check skipped'",
+    "validate-markdown": "npx markdownlint 'docs/**/*.md' --fix",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "spellcheck": "cspell \"**/*.{js,jsx,ts,tsx,md,mdx}\"",
+    "validate": "npm run format:check && npm run spellcheck"
+  },
+  "dependencies": {
+    "@docusaurus/core": "3.8.1",
+    "@docusaurus/preset-classic": "3.8.1",
+    "@docusaurus/theme-mermaid": "^3.8.1",
+    "@mdx-js/react": "^3.0.0",
+    "clsx": "^2.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@docusaurus/module-type-aliases": "3.8.1",
+    "@docusaurus/types": "3.8.1",
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "cspell": "^8.6.0",
+    "eslint": "^8.57.0",
+    "markdownlint-cli": "^0.37.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.3.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.5%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

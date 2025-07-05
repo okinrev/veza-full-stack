@@ -1,0 +1,65 @@
+docs/
+├── api
+│   ├── authentication
+│   ├── backend-api.md
+│   ├── endpoints
+│   ├── grpc
+│   └── websocket
+├── architecture
+│   ├── backend
+│   ├── backend-architecture.md
+│   ├── backend-config.md
+│   ├── chat-server
+│   └── stream-server
+├── backend-api
+│   ├── config
+│   ├── proto
+│   ├── scripts
+│   └── src
+│       ├── cmd-server-main.md
+│       └── config-config.md
+├── chat-server
+│   ├── config
+│   ├── proto
+│   ├── scripts
+│   └── src
+│       └── main.md
+├── cross-references
+├── database
+│   ├── migrations
+│   ├── queries
+│   ├── relationships
+│   └── schema.md
+├── deployment
+│   ├── ci-cd
+│   ├── guide.md
+│   └── monitoring
+├── diagrams
+│   ├── architecture-overview.md
+│   └── data-flow.md
+├── guides
+├── index.md
+├── modules
+│   └── dependency-map.md
+├── monitoring
+│   ├── alerts
+│   ├── logs
+│   └── metrics
+├── README.md
+├── reference
+├── security
+│   ├── audit
+│   ├── authentication
+│   └── authorization
+├── stream-server
+│   ├── config
+│   ├── proto
+│   ├── scripts
+│   └── src
+├── testing
+│   ├── integration
+│   ├── performance
+│   └── unit
+└── tkt.txt
+
+49 directories, 14 files
