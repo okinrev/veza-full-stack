@@ -182,7 +182,9 @@ func (s *UserEngagementService) TrackAction(ctx context.Context, action *UserAct
 
 	// Mettre à jour le compteur d'actions de la session
 	updateQuery := `UPDATE user_sessions SET actions = actions + 1 WHERE id = $1`
-	s.db.ExecContext(ctx, updateQuery, action.SessionID)
+	if _, err := s.db.ExecContext(ctx, updateQuery, action.SessionID); err != nil {
+		s.logger.Error("Failed to update session stats", zap.Error(err))
+	}
 
 	return nil
 }

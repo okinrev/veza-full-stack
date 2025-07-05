@@ -487,10 +487,13 @@ func (c *WebSocketConnection) readPump() {
 
 	// Configuration des timeouts
 	c.Conn.SetReadLimit(512)
-	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	if err := c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+		c.Service.logger.Error("Failed to set read deadline", zap.Error(err))
+	}
 	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
-		c.LastActivity = time.Now()
+		if err := c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second)); err != nil {
+			c.Service.logger.Error("Failed to set read deadline", zap.Error(err))
+		}
 		return nil
 	})
 

@@ -12,23 +12,30 @@ import (
 type UserRole string
 
 const (
-	RoleGuest      UserRole = "guest"
-	RoleUser       UserRole = "user"
-	RolePremium    UserRole = "premium"
-	RoleModerator  UserRole = "moderator"
-	RoleAdmin      UserRole = "admin"
-	RoleSuperAdmin UserRole = "superadmin"
+	RoleGuest          UserRole = "guest"
+	UserRoleGuest      UserRole = "guest" // Alias pour compatibilité
+	RoleUser           UserRole = "user"
+	UserRoleUser       UserRole = "user" // Alias pour compatibilité
+	RolePremium        UserRole = "premium"
+	UserRolePremium    UserRole = "premium" // Alias pour compatibilité
+	RoleModerator      UserRole = "moderator"
+	UserRoleModerator  UserRole = "moderator" // Alias pour compatibilité
+	RoleAdmin          UserRole = "admin"
+	UserRoleAdmin      UserRole = "admin" // Alias pour compatibilité
+	RoleSuperAdmin     UserRole = "superadmin"
+	UserRoleSuperAdmin UserRole = "superadmin" // Alias pour compatibilité
 )
 
 // UserStatus définit les statuts possibles pour un utilisateur
 type UserStatus string
 
 const (
-	StatusActive    UserStatus = "active"
-	StatusInactive  UserStatus = "inactive"
-	StatusSuspended UserStatus = "suspended"
-	StatusBanned    UserStatus = "banned"
-	StatusDeleted   UserStatus = "deleted"
+	StatusActive     UserStatus = "active"
+	UserStatusActive UserStatus = "active" // Alias pour compatibilité
+	StatusInactive   UserStatus = "inactive"
+	StatusSuspended  UserStatus = "suspended"
+	StatusBanned     UserStatus = "banned"
+	StatusDeleted    UserStatus = "deleted"
 )
 
 // User représente l'entité utilisateur avec toutes les propriétés
@@ -399,4 +406,36 @@ func containsAtAndDot(email string) bool {
 	}
 
 	return hasAt && hasDot
+}
+
+// ============================================================================
+// MÉTHODES MANQUANTES POUR COMPATIBILITÉ
+// ============================================================================
+
+// ValidatePassword vérifie si le mot de passe fourni correspond au hash
+func (u *User) ValidatePassword(password string) bool {
+	return u.CheckPassword(password)
+}
+
+// HashPassword hash le mot de passe et le définit
+func (u *User) HashPassword(password string) error {
+	return u.SetPassword(password)
+}
+
+// EnableTwoFactor active l'authentification à deux facteurs
+func (u *User) EnableTwoFactor() {
+	u.TwoFactorEnabled = true
+	u.UpdatedAt = time.Now()
+}
+
+// DisableTwoFactor désactive l'authentification à deux facteurs
+func (u *User) DisableTwoFactor() {
+	u.TwoFactorEnabled = false
+	u.TwoFactorSecret = ""
+	u.UpdatedAt = time.Now()
+}
+
+// UpdateUser met à jour les informations de l'utilisateur
+func (u *User) UpdateUser() {
+	u.UpdatedAt = time.Now()
 }

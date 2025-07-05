@@ -137,14 +137,16 @@ func (cm *ChatManager) HandleWebSocket(c *gin.Context) {
 	// Gérer l'envoi des messages
 	go func() {
 		defer func() {
-			client.conn.Close()
+			// Fermer la connexion proprement
+			if err := client.conn.WriteMessage(websocket.CloseMessage, []byte{}); err != nil {
+				// Ignorer l'erreur de fermeture
+			}
 		}()
 
 		for {
 			select {
 			case message, ok := <-client.send:
 				if !ok {
-					client.conn.WriteMessage(websocket.CloseMessage, []byte{})
 					return
 				}
 
@@ -152,7 +154,11 @@ func (cm *ChatManager) HandleWebSocket(c *gin.Context) {
 				if err != nil {
 					return
 				}
-				w.Write(message)
+
+				// Envoyer le message
+				if _, err := w.Write(message); err != nil {
+					// Ignorer l'erreur d'écriture
+				}
 
 				if err := w.Close(); err != nil {
 					return

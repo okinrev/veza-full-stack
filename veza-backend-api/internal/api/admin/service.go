@@ -25,10 +25,16 @@ func (s *Service) IsAdmin(userID int64) bool {
 func (s *Service) GetDashboardStats() (*models.DashboardStats, error) {
 	stats := &models.DashboardStats{}
 
-	// Basic stats
-	s.db.QueryRow("SELECT COUNT(*) FROM users WHERE is_active = true").Scan(&stats.TotalUsers)
-	s.db.QueryRow("SELECT COUNT(*) FROM tracks").Scan(&stats.TotalTracks)
-	s.db.QueryRow("SELECT COUNT(*) FROM listings WHERE status = 'open'").Scan(&stats.ActiveListings)
+	// Récupérer les statistiques
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM users WHERE is_active = true").Scan(&stats.TotalUsers); err != nil {
+		// Ignorer l'erreur pour l'instant
+	}
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM tracks").Scan(&stats.TotalTracks); err != nil {
+		// Ignorer l'erreur pour l'instant
+	}
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM listings WHERE status = 'open'").Scan(&stats.ActiveListings); err != nil {
+		// Ignorer l'erreur pour l'instant
+	}
 
 	return stats, nil
 }

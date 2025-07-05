@@ -84,6 +84,13 @@ type JWTConfig struct {
 	Expiry        time.Duration `json:"expiry"`
 	RefreshExpiry time.Duration `json:"refresh_expiry"`
 	Issuer        string        `json:"issuer"`
+
+	// Rotation des secrets
+	RotationEnabled    bool          `json:"rotation_enabled"`
+	RotationInterval   time.Duration `json:"rotation_interval"`
+	SecretHistorySize  int           `json:"secret_history_size"`
+	CurrentSecretIndex int           `json:"current_secret_index"`
+	SecretHistory      []string      `json:"-"` // Historique des secrets
 }
 
 // OAuth2Config configuration OAuth2
@@ -308,6 +315,13 @@ func LoadConfig() (*Config, error) {
 			Expiry:        getEnvAsDuration("JWT_EXPIRY", "15m"),
 			RefreshExpiry: getEnvAsDuration("JWT_REFRESH_EXPIRY", "7d"),
 			Issuer:        getEnv("JWT_ISSUER", "veza-api"),
+
+			// Configuration rotation des secrets
+			RotationEnabled:    getEnvAsBool("JWT_ROTATION_ENABLED", true),
+			RotationInterval:   getEnvAsDuration("JWT_ROTATION_INTERVAL", "24h"),
+			SecretHistorySize:  getEnvAsInt("JWT_SECRET_HISTORY_SIZE", 5),
+			CurrentSecretIndex: 0,
+			SecretHistory:      []string{},
 		},
 
 		OAuth: OAuth2Config{
@@ -453,9 +467,23 @@ func LoadConfig() (*Config, error) {
 
 // Validate valide la configuration
 func (c *Config) Validate() error {
+	// Validation JWT
 	if c.JWT.Secret == "" || c.JWT.Secret == "your-super-secret-jwt-key-change-in-production" {
 		if c.Server.Environment == "production" {
 			return fmt.Errorf("JWT secret must be set in production")
+		}
+	}
+
+	// Validation rotation JWT
+	if c.JWT.RotationEnabled {
+		if c.JWT.RotationInterval < time.Hour {
+			return fmt.Errorf("JWT rotation interval must be at least 1 hour")
+		}
+		if c.JWT.SecretHistorySize < 2 {
+			return fmt.Errorf("JWT secret history size must be at least 2")
+		}
+		if c.JWT.SecretHistorySize > 10 {
+			return fmt.Errorf("JWT secret history size must not exceed 10")
 		}
 	}
 

@@ -158,6 +158,30 @@ func (r *userRepositoryComplete) GetByUUID(ctx context.Context, uuid string) (*e
 	return user, nil
 }
 
+// DeletePasswordResetToken supprime le token de réinitialisation de mot de passe
+func (r *userRepositoryComplete) DeletePasswordResetToken(ctx context.Context, userID int64) error {
+	query := `
+		DELETE FROM password_reset_tokens 
+		WHERE user_id = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("suppression token réinitialisation: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification suppression token: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("token non trouvé")
+	}
+
+	return nil
+}
+
 // GetByEmail récupère un utilisateur par son email
 func (r *userRepositoryComplete) GetByEmail(ctx context.Context, email string) (*entities.User, error) {
 	cacheKey := fmt.Sprintf("user:email:%s", email)
@@ -1036,4 +1060,799 @@ func (r *userRepositoryComplete) invalidateUserCaches(ctx context.Context, userI
 // invalidateUserCache invalide le cache par ID
 func (r *userRepositoryComplete) invalidateUserCache(ctx context.Context, userID int64) {
 	r.cache.Delete(ctx, fmt.Sprintf("user:id:%d", userID))
+}
+
+// CreateUser alias pour Create
+func (r *userRepositoryComplete) CreateUser(ctx context.Context, user *entities.User) error {
+	return r.Create(ctx, user)
+}
+
+// GetUserByID alias pour GetByID
+func (r *userRepositoryComplete) GetUserByID(ctx context.Context, id int64) (*entities.User, error) {
+	return r.GetByID(ctx, id)
+}
+
+// GetUserByEmail alias pour GetByEmail
+func (r *userRepositoryComplete) GetUserByEmail(ctx context.Context, email string) (*entities.User, error) {
+	return r.GetByEmail(ctx, email)
+}
+
+// SetTwoFactorSecret définit le secret 2FA d'un utilisateur
+func (r *userRepositoryComplete) SetTwoFactorSecret(ctx context.Context, userID int64, secret string) error {
+	query := `
+		UPDATE users 
+		SET two_factor_secret = $2, updated_at = $3
+		WHERE id = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, userID, secret, time.Now())
+	if err != nil {
+		return fmt.Errorf("mise à jour secret 2FA: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification mise à jour 2FA: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("utilisateur non trouvé")
+	}
+
+	r.invalidateUserCache(ctx, userID)
+	return nil
+}
+
+// GetTwoFactorSecret récupère le secret 2FA d'un utilisateur
+func (r *userRepositoryComplete) GetTwoFactorSecret(ctx context.Context, userID int64) (string, error) {
+	query := `
+		SELECT two_factor_secret 
+		FROM users 
+		WHERE id = $1
+	`
+
+	var secret string
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&secret)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("utilisateur non trouvé")
+		}
+		return "", fmt.Errorf("récupération secret 2FA: %w", err)
+	}
+
+	return secret, nil
+}
+
+// SetRecoveryCodes définit les codes de récupération 2FA
+func (r *userRepositoryComplete) SetRecoveryCodes(ctx context.Context, userID int64, codes []string) error {
+	query := `
+		UPDATE users 
+		SET two_factor_recovery_codes = $2, updated_at = $3
+		WHERE id = $1
+	`
+
+	codesStr := fmt.Sprintf("%v", codes)
+	result, err := r.db.ExecContext(ctx, query, userID, codesStr, time.Now())
+	if err != nil {
+		return fmt.Errorf("mise à jour codes de récupération: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification mise à jour codes: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("utilisateur non trouvé")
+	}
+
+	r.invalidateUserCache(ctx, userID)
+	return nil
+}
+
+// CreateSession crée une nouvelle session utilisateur
+func (r *userRepositoryComplete) CreateSession(ctx context.Context, session *repositories.UserSession) error {
+	query := `
+		INSERT INTO user_sessions (
+			user_id, session_token, refresh_token, device_info, ip_address, 
+			user_agent, location, is_active, last_activity, expires_at, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id
+	`
+
+	err := r.db.QueryRowContext(ctx, query,
+		session.UserID, session.SessionToken, session.RefreshToken,
+		session.DeviceInfo, session.IPAddress, session.UserAgent,
+		session.Location, session.IsActive, session.LastActivity,
+		session.ExpiresAt, session.CreatedAt,
+	).Scan(&session.ID)
+
+	if err != nil {
+		return fmt.Errorf("création session: %w", err)
+	}
+
+	return nil
+}
+
+// GetSession récupère une session par token
+func (r *userRepositoryComplete) GetSession(ctx context.Context, sessionToken string) (*repositories.UserSession, error) {
+	query := `
+		SELECT id, user_id, session_token, refresh_token, device_info, ip_address,
+		       user_agent, location, is_active, last_activity, expires_at, created_at
+		FROM user_sessions 
+		WHERE session_token = $1 AND is_active = true
+	`
+
+	session := &repositories.UserSession{}
+	err := r.db.QueryRowContext(ctx, query, sessionToken).Scan(
+		&session.ID, &session.UserID, &session.SessionToken, &session.RefreshToken,
+		&session.DeviceInfo, &session.IPAddress, &session.UserAgent,
+		&session.Location, &session.IsActive, &session.LastActivity,
+		&session.ExpiresAt, &session.CreatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("récupération session: %w", err)
+	}
+
+	return session, nil
+}
+
+// UpdateSession met à jour une session
+func (r *userRepositoryComplete) UpdateSession(ctx context.Context, sessionToken string, lastActivity time.Time) error {
+	query := `
+		UPDATE user_sessions 
+		SET last_activity = $2, updated_at = $3
+		WHERE session_token = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, sessionToken, lastActivity, time.Now())
+	if err != nil {
+		return fmt.Errorf("mise à jour session: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification mise à jour session: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("session non trouvée")
+	}
+
+	return nil
+}
+
+// InvalidateSession invalide une session
+func (r *userRepositoryComplete) InvalidateSession(ctx context.Context, sessionToken string) error {
+	query := `
+		UPDATE user_sessions 
+		SET is_active = false, updated_at = $2
+		WHERE session_token = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, sessionToken, time.Now())
+	if err != nil {
+		return fmt.Errorf("invalidation session: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification invalidation: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("session non trouvée")
+	}
+
+	return nil
+}
+
+// InvalidateAllUserSessions invalide toutes les sessions d'un utilisateur
+func (r *userRepositoryComplete) InvalidateAllUserSessions(ctx context.Context, userID int64) error {
+	query := `
+		UPDATE user_sessions 
+		SET is_active = false, updated_at = $2
+		WHERE user_id = $1
+	`
+
+	_, err := r.db.ExecContext(ctx, query, userID, time.Now())
+	if err != nil {
+		return fmt.Errorf("invalidation toutes sessions: %w", err)
+	}
+
+	return nil
+}
+
+// GetUserSessions récupère toutes les sessions d'un utilisateur
+func (r *userRepositoryComplete) GetUserSessions(ctx context.Context, userID int64) ([]*repositories.UserSession, error) {
+	query := `
+		SELECT id, user_id, session_token, refresh_token, device_info, ip_address,
+		       user_agent, location, is_active, last_activity, expires_at, created_at
+		FROM user_sessions 
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("récupération sessions utilisateur: %w", err)
+	}
+	defer rows.Close()
+
+	var sessions []*repositories.UserSession
+	for rows.Next() {
+		session := &repositories.UserSession{}
+		err := rows.Scan(
+			&session.ID, &session.UserID, &session.SessionToken, &session.RefreshToken,
+			&session.DeviceInfo, &session.IPAddress, &session.UserAgent,
+			&session.Location, &session.IsActive, &session.LastActivity,
+			&session.ExpiresAt, &session.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan session: %w", err)
+		}
+		sessions = append(sessions, session)
+	}
+
+	return sessions, nil
+}
+
+// RevokeRefreshToken révoque un token de rafraîchissement
+func (r *userRepositoryComplete) RevokeRefreshToken(ctx context.Context, refreshToken string) error {
+	query := `
+		UPDATE user_sessions 
+		SET is_active = false, updated_at = $2
+		WHERE refresh_token = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, refreshToken, time.Now())
+	if err != nil {
+		return fmt.Errorf("révocation token: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification révocation: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("token non trouvé")
+	}
+
+	return nil
+}
+
+// RevokeAllUserTokens révoque tous les tokens d'un utilisateur
+func (r *userRepositoryComplete) RevokeAllUserTokens(ctx context.Context, userID int64) error {
+	query := `
+		UPDATE user_sessions 
+		SET is_active = false, updated_at = $2
+		WHERE user_id = $1
+	`
+
+	_, err := r.db.ExecContext(ctx, query, userID, time.Now())
+	if err != nil {
+		return fmt.Errorf("révocation tous tokens: %w", err)
+	}
+
+	return nil
+}
+
+// GetUserPermissions récupère les permissions d'un utilisateur
+func (r *userRepositoryComplete) GetUserPermissions(ctx context.Context, userID int64) ([]repositories.UserPermission, error) {
+	query := `
+		SELECT id, user_id, resource, action, granted_at, granted_by, expires_at
+		FROM user_permissions 
+		WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("récupération permissions: %w", err)
+	}
+	defer rows.Close()
+
+	var permissions []repositories.UserPermission
+	for rows.Next() {
+		permission := repositories.UserPermission{}
+		err := rows.Scan(
+			&permission.ID, &permission.UserID, &permission.Resource,
+			&permission.Action, &permission.GrantedAt, &permission.GrantedBy,
+			&permission.ExpiresAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan permission: %w", err)
+		}
+		permissions = append(permissions, permission)
+	}
+
+	return permissions, nil
+}
+
+// GrantUserPermission accorde une permission à un utilisateur
+func (r *userRepositoryComplete) GrantUserPermission(ctx context.Context, userID int64, permission repositories.UserPermission) error {
+	query := `
+		INSERT INTO user_permissions (
+			user_id, resource, action, granted_at, granted_by, expires_at
+		) VALUES ($1, $2, $3, $4, $5, $6)
+	`
+
+	_, err := r.db.ExecContext(ctx, query,
+		userID, permission.Resource, permission.Action,
+		permission.GrantedAt, permission.GrantedBy, permission.ExpiresAt,
+	)
+	if err != nil {
+		return fmt.Errorf("octroi permission: %w", err)
+	}
+
+	return nil
+}
+
+// RevokeUserPermission révoque une permission d'un utilisateur
+func (r *userRepositoryComplete) RevokeUserPermission(ctx context.Context, userID int64, permission repositories.UserPermission) error {
+	query := `
+		DELETE FROM user_permissions 
+		WHERE user_id = $1 AND resource = $2 AND action = $3
+	`
+
+	result, err := r.db.ExecContext(ctx, query, userID, permission.Resource, permission.Action)
+	if err != nil {
+		return fmt.Errorf("révocation permission: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification révocation: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("permission non trouvée")
+	}
+
+	return nil
+}
+
+// IsRoomMember vérifie si un utilisateur est membre d'une room
+func (r *userRepositoryComplete) IsRoomMember(ctx context.Context, roomID, userID int64) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM room_members 
+			WHERE room_id = $1 AND user_id = $2 AND status = 'active'
+		)
+	`
+
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, roomID, userID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("vérification membre room: %w", err)
+	}
+
+	return exists, nil
+}
+
+// UpdatePreferences met à jour les préférences d'un utilisateur
+func (r *userRepositoryComplete) UpdatePreferences(ctx context.Context, userID int64, preferences *repositories.UserPreferences) error {
+	query := `
+		INSERT INTO user_preferences (
+			user_id, theme, language, timezone, notification_settings, 
+			privacy_settings, audio_settings, chat_settings, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		ON CONFLICT (user_id) DO UPDATE SET
+			theme = EXCLUDED.theme,
+			language = EXCLUDED.language,
+			timezone = EXCLUDED.timezone,
+			notification_settings = EXCLUDED.notification_settings,
+			privacy_settings = EXCLUDED.privacy_settings,
+			audio_settings = EXCLUDED.audio_settings,
+			chat_settings = EXCLUDED.chat_settings,
+			updated_at = EXCLUDED.updated_at
+	`
+
+	notificationSettings := fmt.Sprintf("%v", preferences.NotificationSettings)
+	privacySettings := fmt.Sprintf("%v", preferences.PrivacySettings)
+	audioSettings := fmt.Sprintf("%v", preferences.AudioSettings)
+	chatSettings := fmt.Sprintf("%v", preferences.ChatSettings)
+
+	_, err := r.db.ExecContext(ctx, query,
+		userID, preferences.Theme, preferences.Language, preferences.Timezone,
+		notificationSettings, privacySettings, audioSettings, chatSettings,
+		preferences.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("mise à jour préférences: %w", err)
+	}
+
+	return nil
+}
+
+// GetPreferences récupère les préférences d'un utilisateur
+func (r *userRepositoryComplete) GetPreferences(ctx context.Context, userID int64) (*repositories.UserPreferences, error) {
+	query := `
+		SELECT user_id, theme, language, timezone, notification_settings,
+		       privacy_settings, audio_settings, chat_settings, updated_at
+		FROM user_preferences 
+		WHERE user_id = $1
+	`
+
+	preferences := &repositories.UserPreferences{}
+	var notificationSettings, privacySettings, audioSettings, chatSettings string
+
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(
+		&preferences.UserID, &preferences.Theme, &preferences.Language,
+		&preferences.Timezone, &notificationSettings, &privacySettings,
+		&audioSettings, &chatSettings, &preferences.UpdatedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return &repositories.UserPreferences{
+				UserID:    userID,
+				Theme:     "light",
+				Language:  "en",
+				Timezone:  "UTC",
+				UpdatedAt: time.Now(),
+			}, nil
+		}
+		return nil, fmt.Errorf("récupération préférences: %w", err)
+	}
+
+	return preferences, nil
+}
+
+// CreateAuditLog crée un log d'audit
+func (r *userRepositoryComplete) CreateAuditLog(ctx context.Context, log *repositories.UserAuditLog) error {
+	query := `
+		INSERT INTO user_audit_logs (
+			user_id, action, resource, resource_id, details, ip_address, 
+			user_agent, success, error_message, created_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		RETURNING id
+	`
+
+	err := r.db.QueryRowContext(ctx, query,
+		log.UserID, log.Action, log.Resource, log.ResourceID,
+		log.Details, log.IPAddress, log.UserAgent, log.Success,
+		log.ErrorMessage, log.CreatedAt,
+	).Scan(&log.ID)
+
+	if err != nil {
+		return fmt.Errorf("création log audit: %w", err)
+	}
+
+	return nil
+}
+
+// GetUserAuditLogs récupère les logs d'audit d'un utilisateur
+func (r *userRepositoryComplete) GetUserAuditLogs(ctx context.Context, userID int64, limit, offset int) ([]*repositories.UserAuditLog, error) {
+	query := `
+		SELECT id, user_id, action, resource, resource_id, details, ip_address,
+		       user_agent, success, error_message, created_at
+		FROM user_audit_logs 
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("récupération logs audit: %w", err)
+	}
+	defer rows.Close()
+
+	var logs []*repositories.UserAuditLog
+	for rows.Next() {
+		log := &repositories.UserAuditLog{}
+		err := rows.Scan(
+			&log.ID, &log.UserID, &log.Action, &log.Resource, &log.ResourceID,
+			&log.Details, &log.IPAddress, &log.UserAgent, &log.Success,
+			&log.ErrorMessage, &log.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan log audit: %w", err)
+		}
+		logs = append(logs, log)
+	}
+
+	return logs, nil
+}
+
+// AddContact ajoute un contact
+func (r *userRepositoryComplete) AddContact(ctx context.Context, userID, contactID int64) error {
+	query := `
+		INSERT INTO user_contacts (user_id, contact_id, status, created_at)
+		VALUES ($1, $2, 'pending', $3)
+		ON CONFLICT (user_id, contact_id) DO NOTHING
+	`
+
+	_, err := r.db.ExecContext(ctx, query, userID, contactID, time.Now())
+	if err != nil {
+		return fmt.Errorf("ajout contact: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveContact retire un contact
+func (r *userRepositoryComplete) RemoveContact(ctx context.Context, userID, contactID int64) error {
+	query := `
+		DELETE FROM user_contacts 
+		WHERE user_id = $1 AND contact_id = $2
+	`
+
+	result, err := r.db.ExecContext(ctx, query, userID, contactID)
+	if err != nil {
+		return fmt.Errorf("suppression contact: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification suppression: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("contact non trouvé")
+	}
+
+	return nil
+}
+
+// GetContacts récupère les contacts d'un utilisateur
+func (r *userRepositoryComplete) GetContacts(ctx context.Context, userID int64) ([]*entities.User, error) {
+	query := `
+		SELECT u.id, u.uuid, u.username, u.email, u.first_name, u.last_name,
+		       u.display_name, u.avatar, u.bio, u.role, u.status, u.is_online,
+		       u.last_seen, u.created_at, u.updated_at
+		FROM users u
+		JOIN user_contacts uc ON u.id = uc.contact_id
+		WHERE uc.user_id = $1 AND uc.status = 'accepted' AND u.deleted_at IS NULL
+		ORDER BY u.display_name ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("récupération contacts: %w", err)
+	}
+	defer rows.Close()
+
+	var contacts []*entities.User
+	for rows.Next() {
+		contact := &entities.User{}
+		err := rows.Scan(
+			&contact.ID, &contact.UUID, &contact.Username, &contact.Email,
+			&contact.FirstName, &contact.LastName, &contact.DisplayName,
+			&contact.Avatar, &contact.Bio, &contact.Role, &contact.Status,
+			&contact.IsOnline, &contact.LastSeen, &contact.CreatedAt, &contact.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan contact: %w", err)
+		}
+		contacts = append(contacts, contact)
+	}
+
+	return contacts, nil
+}
+
+// BlockUser bloque un utilisateur
+func (r *userRepositoryComplete) BlockUser(ctx context.Context, userID, blockedUserID int64) error {
+	query := `
+		INSERT INTO user_blocks (user_id, blocked_id, created_at)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (user_id, blocked_id) DO NOTHING
+	`
+
+	_, err := r.db.ExecContext(ctx, query, userID, blockedUserID, time.Now())
+	if err != nil {
+		return fmt.Errorf("blocage utilisateur: %w", err)
+	}
+
+	return nil
+}
+
+// UnblockUser débloque un utilisateur
+func (r *userRepositoryComplete) UnblockUser(ctx context.Context, userID, blockedUserID int64) error {
+	query := `
+		DELETE FROM user_blocks 
+		WHERE user_id = $1 AND blocked_id = $2
+	`
+
+	result, err := r.db.ExecContext(ctx, query, userID, blockedUserID)
+	if err != nil {
+		return fmt.Errorf("déblocage utilisateur: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification déblocage: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("blocage non trouvé")
+	}
+
+	return nil
+}
+
+// GetBlockedUsers récupère les utilisateurs bloqués
+func (r *userRepositoryComplete) GetBlockedUsers(ctx context.Context, userID int64) ([]*entities.User, error) {
+	query := `
+		SELECT u.id, u.uuid, u.username, u.email, u.first_name, u.last_name,
+		       u.display_name, u.avatar, u.bio, u.role, u.status, u.is_online,
+		       u.last_seen, u.created_at, u.updated_at
+		FROM users u
+		JOIN user_blocks ub ON u.id = ub.blocked_id
+		WHERE ub.user_id = $1 AND u.deleted_at IS NULL
+		ORDER BY u.display_name ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, fmt.Errorf("récupération utilisateurs bloqués: %w", err)
+	}
+	defer rows.Close()
+
+	var blockedUsers []*entities.User
+	for rows.Next() {
+		user := &entities.User{}
+		err := rows.Scan(
+			&user.ID, &user.UUID, &user.Username, &user.Email,
+			&user.FirstName, &user.LastName, &user.DisplayName,
+			&user.Avatar, &user.Bio, &user.Role, &user.Status,
+			&user.IsOnline, &user.LastSeen, &user.CreatedAt, &user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan utilisateur bloqué: %w", err)
+		}
+		blockedUsers = append(blockedUsers, user)
+	}
+
+	return blockedUsers, nil
+}
+
+// IsBlocked vérifie si un utilisateur est bloqué
+func (r *userRepositoryComplete) IsBlocked(ctx context.Context, userID, otherUserID int64) (bool, error) {
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM user_blocks 
+			WHERE user_id = $1 AND blocked_id = $2
+		)
+	`
+
+	var exists bool
+	err := r.db.QueryRowContext(ctx, query, userID, otherUserID).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("vérification blocage: %w", err)
+	}
+
+	return exists, nil
+}
+
+// ============================================================================
+// MÉTHODES 2FA MANQUANTES
+// ============================================================================
+
+// EnableTwoFactor active l'authentification à deux facteurs
+func (r *userRepositoryComplete) EnableTwoFactor(ctx context.Context, userID int64) error {
+	query := `
+		UPDATE users 
+		SET two_factor_enabled = true, updated_at = $2
+		WHERE id = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, userID, time.Now())
+	if err != nil {
+		return fmt.Errorf("activation 2FA: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification activation 2FA: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("utilisateur non trouvé")
+	}
+
+	r.invalidateUserCache(ctx, userID)
+	return nil
+}
+
+// DisableTwoFactor désactive l'authentification à deux facteurs
+func (r *userRepositoryComplete) DisableTwoFactor(ctx context.Context, userID int64) error {
+	query := `
+		UPDATE users 
+		SET two_factor_enabled = false, two_factor_secret = '', updated_at = $2
+		WHERE id = $1
+	`
+
+	result, err := r.db.ExecContext(ctx, query, userID, time.Now())
+	if err != nil {
+		return fmt.Errorf("désactivation 2FA: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("vérification désactivation 2FA: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("utilisateur non trouvé")
+	}
+
+	r.invalidateUserCache(ctx, userID)
+	return nil
+}
+
+// ============================================================================
+// ALIAS POUR COMPATIBILITÉ
+// ============================================================================
+
+// UpdateUser alias pour Update
+func (r *userRepositoryComplete) UpdateUser(ctx context.Context, user *entities.User) error {
+	return r.Update(ctx, user)
+}
+
+// ============================================================================
+// TOKENS DE RÉINITIALISATION DE MOT DE PASSE
+// ============================================================================
+
+// CreatePasswordResetToken crée un token de réinitialisation de mot de passe
+func (r *userRepositoryComplete) CreatePasswordResetToken(ctx context.Context, userID int64, token string, expiresAt time.Time) error {
+	query := `
+		INSERT INTO password_reset_tokens (
+			user_id, token, expires_at, created_at
+		) VALUES ($1, $2, $3, $4)
+		ON CONFLICT (user_id) DO UPDATE SET
+			token = EXCLUDED.token,
+			expires_at = EXCLUDED.expires_at,
+			created_at = EXCLUDED.created_at
+	`
+
+	_, err := r.db.ExecContext(ctx, query, userID, token, expiresAt, time.Now())
+	if err != nil {
+		return fmt.Errorf("création token réinitialisation: %w", err)
+	}
+
+	return nil
+}
+
+// GetUserByPasswordResetToken récupère un utilisateur par son token de réinitialisation
+func (r *userRepositoryComplete) GetUserByPasswordResetToken(ctx context.Context, token string) (*entities.User, error) {
+	query := `
+		SELECT u.id, u.uuid, u.username, u.email, u.password_hash, u.salt, u.first_name, u.last_name,
+		       u.display_name, u.avatar, u.bio, u.role, u.status, u.email_verified, 
+		       u.email_verification_token, u.two_factor_enabled, u.two_factor_secret,
+		       u.is_online, u.last_seen, u.last_login_ip, u.login_attempts, u.locked_until,
+		       u.timezone, u.language, u.theme, u.created_at, u.updated_at, u.deleted_at,
+		       COALESCE(u.message_count, 0) as message_count,
+		       COALESCE(u.stream_count, 0) as stream_count
+		FROM users u
+		JOIN password_reset_tokens prt ON u.id = prt.user_id
+		WHERE prt.token = $1 AND prt.expires_at > NOW() AND u.deleted_at IS NULL
+	`
+
+	user := &entities.User{}
+	err := r.db.QueryRowContext(ctx, query, token).Scan(
+		&user.ID, &user.UUID, &user.Username, &user.Email,
+		&user.PasswordHash, &user.Salt, &user.FirstName, &user.LastName,
+		&user.DisplayName, &user.Avatar, &user.Bio, &user.Role, &user.Status,
+		&user.EmailVerified, &user.EmailVerificationToken,
+		&user.TwoFactorEnabled, &user.TwoFactorSecret,
+		&user.IsOnline, &user.LastSeen, &user.LastLoginIP,
+		&user.LoginAttempts, &user.LockedUntil, &user.Timezone,
+		&user.Language, &user.Theme, &user.CreatedAt, &user.UpdatedAt,
+		&user.DeletedAt, &user.MessageCount, &user.StreamCount,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("récupération utilisateur par token: %w", err)
+	}
+
+	return user, nil
 }

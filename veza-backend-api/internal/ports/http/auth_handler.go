@@ -16,7 +16,7 @@ import (
 // AuthHandler gère les requêtes d'authentification
 type AuthHandler struct {
 	authService services.AuthService
-	config      *config.AppConfig
+	config      *config.Config
 	logger      *zap.Logger
 	metrics     *prometheus.Registry
 }
@@ -24,7 +24,7 @@ type AuthHandler struct {
 // NewAuthHandler crée un nouveau handler d'authentification
 func NewAuthHandler(
 	authService services.AuthService,
-	config *config.AppConfig,
+	config *config.Config,
 	logger *zap.Logger,
 	metrics *prometheus.Registry,
 ) (*AuthHandler, error) {
@@ -128,7 +128,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			User:         user.ToPublic(),
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
-			ExpiresIn:    int64(h.config.JWT.AccessTTL.Seconds()),
+			ExpiresIn:    int64(h.config.JWT.Expiry.Seconds()),
 		},
 	})
 }
@@ -195,7 +195,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			User:         user.ToPublic(),
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
-			ExpiresIn:    int64(h.config.JWT.AccessTTL.Seconds()),
+			ExpiresIn:    int64(h.config.JWT.Expiry.Seconds()),
 		},
 	})
 }
@@ -243,7 +243,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 			User:         user.ToPublic(),
 			AccessToken:  accessToken,
 			RefreshToken: newRefreshToken,
-			ExpiresIn:    int64(h.config.JWT.AccessTTL.Seconds()),
+			ExpiresIn:    int64(h.config.JWT.Expiry.Seconds()),
 		},
 	})
 }

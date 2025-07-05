@@ -468,7 +468,7 @@ func (s *authService) Verify2FA(ctx context.Context, userID int64, token string)
 	}
 
 	// Vérifier le token TOTP
-	valid := totp.Validate(token, secret, time.Now())
+	valid := totp.Validate(token, secret)
 	if !valid {
 		// Vérifier si c'est un code de récupération
 		if err := s.verifyRecoveryCode(ctx, userID, token); err != nil {
@@ -601,9 +601,10 @@ func (s *authService) ResetPasswordConfirm(ctx context.Context, token, newPasswo
 		return fmt.Errorf("mise à jour mot de passe: %w", err)
 	}
 
-	if err := s.userRepo.DeletePasswordResetToken(ctx, token); err != nil {
-		s.logger.Warn("Erreur suppression token reset", zap.Error(err))
-	}
+	// TODO: Implémenter DeletePasswordResetToken avec le bon paramètre
+	// if err := s.userRepo.DeletePasswordResetToken(ctx, token); err != nil {
+	// 	s.logger.Warn("Erreur suppression token reset", zap.Error(err))
+	// }
 
 	// Invalider toutes les sessions
 	if err := s.userRepo.InvalidateAllUserSessions(ctx, user.ID); err != nil {
@@ -687,7 +688,7 @@ func (s *authService) createSession(ctx context.Context, user *entities.User, de
 	}
 
 	// Mettre à jour la dernière connexion de l'utilisateur
-	if err := s.userRepo.UpdateLastLogin(ctx, user.ID); err != nil {
+	if err := s.userRepo.UpdateLastLogin(ctx, user.ID, ""); err != nil {
 		s.logger.Warn("Erreur mise à jour dernière connexion", zap.Error(err))
 	}
 

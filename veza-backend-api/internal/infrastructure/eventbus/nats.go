@@ -319,7 +319,10 @@ func (e *NATSEventBus) SubscribeChatEvents(handler ChatEventHandler) error {
 		if err := handler(event); err != nil {
 			e.logger.Error("Chat event handler failed", zap.Error(err), zap.String("type", string(event.Type)))
 		} else {
-			msg.Ack()
+			// Acknowledger le message
+			if err := msg.Ack(); err != nil {
+				e.logger.Error("Failed to acknowledge message", zap.Error(err))
+			}
 		}
 	}, nats.Durable("chat-events-consumer"))
 
@@ -338,7 +341,10 @@ func (e *NATSEventBus) SubscribeStreamEvents(handler StreamEventHandler) error {
 		if err := handler(event); err != nil {
 			e.logger.Error("Stream event handler failed", zap.Error(err), zap.String("type", string(event.Type)))
 		} else {
-			msg.Ack()
+			// Acknowledger le message
+			if err := msg.Ack(); err != nil {
+				e.logger.Error("Failed to acknowledge message", zap.Error(err))
+			}
 		}
 	}, nats.Durable("stream-events-consumer"))
 
@@ -357,7 +363,10 @@ func (e *NATSEventBus) SubscribeUserEvents(handler UserEventHandler) error {
 		if err := handler(event); err != nil {
 			e.logger.Error("User event handler failed", zap.Error(err), zap.String("type", string(event.Type)))
 		} else {
-			msg.Ack()
+			// Acknowledger le message
+			if err := msg.Ack(); err != nil {
+				e.logger.Error("Failed to acknowledge message", zap.Error(err))
+			}
 		}
 	}, nats.Durable("user-events-consumer"))
 

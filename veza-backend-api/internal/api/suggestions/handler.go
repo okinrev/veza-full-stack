@@ -2,16 +2,12 @@
 package suggestions
 
 import (
-	"net/http"
-	"github.com/okinrev/veza-web-app/internal/utils/response"  // ADD THIS
-    "github.com/okinrev/veza-web-app/internal/common"
-
 	"github.com/gin-gonic/gin"
-	"github.com/okinrev/veza-web-app/internal/middleware"
-	"github.com/okinrev/veza-web-app/internal/common"
+	"github.com/okinrev/veza-web-app/internal/utils/response"
 )
 
-// Dans search/handler.go, tag/handler.go
+type Service struct{}
+
 type Handler struct {
 	service *Service
 }
@@ -24,6 +20,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) GetSuggestions(c *gin.Context) {
 	suggestionType := c.Query("type")
 	query := c.Query("q")
+	_ = query
 
 	var suggestions []map[string]interface{}
 

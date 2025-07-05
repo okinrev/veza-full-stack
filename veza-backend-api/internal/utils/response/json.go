@@ -22,44 +22,77 @@ type Meta struct {
 	TotalPages int `json:"total_pages,omitempty"`
 }
 
-// SuccessJSON envoie une réponse de succès
-func SuccessJSON(w http.ResponseWriter, data interface{}, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	
-	response := APIResponse{
-		Success: true,
-		Data:    data,
-		Message: message,
-	}
-	
-	json.NewEncoder(w).Encode(response)
+type ValidationError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+	Value   string `json:"value,omitempty"`
 }
 
-// ErrorJSON envoie une réponse d'erreur
-func ErrorJSON(w http.ResponseWriter, error string, statusCode int) {
+// SuccessJSON envoie une réponse JSON de succès
+func SuccessJSON(w http.ResponseWriter, data interface{}, message string) {
+	response := APIResponse{
+		Success: true,
+		Message: message,
+		Data:    data,
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// Fallback to plain text if JSON encoding fails
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// ErrorJSON envoie une réponse JSON d'erreur
+func ErrorJSON(w http.ResponseWriter, message string, statusCode int) {
 	response := APIResponse{
 		Success: false,
-		Error:   error,
+		Message: message,
+		Data:    nil,
 	}
-	
-	json.NewEncoder(w).Encode(response)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// Fallback to plain text if JSON encoding fails
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }
 
 // PaginatedJSON envoie une réponse paginée
 func PaginatedJSON(w http.ResponseWriter, data interface{}, meta *Meta, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	
+
 	response := APIResponse{
 		Success: true,
 		Data:    data,
 		Message: message,
 		Meta:    meta,
 	}
-	
-	json.NewEncoder(w).Encode(response)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// Fallback to plain text if JSON encoding fails
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// ValidationErrorJSON envoie une réponse JSON d'erreur de validation
+func ValidationErrorJSON(w http.ResponseWriter, errors []ValidationError) {
+	response := APIResponse{
+		Success: false,
+		Message: "Validation failed",
+		Data:    errors,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusBadRequest)
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		// Fallback to plain text if JSON encoding fails
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
 }

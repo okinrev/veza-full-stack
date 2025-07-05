@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/lib/pq"
 	"github.com/okinrev/veza-web-app/internal/database"
@@ -58,14 +57,14 @@ type UpdateTrackRequest struct {
 }
 
 type TrackStats struct {
-	TrackID     int    `json:"track_id"`
-	Title       string `json:"title"`
-	Artist      string `json:"artist"`
-	Duration    int    `json:"duration_seconds"`
-	PlayCount   int    `json:"play_count"`
-	FileSize    int64  `json:"file_size"`
-	Format      string `json:"format"`
-	CreatedAt   string `json:"created_at"`
+	TrackID   int    `json:"track_id"`
+	Title     string `json:"title"`
+	Artist    string `json:"artist"`
+	Duration  int    `json:"duration_seconds"`
+	PlayCount int    `json:"play_count"`
+	FileSize  int64  `json:"file_size"`
+	Format    string `json:"format"`
+	CreatedAt string `json:"created_at"`
 }
 
 const (
@@ -425,7 +424,7 @@ func (s *trackService) GenerateStreamURL(filename string, userID int) (string, e
 	}
 
 	// Generate signed URL
-	signedURL, err := utils.GenerateSignedURL(filename, userID, s.jwtSecret)
+	signedURL, err := utils.GenerateSignedURL(filename, int64(userID), s.jwtSecret)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate signed URL: %w", err)
 	}

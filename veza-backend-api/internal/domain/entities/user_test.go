@@ -1,9 +1,48 @@
 package entities
 
 import (
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/hex"
 	"testing"
 	"time"
 )
+
+// generateSecureTestPassword génère un mot de passe sécurisé pour les tests
+func generateSecureTestPassword() string {
+	// Générer 16 bytes aléatoires
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(err)
+	}
+	// Convertir en hex et ajouter des caractères spéciaux pour respecter les règles
+	return "Test" + hex.EncodeToString(bytes)[:8] + "!"
+}
+
+// generateSecureTestEmail génère un email de test sécurisé
+func generateSecureTestEmail() string {
+	bytes := make([]byte, 8)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(err)
+	}
+	return "test-" + hex.EncodeToString(bytes)[:8] + "@example.com"
+}
+
+func generateRandomString(length int) string {
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(bytes)[:length]
+}
+
+func generateRandomEmail() string {
+	bytes := make([]byte, 8)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(err)
+	}
+	return "test-" + hex.EncodeToString(bytes) + "@example.com"
+}
 
 func TestNewUser(t *testing.T) {
 	tests := []struct {
@@ -16,36 +55,36 @@ func TestNewUser(t *testing.T) {
 		{
 			name:     "Valid user",
 			username: "testuser",
-			email:    "test@example.com",
-			password: "Password123!",
+			email:    generateSecureTestEmail(),
+			password: generateSecureTestPassword(),
 			wantErr:  false,
 		},
 		{
 			name:     "Invalid username too short",
 			username: "ab",
-			email:    "test@example.com",
-			password: "Password123!",
+			email:    generateSecureTestEmail(),
+			password: generateSecureTestPassword(),
 			wantErr:  true,
 		},
 		{
 			name:     "Invalid email format",
 			username: "testuser",
 			email:    "invalid-email",
-			password: "Password123!",
+			password: generateSecureTestPassword(),
 			wantErr:  true,
 		},
 		{
 			name:     "Invalid password too short",
 			username: "testuser",
-			email:    "test@example.com",
+			email:    generateSecureTestEmail(),
 			password: "123",
 			wantErr:  true,
 		},
 		{
 			name:     "Invalid password no special chars",
 			username: "testuser",
-			email:    "test@example.com",
-			password: "Password123",
+			email:    generateSecureTestEmail(),
+			password: "TestPassword123",
 			wantErr:  true,
 		},
 	}
@@ -153,14 +192,14 @@ func TestUser_ValidatePassword(t *testing.T) {
 		password string
 		wantErr  bool
 	}{
-		{"Valid password", "Password123!", false},
+		{"Valid password", generateSecureTestPassword(), false},
 		{"Valid complex password", "MyStr0ng!Pass", false},
 		{"Empty password", "", true},
 		{"Too short", "Pass1!", true},
-		{"No uppercase", "password123!", true},
-		{"No lowercase", "PASSWORD123!", true},
-		{"No number", "Password!", true},
-		{"No special char", "Password123", true},
+		{"No uppercase", "testpassword123!", true},
+		{"No lowercase", "TESTPASSWORD123!", true},
+		{"No number", "TestPassword!", true},
+		{"No special char", "TestPassword123", true},
 		{"Too long", "ThisPasswordIsWayTooLongForOurSystemAndShouldBeRejectedByTheValidationLogicBecauseItExceedsTheMaximumAllowedLength!", true},
 	}
 

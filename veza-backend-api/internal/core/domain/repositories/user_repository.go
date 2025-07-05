@@ -11,11 +11,15 @@ import (
 type UserRepository interface {
 	// CRUD de base
 	Create(ctx context.Context, user *entities.User) error
+	CreateUser(ctx context.Context, user *entities.User) error // Alias pour Create
 	GetByID(ctx context.Context, id int64) (*entities.User, error)
+	GetUserByID(ctx context.Context, id int64) (*entities.User, error) // Alias pour GetByID
 	GetByUUID(ctx context.Context, uuid string) (*entities.User, error)
 	GetByEmail(ctx context.Context, email string) (*entities.User, error)
+	GetUserByEmail(ctx context.Context, email string) (*entities.User, error) // Alias pour GetByEmail
 	GetByUsername(ctx context.Context, username string) (*entities.User, error)
 	Update(ctx context.Context, user *entities.User) error
+	UpdateUser(ctx context.Context, user *entities.User) error // Alias pour Update
 	Delete(ctx context.Context, id int64) error
 	SoftDelete(ctx context.Context, id int64) error
 
@@ -34,6 +38,11 @@ type UserRepository interface {
 	// Vérification d'email et 2FA
 	UpdateEmailVerification(ctx context.Context, userID int64, verified bool, token string) error
 	UpdateTwoFactor(ctx context.Context, userID int64, enabled bool, secret string) error
+	SetTwoFactorSecret(ctx context.Context, userID int64, secret string) error
+	GetTwoFactorSecret(ctx context.Context, userID int64) (string, error)
+	SetRecoveryCodes(ctx context.Context, userID int64, codes []string) error
+	EnableTwoFactor(ctx context.Context, userID int64) error
+	DisableTwoFactor(ctx context.Context, userID int64) error
 
 	// Gestion des rôles et statuts
 	UpdateRole(ctx context.Context, userID int64, role entities.UserRole) error
@@ -68,6 +77,8 @@ type UserRepository interface {
 	InvalidateSession(ctx context.Context, sessionToken string) error
 	InvalidateAllUserSessions(ctx context.Context, userID int64) error
 	GetUserSessions(ctx context.Context, userID int64) ([]*UserSession, error)
+	RevokeRefreshToken(ctx context.Context, refreshToken string) error
+	RevokeAllUserTokens(ctx context.Context, userID int64) error
 
 	// Audit et logs
 	CreateAuditLog(ctx context.Context, log *UserAuditLog) error
@@ -81,6 +92,17 @@ type UserRepository interface {
 	UnblockUser(ctx context.Context, userID, blockedUserID int64) error
 	GetBlockedUsers(ctx context.Context, userID int64) ([]*entities.User, error)
 	IsBlocked(ctx context.Context, userID, otherUserID int64) (bool, error)
+
+	// Permissions et rôles
+	GetUserPermissions(ctx context.Context, userID int64) ([]UserPermission, error)
+	GrantUserPermission(ctx context.Context, userID int64, permission UserPermission) error
+	RevokeUserPermission(ctx context.Context, userID int64, permission UserPermission) error
+	IsRoomMember(ctx context.Context, roomID, userID int64) (bool, error)
+
+	// Tokens de réinitialisation de mot de passe
+	CreatePasswordResetToken(ctx context.Context, userID int64, token string, expiresAt time.Time) error
+	GetUserByPasswordResetToken(ctx context.Context, token string) (*entities.User, error)
+	DeletePasswordResetToken(ctx context.Context, userID int64) error
 }
 
 // UserStats contient les statistiques d'un utilisateur
@@ -237,6 +259,21 @@ const (
 )
 
 // UserBlock représente un utilisateur bloqué
+// UserPermission représente une permission utilisateur
+type UserPermission struct {
+	ID        int64      `json:"id" db:"id"`
+	UserID    int64      `json:"user_id" db:"user_id"`
+	Resource  string     `json:"resource" db:"resource"`
+	Action    string     `json:"action" db:"action"`
+	GrantedAt time.Time  `json:"granted_at" db:"granted_at"`
+	GrantedBy int64      `json:"granted_by" db:"granted_by"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty" db:"expires_at"`
+
+	// Relations
+	User          *entities.User `json:"user,omitempty"`
+	GrantedByUser *entities.User `json:"granted_by_user,omitempty"`
+}
+
 type UserBlock struct {
 	ID        int64     `json:"id" db:"id"`
 	UserID    int64     `json:"user_id" db:"user_id"`

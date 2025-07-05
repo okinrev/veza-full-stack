@@ -4,8 +4,8 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -112,7 +112,7 @@ func createMigrationsTable(db *DB) error {
 
 // getMigrationFiles returns all .sql files in the migrations directory, sorted
 func getMigrationFiles(dir string) ([]string, error) {
-	files, err := ioutil.ReadDir(dir)
+	files, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func getAppliedMigrations(db *DB) (map[string]bool, error) {
 
 // runMigrationFile executes a single migration file
 func runMigrationFile(db *DB, filePath string) error {
-	content, err := ioutil.ReadFile(filePath)
+	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
 	}

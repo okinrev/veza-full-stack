@@ -8,6 +8,7 @@ import (
 	"github.com/okinrev/veza-web-app/internal/database"
 	"github.com/okinrev/veza-web-app/internal/models"
 	"github.com/okinrev/veza-web-app/internal/utils"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService interface {
@@ -17,6 +18,8 @@ type AuthService interface {
 	Logout(refreshToken string) error
 	VerifyToken(tokenString string) (*TokenClaims, error)
 	GenerateTokenPair(userID int64, username, role string) (*TokenPair, error)
+	HashPassword(password string) (string, error)
+	CheckPassword(hashedPassword, password string) error
 }
 
 type authService struct {
@@ -93,7 +96,7 @@ func (s *authService) Register(req RegisterRequest) (*models.User, error) {
 	}
 
 	// Hash password
-	hashedPassword, err := utils.HashPassword(req.Password)
+	hashedPassword, err := s.HashPassword(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -135,7 +138,7 @@ func (s *authService) Login(req LoginRequest) (*LoginResponse, error) {
 	}
 
 	// Verify password
-	if err := utils.CheckPasswordHash(req.Password, passwordHash); err != nil {
+	if err := s.CheckPassword(passwordHash, req.Password); err != nil {
 		return nil, fmt.Errorf("invalid email or password")
 	}
 
@@ -245,4 +248,21 @@ func (s *authService) storeRefreshToken(userID int64, token string) error {
 	`, userID, token)
 
 	return err
+}
+
+// HashPassword hache un mot de passe avec bcrypt
+func (s *authService) HashPassword(password string) (string, error) {
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("failed to hash password: %w", err)
+	}
+	return string(hashedBytes), nil
+}
+
+// CheckPassword vérifie si un mot de passe correspond au hash
+func (s *authService) CheckPassword(hashedPassword, password string) error {
+	if err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password)); err != nil {
+		return fmt.Errorf("invalid password: %w", err)
+	}
+	return nil
 }

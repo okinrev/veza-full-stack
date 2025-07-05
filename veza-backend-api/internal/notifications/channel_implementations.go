@@ -196,8 +196,8 @@ func (s *SMSServiceImpl) SendSMS(ctx context.Context, notification *Notification
 	// Composer le message SMS (limité à 160 caractères)
 	message := s.formatSMSMessage(notification)
 
-	// TODO: Obtenir le numéro de téléphone de l'utilisateur
-	phoneNumber := fmt.Sprintf("+33600000000") // Temporaire
+	// TODO: Implémenter la logique SMS réelle
+	phoneNumber := "+33600000000" // Temporaire
 
 	// Préparer la requête API
 	payload := map[string]interface{}{

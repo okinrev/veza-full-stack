@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base32"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -19,13 +20,15 @@ import (
 type TotpService struct {
 	db     *database.DB
 	issuer string
+	logger *slog.Logger
 }
 
 // NewTotpService crée une nouvelle instance du service TOTP
-func NewTotpService(db *database.DB) *TotpService {
+func NewTotpService(db *database.DB, logger *slog.Logger) *TotpService {
 	return &TotpService{
 		db:     db,
 		issuer: "Veza",
+		logger: logger,
 	}
 }
 
@@ -117,7 +120,9 @@ func (s *TotpService) Verify2FASetup(userID int64, totpCode string) error {
 	}
 
 	// Supprimer la configuration temporaire
-	s.deleteTemporary2FASetup(userID)
+	if _, err := s.db.Exec("DELETE FROM user_totp_temp WHERE user_id = $1", userID); err != nil {
+		s.logger.Error("Failed to delete temporary setup", "error", err)
+	}
 
 	return nil
 }
@@ -239,7 +244,13 @@ func (s *TotpService) RegenerateBackupCodes(userID int64, password string) ([]st
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				s.logger.Error("Failed to rollback transaction", "error", rollbackErr)
+			}
+		}
+	}()
 
 	// Supprimer anciens codes
 	_, err = tx.Exec("DELETE FROM user_backup_codes WHERE user_id = $1", userID)
@@ -258,7 +269,9 @@ func (s *TotpService) RegenerateBackupCodes(userID int64, password string) ([]st
 		}
 	}
 
-	tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
 	return newCodes, nil
 }
 
@@ -269,7 +282,9 @@ func (s *TotpService) RegenerateBackupCodes(userID int64, password string) ([]st
 // is2FAEnabled vérifie si 2FA est activé pour l'utilisateur
 func (s *TotpService) is2FAEnabled(userID int64) bool {
 	var count int
-	s.db.QueryRow("SELECT COUNT(*) FROM user_totp_secrets WHERE user_id = $1", userID).Scan(&count)
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM user_totp_secrets WHERE user_id = $1", userID).Scan(&count); err != nil {
+		return false
+	}
 	return count > 0
 }
 
@@ -348,7 +363,9 @@ func (s *TotpService) getTemporary2FASetup(userID int64) (*struct {
 
 // deleteTemporary2FASetup supprime la configuration temporaire
 func (s *TotpService) deleteTemporary2FASetup(userID int64) {
-	s.db.Exec("DELETE FROM user_totp_temp WHERE user_id = $1", userID)
+	if _, err := s.db.Exec("DELETE FROM user_totp_temp WHERE user_id = $1", userID); err != nil {
+		s.logger.Error("Failed to delete temporary setup", "error", err)
+	}
 }
 
 // enable2FA active définitivement 2FA
@@ -357,7 +374,13 @@ func (s *TotpService) enable2FA(userID int64, secret string, backupCodes []strin
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err != nil {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil {
+				s.logger.Error("Failed to rollback transaction", "error", rollbackErr)
+			}
+		}
+	}()
 
 	// Insérer secret TOTP
 	_, err = tx.Exec(`
@@ -379,7 +402,10 @@ func (s *TotpService) enable2FA(userID int64, secret string, backupCodes []strin
 		}
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
 }
 
 // getTOTPSecret récupère le secret TOTP de l'utilisateur

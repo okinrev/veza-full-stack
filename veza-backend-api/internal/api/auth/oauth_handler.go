@@ -468,7 +468,9 @@ func (h *OAuthHandler) authenticateOAuthUser(email, username, provider string, u
 // generateSecureState génère un state OAuth2 sécurisé
 func (h *OAuthHandler) generateSecureState() string {
 	bytes := make([]byte, 32)
-	rand.Read(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(err)
+	}
 	return base64.URLEncoding.EncodeToString(bytes)
 }
 
@@ -517,8 +519,10 @@ func (h *OAuthHandler) generateUniqueUsername(base string) string {
 // generateRandomPassword génère un mot de passe aléatoire pour OAuth
 func (h *OAuthHandler) generateRandomPassword() string {
 	bytes := make([]byte, 32)
-	rand.Read(bytes)
-	return base64.URLEncoding.EncodeToString(bytes)
+	if _, err := rand.Read(bytes); err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(bytes)[:32]
 }
 
 // getEnvOrDefault récupère une variable d'environnement avec valeur par défaut

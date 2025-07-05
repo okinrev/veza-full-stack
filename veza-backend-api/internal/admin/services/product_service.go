@@ -65,13 +65,13 @@ func (s *ProductService) CreateProduct(ctx context.Context, req *models.CreatePr
 	}
 
 	// Vérifier que la catégorie existe si spécifiée
-	if req.CategoryID != nil {
-		exists, err := s.repo.CategoryExists(ctx, *req.CategoryID)
+	if req.CategoryID > 0 {
+		exists, err := s.repo.CategoryExists(ctx, int64(req.CategoryID))
 		if err != nil {
 			return nil, fmt.Errorf("failed to check category: %w", err)
 		}
 		if !exists {
-			return nil, fmt.Errorf("category with ID %d does not exist", *req.CategoryID)
+			return nil, fmt.Errorf("category with ID %d does not exist", req.CategoryID)
 		}
 	}
 
@@ -101,8 +101,8 @@ func (s *ProductService) UpdateProduct(ctx context.Context, id int64, req *model
 	}
 
 	// Vérifier la catégorie si spécifiée
-	if req.CategoryID != nil {
-		exists, err := s.repo.CategoryExists(ctx, *req.CategoryID)
+	if req.CategoryID != nil && *req.CategoryID > 0 {
+		exists, err := s.repo.CategoryExists(ctx, int64(*req.CategoryID))
 		if err != nil {
 			return nil, fmt.Errorf("failed to check category: %w", err)
 		}
@@ -160,11 +160,23 @@ func (s *ProductService) DuplicateProduct(ctx context.Context, id int64) (*model
 	// Créer une copie
 	req := &models.CreateProductRequest{
 		Name:        original.Name + " (Copy)",
-		Description: original.Description,
-		Price:       original.Price,
-		CategoryID:  original.CategoryID,
-		Brand:       original.Brand,
+		Description: "",
+		Price:       0,
+		CategoryID:  0,
+		Brand:       "",
 		Status:      "inactive",
+	}
+	if original.Description.Valid {
+		req.Description = original.Description.String
+	}
+	if original.Price.Valid {
+		req.Price = original.Price.Float64
+	}
+	if original.CategoryID.Valid {
+		req.CategoryID = int(original.CategoryID.Int32)
+	}
+	if original.Brand.Valid {
+		req.Brand = original.Brand.String
 	}
 
 	return s.CreateProduct(ctx, req)

@@ -230,15 +230,18 @@ func (h *ProductHandler) BulkUpdateProducts(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	results, err := h.service.BulkUpdateProducts(ctx, req.ProductIDs, &req.Updates)
+	err := h.service.BulkUpdateProducts(ctx, req.ProductIDs, &req.Updates)
 	if err != nil {
 		h.logger.Error("Failed to bulk update products", "error", err)
 		response.ErrorJSON(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	h.logger.Info("Bulk update completed", "updated_count", len(results))
-	response.SuccessJSON(w, results, "Products updated successfully")
+	h.logger.Info("Bulk update completed", "product_count", len(req.ProductIDs))
+	response.SuccessJSON(w, map[string]interface{}{
+		"updated_count": len(req.ProductIDs),
+		"product_ids":   req.ProductIDs,
+	}, "Products updated successfully")
 }
 
 // ExportProducts exporte les produits en CSV

@@ -2,11 +2,8 @@
 package handlers
 
 import (
-	"net/http"
-	"github.com/okinrev/veza-web-app/internal/middleware"
-	"github.com/okinrev/veza-web-app/internal/common"
-
 	"github.com/gin-gonic/gin"
+	"github.com/okinrev/veza-web-app/internal/utils/response"
 )
 
 type AdminHandler struct {

@@ -12,7 +12,11 @@ import (
 
 // NewConnection crée une nouvelle connexion PostgreSQL avec pool optimisé
 func NewConnection(cfg config.DatabaseConfig) (*sql.DB, error) {
-	db, err := sql.Open("postgres", cfg.URL)
+	// Construire l'URL de connexion PostgreSQL
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode)
+
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("erreur ouverture base de données: %w", err)
 	}

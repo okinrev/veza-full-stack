@@ -4,8 +4,9 @@ package listing
 import (
 	"net/http"
 	"strconv"
-	"github.com/okinrev/veza-web-app/internal/utils/response"  // ADD THIS
-    "github.com/okinrev/veza-web-app/internal/common"
+
+	"github.com/okinrev/veza-web-app/internal/common"
+	"github.com/okinrev/veza-web-app/internal/utils/response" // ADD THIS
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,15 +42,15 @@ func (h *Handler) CreateListing(c *gin.Context) {
 
 	// TODO: Sauvegarder en BDD
 	listing := map[string]interface{}{
-		"id":          1,
-		"user_id":     userID,
-		"product_id":  req.ProductID,
-		"description": req.Description,
-		"state":       req.State,
-		"price":       req.Price,
+		"id":           1,
+		"user_id":      userID,
+		"product_id":   req.ProductID,
+		"description":  req.Description,
+		"state":        req.State,
+		"price":        req.Price,
 		"exchange_for": req.ExchangeFor,
-		"status":      "open",
-		"created_at":  "2025-01-01T00:00:00Z",
+		"status":       "open",
+		"created_at":   "2025-01-01T00:00:00Z",
 	}
 
 	response.SuccessJSON(c.Writer, listing, "Listing created successfully")

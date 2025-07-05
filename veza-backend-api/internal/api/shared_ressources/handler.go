@@ -4,14 +4,14 @@ package shared_ressources
 import (
 	"net/http"
 	"strconv"
-	"github.com/okinrev/veza-web-app/internal/middleware"
-	"github.com/okinrev/veza-web-app/internal/utils/response"  // ADD THIS
-    "github.com/okinrev/veza-web-app/internal/common"
 
 	"github.com/gin-gonic/gin"
+	"github.com/okinrev/veza-web-app/internal/common"
+	"github.com/okinrev/veza-web-app/internal/utils/response"
 )
 
-// Dans search/handler.go, tag/handler.go
+type Service struct{}
+
 type Handler struct {
 	service *Service
 }
@@ -87,16 +87,18 @@ func (h *Handler) ListSharedResources(c *gin.Context) {
 
 // SearchSharedResources recherche dans les ressources
 func (h *Handler) SearchSharedResources(c *gin.Context) {
-	query := c.Query("q")
-	resourceType := c.Query("type")
-	tags := c.Query("tags")
-
+	_query := c.Query("q")
+	_resourceType := c.Query("type")
+	_tags := c.Query("tags")
+	_ = _query
+	_ = _resourceType
+	_ = _tags
 	// TODO: Implémenter la recherche
 	results := []map[string]interface{}{
 		{
 			"id":    1,
 			"title": "Found Resource",
-			"type":  resourceType,
+			"type":  _resourceType,
 		},
 	}
 
@@ -166,8 +168,8 @@ func (h *Handler) DeleteSharedResource(c *gin.Context) {
 
 // ServeSharedFile sert un fichier partagé
 func (h *Handler) ServeSharedFile(c *gin.Context) {
-	filename := c.Param("filename")
-	
+	_filename := c.Param("filename")
+	_ = _filename
 	// TODO: Vérifier que le fichier existe et les permissions
 	// Pour l'instant, retourner une erreur
 	response.ErrorJSON(c.Writer, "File serving not implemented yet", http.StatusNotImplemented)

@@ -114,7 +114,7 @@ func (s *authService) Login(ctx context.Context, login, password string) (*entit
 		// Essayer par email
 		user, err = s.userRepo.GetByEmail(ctx, login)
 		if err != nil || user == nil {
-			return nil, errors.New("user not found")
+			return nil, errors.New("utilisateur non trouvé")
 		}
 	}
 
@@ -132,7 +132,7 @@ func (s *authService) Login(ctx context.Context, login, password string) (*entit
 
 	// Vérifier le mot de passe
 	if !s.verifyPassword(password, user.Password) {
-		return nil, errors.New("invalid password")
+		return nil, errors.New("mot de passe incorrect")
 	}
 
 	// Mettre à jour la dernière connexion
@@ -179,7 +179,9 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*e
 	// Vérifier l'expiration
 	if time.Now().Unix() > tokenData.ExpiresAt {
 		// Supprimer le token expiré
-		s.userRepo.RevokeRefreshToken(ctx, refreshToken)
+		if err := s.userRepo.RevokeRefreshToken(ctx, refreshToken); err != nil {
+			s.logger.Error("Failed to revoke refresh token", zap.Error(err))
+		}
 		return nil, "", "", errors.New("token expired")
 	}
 
@@ -214,14 +216,16 @@ func (s *authService) RefreshToken(ctx context.Context, refreshToken string) (*e
 func (s *authService) Logout(ctx context.Context, userID int64) error {
 	// Révoquer tous les tokens de l'utilisateur
 	if err := s.userRepo.RevokeAllUserTokens(ctx, userID); err != nil {
-		s.logger.Error("Erreur révocation tokens", zap.Int64("user_id", userID), zap.Error(err))
+		s.logger.Error("Failed to revoke all user tokens", zap.Error(err))
 		return errors.New("erreur lors de la déconnexion")
 	}
 
 	// Nettoyer le cache si disponible
 	if s.cacheService != nil {
 		cacheKey := s.getUserCacheKey(userID)
-		s.cacheService.Delete(ctx, cacheKey)
+		if err := s.cacheService.Delete(ctx, cacheKey); err != nil {
+			s.logger.Error("Failed to delete from cache", zap.Error(err))
+		}
 	}
 
 	return nil
@@ -248,7 +252,9 @@ func (s *authService) GetUserByID(ctx context.Context, userID int64) (*entities.
 	// Mettre en cache
 	if s.cacheService != nil && user != nil {
 		cacheKey := s.getUserCacheKey(userID)
-		s.cacheService.Set(ctx, cacheKey, user, time.Hour)
+		if err := s.cacheService.Set(ctx, cacheKey, user, time.Hour); err != nil {
+			s.logger.Error("Failed to set cache", zap.Error(err))
+		}
 	}
 
 	return user, nil
@@ -290,12 +296,16 @@ func (s *authService) ChangePassword(ctx context.Context, userID int64, currentP
 	}
 
 	// Révoquer tous les tokens existants pour forcer une nouvelle connexion
-	s.userRepo.RevokeAllUserTokens(ctx, userID)
+	if err := s.userRepo.RevokeAllUserTokens(ctx, userID); err != nil {
+		s.logger.Error("Failed to revoke all user tokens", zap.Error(err))
+	}
 
 	// Nettoyer le cache
 	if s.cacheService != nil {
 		cacheKey := s.getUserCacheKey(userID)
-		s.cacheService.Delete(ctx, cacheKey)
+		if err := s.cacheService.Delete(ctx, cacheKey); err != nil {
+			s.logger.Error("Failed to delete from cache", zap.Error(err))
+		}
 	}
 
 	return nil

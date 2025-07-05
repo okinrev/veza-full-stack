@@ -70,6 +70,7 @@ type Room struct {
 	ID          int64       `json:"id" db:"id"`
 	UUID        string      `json:"uuid" db:"uuid"`
 	Name        string      `json:"name" db:"name"`
+	Slug        string      `json:"slug" db:"slug"`
 	Description string      `json:"description" db:"description"`
 	Type        RoomType    `json:"type" db:"type"`
 	Privacy     RoomPrivacy `json:"privacy" db:"privacy"`
@@ -80,11 +81,17 @@ type Room struct {
 	MaxMembers   int      `json:"max_members" db:"max_members"`
 	RequiredRole UserRole `json:"required_role" db:"required_role"`
 	Password     string   `json:"-" db:"password_hash"`
+	PasswordHash string   `json:"-" db:"password_hash"`
 	Topic        string   `json:"topic" db:"topic"`
 
 	// Propriétaire et modération
 	OwnerID      int64   `json:"owner_id" db:"owner_id"`
+	CreatorID    int64   `json:"creator_id" db:"creator_id"`
 	ModeratorIDs []int64 `json:"moderator_ids" db:"moderator_ids"`
+
+	// Tags et settings
+	Tags     []string               `json:"tags" db:"tags"`
+	Settings map[string]interface{} `json:"settings" db:"settings"`
 
 	// Statistiques
 	MemberCount   int   `json:"member_count" db:"member_count"`
@@ -98,6 +105,7 @@ type Room struct {
 
 	// Relations (chargées séparément)
 	Owner       *User    `json:"owner,omitempty"`
+	Creator     *User    `json:"creator,omitempty"`
 	LastMessage *Message `json:"last_message,omitempty"`
 	Members     []*User  `json:"members,omitempty"`
 }

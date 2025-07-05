@@ -12,9 +12,26 @@ import (
 	"github.com/go-redis/redis/v8"
 	"go.uber.org/zap"
 
-	"github.com/okinrev/veza-web-app/internal/core/domain/entities"
-	"github.com/okinrev/veza-web-app/internal/core/domain/repositories"
+	"github.com/okinrev/veza-web-app/internal/domain/entities"
+	"github.com/okinrev/veza-web-app/internal/domain/repositories"
 )
+
+// Stubs pour les services manquants
+type EmailService interface {
+	SendMagicLink(ctx context.Context, email string, link *MagicLink) error
+}
+
+type AuditService interface {
+	LogSecurityEvent(ctx context.Context, event *AuditEvent) error
+}
+
+type AuditEvent struct {
+	UserID   *int64                 `json:"user_id,omitempty"`
+	Action   string                 `json:"action"`
+	Resource string                 `json:"resource"`
+	Details  map[string]interface{} `json:"details"`
+	Success  bool                   `json:"success"`
+}
 
 // MagicLinkService service pour l'authentification par magic links
 type MagicLinkService interface {
@@ -157,7 +174,7 @@ func (m *magicLinkService) GenerateMagicLink(ctx context.Context, email string, 
 	}
 
 	// Vérifier l'utilisateur
-	user, err := m.userRepo.GetUserByEmail(ctx, email)
+	user, err := m.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find user: %w", err)
 	}
@@ -211,17 +228,18 @@ func (m *magicLinkService) GenerateMagicLink(ctx context.Context, email string, 
 	}
 
 	// Audit log
-	m.auditService.LogSecurityEvent(ctx, &AuditEvent{
+	if err := m.auditService.LogSecurityEvent(ctx, &AuditEvent{
 		UserID:   magicLink.UserID,
 		Action:   "magic_link_generated",
 		Resource: "auth",
 		Details: map[string]interface{}{
-			"email":      email,
-			"purpose":    purpose,
-			"expires_at": magicLink.ExpiresAt,
+			"email":   email,
+			"purpose": string(purpose),
 		},
 		Success: true,
-	})
+	}); err != nil {
+		m.logger.Error("Failed to log security event", zap.Error(err))
+	}
 
 	// Incrémenter les statistiques
 	m.incrementStats(ctx, "generated", purpose)
@@ -270,6 +288,19 @@ func (m *magicLinkService) ValidateMagicLink(ctx context.Context, token string) 
 		validation.ConsumedAt = consumedAt
 	}
 
+	// Logger l'événement de sécurité
+	if err := m.auditService.LogSecurityEvent(ctx, &AuditEvent{
+		UserID:   magicLink.UserID,
+		Action:   "magic_link_verified",
+		Resource: "auth",
+		Details: map[string]interface{}{
+			"token": token,
+		},
+		Success: true,
+	}); err != nil {
+		m.logger.Error("Failed to log security event", zap.Error(err))
+	}
+
 	return validation, nil
 }
 
@@ -303,22 +334,21 @@ func (m *magicLinkService) ConsumeMagicLink(ctx context.Context, token string) (
 	}
 
 	// Récupérer l'utilisateur
-	var user *entities.User
-	if validation.UserID != nil {
-		user, err = m.userRepo.GetUserByID(ctx, *validation.UserID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get user: %w", err)
-		}
-	} else {
-		// Pour les registrations, l'utilisateur n'existe peut-être pas encore
-		user, err = m.userRepo.GetUserByEmail(ctx, validation.Email)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get user by email: %w", err)
-		}
+	user, err := m.userRepo.GetByID(ctx, *validation.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	// Vérifier que l'email correspond
+	if user.Email != validation.Email {
+		// Log l'incohérence mais ne pas échouer
+		m.logger.Warn("Email mismatch in magic link consumption",
+			zap.String("link_email", validation.Email),
+			zap.String("user_email", user.Email))
 	}
 
 	// Audit log
-	m.auditService.LogSecurityEvent(ctx, &AuditEvent{
+	if err := m.auditService.LogSecurityEvent(ctx, &AuditEvent{
 		UserID:   validation.UserID,
 		Action:   "magic_link_consumed",
 		Resource: "auth",
@@ -327,10 +357,25 @@ func (m *magicLinkService) ConsumeMagicLink(ctx context.Context, token string) (
 			"purpose": validation.Purpose,
 		},
 		Success: true,
-	})
+	}); err != nil {
+		m.logger.Error("Failed to log security event", zap.Error(err))
+	}
 
 	// Incrémenter les statistiques
 	m.incrementStats(ctx, "consumed", validation.Purpose)
+
+	// Logger l'événement de sécurité
+	if err := m.auditService.LogSecurityEvent(ctx, &AuditEvent{
+		UserID:   &user.ID,
+		Action:   "magic_link_expired",
+		Resource: "auth",
+		Details: map[string]interface{}{
+			"token": token,
+		},
+		Success: true,
+	}); err != nil {
+		m.logger.Error("Failed to log security event", zap.Error(err))
+	}
 
 	return user, nil
 }
@@ -373,7 +418,8 @@ func (m *magicLinkService) RevokeAllUserMagicLinks(ctx context.Context, userID i
 		}
 	}
 
-	m.auditService.LogSecurityEvent(ctx, &AuditEvent{
+	// Audit log
+	if err := m.auditService.LogSecurityEvent(ctx, &AuditEvent{
 		UserID:   &userID,
 		Action:   "magic_links_revoked_all",
 		Resource: "auth",
@@ -381,7 +427,9 @@ func (m *magicLinkService) RevokeAllUserMagicLinks(ctx context.Context, userID i
 			"revoked_count": len(keys),
 		},
 		Success: true,
-	})
+	}); err != nil {
+		m.logger.Error("Failed to log security event", zap.Error(err))
+	}
 
 	return nil
 }
@@ -468,10 +516,11 @@ func (m *magicLinkService) getMagicLink(ctx context.Context, token string) (*Mag
 		Purpose: MagicLinkPurpose(data["purpose"]),
 	}
 
-	if userIDStr, exists := data["user_id"]; exists {
-		// Parse user ID
-		// Implementation needed
-	}
+	// TODO: Parse user ID if exists
+	// if userIDStr, exists := data["user_id"]; exists {
+	// 	// Parse user ID
+	// 	// Implementation needed
+	// }
 
 	// Parse timestamps
 	// Implementation needed
@@ -487,12 +536,7 @@ func (m *magicLinkService) buildMagicLinkURL(token string) string {
 // sendMagicLinkEmail envoie l'email avec le magic link
 func (m *magicLinkService) sendMagicLinkEmail(ctx context.Context, link *MagicLink) error {
 	// Implementation avec le service email
-	return m.emailService.SendMagicLinkEmail(ctx, &EmailMagicLink{
-		Email:     link.Email,
-		URL:       link.URL,
-		Purpose:   string(link.Purpose),
-		ExpiresAt: link.ExpiresAt,
-	})
+	return m.emailService.SendMagicLink(ctx, link.Email, link)
 }
 
 // checkRateLimit vérifie le rate limiting

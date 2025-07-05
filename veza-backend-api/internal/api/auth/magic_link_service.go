@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base32"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ type MagicLinkService struct {
 	db          *database.DB
 	emailSender EmailSender
 	baseURL     string
+	logger      *slog.Logger
 }
 
 // EmailSender interface pour l'envoi d'emails
@@ -26,11 +28,12 @@ type EmailSender interface {
 }
 
 // NewMagicLinkService crée une nouvelle instance du service Magic Link
-func NewMagicLinkService(db *database.DB, emailSender EmailSender, baseURL string) *MagicLinkService {
+func NewMagicLinkService(db *database.DB, emailSender EmailSender, baseURL string, logger *slog.Logger) *MagicLinkService {
 	return &MagicLinkService{
 		db:          db,
 		emailSender: emailSender,
 		baseURL:     baseURL,
+		logger:      logger,
 	}
 }
 
@@ -161,7 +164,9 @@ func (s *MagicLinkService) ValidateMagicLink(token, ipAddress string) (*LoginRes
 	}
 
 	// Mettre à jour la dernière connexion
-	s.db.Exec("UPDATE users SET updated_at = NOW() WHERE id = $1", user.ID)
+	if _, err := s.db.Exec("UPDATE users SET updated_at = NOW() WHERE id = $1", user.ID); err != nil {
+		s.logger.Error("Failed to update user timestamp", "error", err)
+	}
 
 	// Enregistrer l'événement de connexion pour audit
 	s.recordLoginEvent(int(user.ID), "magic_link", ipAddress, true)
@@ -323,20 +328,34 @@ func (s *MagicLinkService) validateRedirectURL(redirectURL string) string {
 func (s *MagicLinkService) isRateLimited(email string) bool {
 	var count int
 	// Maximum 3 Magic Links par heure
-	s.db.QueryRow(`
+	if err := s.db.QueryRow(`
 		SELECT COUNT(*) FROM magic_links 
 		WHERE email = $1 AND created_at > $2
-	`, email, time.Now().Add(-1*time.Hour)).Scan(&count)
+	`, email, time.Now().Add(-1*time.Hour)).Scan(&count); err != nil {
+		s.logger.Error("Failed to count recent attempts", "error", err)
+		return false
+	}
 
 	return count >= 3
 }
 
 // cleanupExpiredTokens nettoie les tokens expirés
 func (s *MagicLinkService) cleanupExpiredTokens(email string) {
-	s.db.Exec(`
-		DELETE FROM magic_links 
-		WHERE email = $1 AND (expires_at < $2 OR used_at IS NOT NULL)
-	`, email, time.Now())
+	// Nettoyer les anciennes tentatives
+	if _, err := s.db.Exec(`
+		DELETE FROM magic_link_attempts 
+		WHERE created_at < NOW() - INTERVAL '24 hours'
+	`); err != nil {
+		s.logger.Error("Failed to clean old attempts", "error", err)
+	}
+
+	// Nettoyer les tokens expirés
+	if _, err := s.db.Exec(`
+		DELETE FROM magic_link_tokens 
+		WHERE expires_at < NOW()
+	`); err != nil {
+		s.logger.Error("Failed to clean expired tokens", "error", err)
+	}
 }
 
 // recordLoginEvent enregistre un événement de connexion

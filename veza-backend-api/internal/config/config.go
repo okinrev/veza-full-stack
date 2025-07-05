@@ -44,6 +44,13 @@ type JWTConfig struct {
 	RefreshTime     time.Duration
 	RefreshTTL      time.Duration
 	RefreshRotation bool
+	// Configuration de rotation des secrets
+	RotationEnabled    bool
+	RotationInterval   time.Duration
+	SecretHistorySize  int
+	CurrentSecretIndex int
+	SecretHistory      []string
+	Issuer             string
 }
 
 type RedisConfig struct {
@@ -137,6 +144,13 @@ func New() *Config {
 			RefreshTime:     getDurationEnv("JWT_REFRESH_TTL", 7*24*time.Hour),
 			RefreshTTL:      getDurationEnv("JWT_REFRESH_TTL", 7*24*time.Hour),
 			RefreshRotation: getBoolEnv("JWT_REFRESH_ROTATION", true),
+			// Configuration de rotation des secrets
+			RotationEnabled:    getBoolEnv("JWT_ROTATION_ENABLED", false),
+			RotationInterval:   getDurationEnv("JWT_ROTATION_INTERVAL", 24*time.Hour),
+			SecretHistorySize:  getIntEnv("JWT_SECRET_HISTORY_SIZE", 5),
+			CurrentSecretIndex: 0,
+			SecretHistory:      []string{},
+			Issuer:             getEnv("JWT_ISSUER", "veza-backend"),
 		},
 		Redis: RedisConfig{
 			URL:          getEnv("REDIS_URL", ""),
